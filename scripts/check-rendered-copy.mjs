@@ -25,6 +25,9 @@
 // 那个检出自带的 `vue-i18n` 与 Vue 编译器。缺检出时**退出 2**：不明说「跳过」，否则这个闸门会在没跑的
 // 时候显示为绿。`scripts/build-host-ui.sh` 在构建之后调用它，故正常流水线里它总会跑。
 //
+// 解析看不见「算出来的」那一半（`{{ '*' + '*' }}`、`:title="a + '**' + b"`）；姊妹闸
+// `scripts/check-rendered-components.mjs` 把同一份范围内的模板**真挂载**一遍，补的就是那一半。
+//
 // ── English ─────────────────────────────────────────────────────────────────────
 //
 // No rendered line of copy may carry a literal Markdown marker.
@@ -55,18 +58,17 @@
 // because rendering needs that checkout's own `vue-i18n` and Vue compilers. A missing checkout **exits
 // 2** rather than saying "skipped", so this gate cannot read as green when it never ran.
 // `scripts/build-host-ui.sh` calls it after the build, so the normal pipeline always runs it.
-import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
+//
+// A parse cannot see the computed half (`{{ '*' + '*' }}`, `:title="a + '**' + b"`); its sibling
+// `scripts/check-rendered-components.mjs` **mounts** the same templates, which is that half.
+import { readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { MARKERS, deltaVueFiles } from './rendered-copy-scope.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const UI = process.argv[2] || process.env.KEELBASE_YUDAO_UI || join(ROOT, 'target', 'yudao-ui-admin-vue3')
-
-const MARKERS = [
-  ['**', 'paired asterisks (Markdown bold)'],
-  ['`', 'a backtick (Markdown code span)'],
-]
 
 const missing = (what) => {
   console.error(`not run: ${what} is missing under ${UI}`)
@@ -175,38 +177,6 @@ function checkLocales() {
   }
 }
 
-/**
- * 我们这一层铺上去的 `.vue`：覆盖目录里的那些，加上补丁改到的那些。上游自己的模板不在射程内 ——
- * 它带着自己的书写习惯（实测有三处代码生成页的 placeholder 用反引号包字段名），而那不是这一层要改的事；
- * 全树扫描的完整清单见本次提交的说明。射程**写明**，不是为了让它悄悄变绿。
- *
- * The `.vue` files this layer lays down: the overlay's own, plus every one a patch edits. Upstream's own
- * templates are out of scope — they carry their own writing habits (three code-generator pages put a
- * backtick around a field name in a placeholder, measured), and changing those is not this layer's job;
- * the full whole-tree list is in this commit's description. The scope is stated, not quietly shortened.
- */
-function deltaVueFiles() {
-  const files = new Set()
-  const overlay = join(ROOT, 'keelbase-ui', 'host-overlay')
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir)) {
-      const path = join(dir, entry)
-      const stat = statSync(path)
-      if (stat.isDirectory()) walk(path)
-      else if (entry.endsWith('.vue')) files.add(join(UI, relative(overlay, path)))
-    }
-  }
-  walk(overlay)
-
-  const patches = join(ROOT, 'keelbase-ui', 'host-patches')
-  for (const patch of readdirSync(patches).filter((f) => f.endsWith('.patch'))) {
-    for (const line of readFileSync(join(patches, patch), 'utf8').split('\n')) {
-      const match = /^\+\+\+ b\/(.+\.vue)\r?$/.exec(line)
-      if (match) files.add(join(UI, match[1]))
-    }
-  }
-  return [...files]
-}
 
 /**
  * 表达式里**写死**的那几段字。只读源码，不求值：读者看到的字符串可以来自变量，那部分静态看不见。
@@ -253,7 +223,7 @@ const RENDERED_DIRECTIVES = new Set(['bind', 'html', 'text'])
 
 /** 2. Template text and static attribute values, through Vue's own parser. */
 function checkTemplates() {
-  const files = deltaVueFiles()
+  const files = deltaVueFiles(ROOT, UI)
   let expressions = 0
 
   for (const file of files) {

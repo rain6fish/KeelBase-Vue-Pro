@@ -256,12 +256,14 @@ import { useI18n } from 'vue-i18n'
 import { ContentWrap } from '@/components/ContentWrap'
 import {
   auditApi,
+  confirmationApi,
   coverageApi,
   effectApi,
   toolApi,
   type AuditRow,
   type AuthorizationBasis,
   type ChainVerification,
+  type ConfirmationItem,
   type CoverageStatement,
   type EffectRow,
   type ToolInventoryItem,
@@ -278,7 +280,7 @@ import {
 } from '@/keelbase/labels'
 import { resolveCallerNames } from '@/keelbase/callerNames'
 import { maskTitle } from '@/keelbase/mask'
-import { resolveRecordName } from '@/keelbase/recordNames'
+import { resolveRecordName, toolResultType } from '@/keelbase/recordNames'
 import { composeSix, objectLine, zonedTime } from '@/keelbase/sixQuestions.mjs'
 import { timeText } from '@/keelbase/time'
 
@@ -352,6 +354,25 @@ const inventory = ref<Record<string, ToolInventoryItem>>({})
 const effects = ref<EffectRow[]>([])
 
 /**
+ * 确认队列里的一窗，只读 —— 被**扣下**或被**拒**的调用不写台账，但运行时把那次提议记在确认记录里
+ * （工具名 + 它当时要用的参数）。没有这一窗，第三问（哪个业务对象）在**恰恰最该追问**的那次调用上
+ * 只能答「未记录」，尽管库里记着 `{"id":9004,…}`。
+ *
+ * 一句边界，与台账同一条：两条轨之间没有共同的键，故只在「同一工具、五秒之内、恰好一个候选」时才配上；
+ * 配不上就不画，不猜。取的是**最新**一窗（该面按最新在前排，故直接取第 1 页即是新的那一窗）。
+ *
+ * One window of the confirmation queue, read-only — a **held** or **refused** call writes no ledger row,
+ * but the runtime records that proposal in a confirmation record (the tool plus the arguments it would
+ * have run with). Without this window the third question can only say 「未记录」 on exactly the call a
+ * reader most wants to ask about, while the record sits in the database as `{"id":9004,…}`.
+ *
+ * The same boundary as the ledger: the two trails share no key, so a pair is drawn only when it is the
+ * same tool, within five seconds, and **exactly one** candidate; otherwise nothing is drawn rather than a
+ * guess. The **newest** window is read — that face orders newest first, so page 1 is that window.
+ */
+const proposals = ref<ConfirmationItem[]>([])
+
+/**
  * What each matched record is called, asked of this host on the row that needs it. Resolved when a row
  * is opened rather than for the whole page: one request per row a reader actually looks at, and the
  * host is asked only about records the ledger already named.
@@ -361,20 +382,41 @@ const effects = ref<EffectRow[]>([])
  */
 const recordNames = ref<Record<string, string>>({})
 
-/** Ask the host about the row's record once, when the row is opened. */
-/** 行被摊开时，问宿主一次那条记录。 */
+/** Ask the host about a reference once; cached by type and key so re-opening a row costs nothing. */
+/** 问宿主一次某个引用；按类型与主键缓存，再摊开同一行不再发请求。 */
+async function askRecordName(resultType: string | null | undefined, resultId: string | number | null | undefined) {
+  if (resultId === null || resultId === undefined) return
+  const key = `${resultType ?? ''}#${resultId}`
+  if (recordNames.value[key] !== undefined) return
+  const name = await resolveRecordName(resultType, resultId)
+  recordNames.value = { ...recordNames.value, [key]: name }
+}
+
+/**
+ * Ask the host about the row's record once, when the row is opened — **whichever road the row took**: a
+ * write that landed somewhere has a ledger row, and a held or refused call has only its proposal. Both
+ * carry a type and a key; the name comes from the same narrow read face either way.
+ *
+ * 行被摊开时，问宿主一次那条记录 —— **这一行走的哪条路都算**：真写成了的有台账行，被扣下或被拒的只有提议。
+ * 两条路都带着类型与主键，名字来自同一条窄读面。
+ */
 async function onExpand(row: AuditRow) {
   const e = recordOf(row)
-  if (!e || e.resultId === null || e.resultId === undefined) return
-  const key = `${e.resultType ?? ''}#${e.resultId}`
-  if (recordNames.value[key] !== undefined) return
-  const name = await resolveRecordName(e.resultType, e.resultId)
-  recordNames.value = { ...recordNames.value, [key]: name }
+  if (e) {
+    await askRecordName(e.resultType, e.resultId)
+    return
+  }
+  const proposal = proposalArgumentOf(row)
+  if (proposal) await askRecordName(proposal.resultType, proposal.resultId)
 }
 
 /** How many ledger rows to look through when matching. Bounded on purpose, and said on the page. */
 /** 配对时翻多少条台账行。**刻意有界**，并在页面上说出来。 */
 const EFFECT_WINDOW = 50
+
+/** 给被扣下/被拒的调用配对时翻多少条确认记录。同一个上界。 */
+/** How many confirmation records to look through when matching a held or refused call. Same bound. */
+const PROPOSAL_WINDOW = 50
 
 const query = reactive<{ userId: string; isError: string }>({ userId: '', isError: '' })
 
@@ -463,16 +505,13 @@ function whatText(row: AuditRow): string {
 }
 
 /**
- * 这个工具**生效的闸门** —— 六问里第五问（谁确认）就按它回答。它从运行时那条清单读，不在这页里写死：
- * 写死一个「要确认」，就等于本页自己发明了一条治理事实。
+ * 第五问（谁确认）的依据在**每一行自己记下的 `authorization`** 里，由 `gateFromRow` 读 —— 不在这页里
+ * 写死，也不问工具清单：清单答的是**此刻**的闸，而一行审计说的是**当时**那一次。
  *
- * The tool's **effective gate** — the basis of the fifth question (who confirmed). It is read from the
- * inventory the runtime serves, not typed into this page: a hardcoded "asks for confirmation" would be
- * this page inventing a governance fact.
+ * The fifth question's basis is the `authorization` **each row recorded**, read by `gateFromRow` — not
+ * typed into this page, and not asked of the tool inventory: the inventory answers the gate **now**,
+ * while an audit row is about **that one time**.
  */
-function toolGate(row: AuditRow): string {
-  return (row.tool ? inventory.value[row.tool]?.gateMode : '') || ''
-}
 
 /**
  * The write record this row landed on, when **exactly one** candidate matches. The two trails carry no
@@ -493,6 +532,47 @@ function recordOf(row: AuditRow): EffectRow | null {
   return near.length === 1 ? near[0] : null
 }
 
+/**
+ * 这次调用**本来**落在哪条记录上，当它被扣下或被拒时 —— 与 `recordOf` 同一条规则（同一工具、五秒之内、
+ * 恰好一个候选），只是读的是确认记录：台账只记「真的写成了什么」，确认记录记「提议了什么」。
+ *
+ * 时间对哪一端都算：扣下那一刻写的审计行离确认记录的 `createdAt` 近，裁决那一刻写的离 `decidedAt` 近。
+ *
+ * Which record the call **was about** when it was held or refused — the same rule as `recordOf` (same
+ * tool, within five seconds, exactly one candidate), read from the confirmation records: the ledger only
+ * says what was really written, a confirmation says what was proposed.
+ *
+ * Either end of the clock counts: the audit row written when the call was held is near the record's
+ * `createdAt`, and the one written when it was decided is near its `decidedAt`.
+ */
+function proposalOf(row: AuditRow): ConfirmationItem | null {
+  if (!row.tool) return null
+  const at = Date.parse(row.createdAt)
+  const near = proposals.value.filter((c) => {
+    if (c.toolName !== row.tool) return false
+    if (Math.abs(Date.parse(c.createdAt) - at) <= 5000) return true
+    return Boolean(c.decidedAt) && Math.abs(Date.parse(c.decidedAt as string) - at) <= 5000
+  })
+  return near.length === 1 ? near[0] : null
+}
+
+/**
+ * 那次提议的对象，按第三问要的两样给出：记录**类型**（从工具自己的声明查，见 `recordNames`）与主键
+ * （提议参数里的 `id`）。参数里没有 id 的提议（新建类，行当时还不存在）就说不出对象，回 `null`，这一格
+ * 照旧说「未记录」—— 那才是当时的事实。
+ *
+ * The object of that proposal, in the two parts the third question asks for: the record **type** (looked
+ * up from the tool's own declaration, see `recordNames`) and the key (the `id` among the proposed
+ * arguments). A proposal whose arguments carry no id (a create — the row did not exist yet) has no object
+ * to name, so it returns `null` and the cell keeps saying 「未记录」 — which is what was true then.
+ */
+function proposalArgumentOf(row: AuditRow): { resultType: string; resultId: number | string } | null {
+  const proposal = proposalOf(row)
+  const id = proposal?.arguments?.id
+  if (!proposal || id === null || id === undefined) return null
+  return { resultType: toolResultType(proposal.toolName), resultId: id as number | string }
+}
+
 /** Whether that record is still there — read off the ledger row, never re-derived. */
 /** 那条记录**还在不在** —— 按台账行读，绝不自己重算。 */
 function recordState(e: EffectRow): string {
@@ -509,6 +589,16 @@ function hostNowNameOf(e: EffectRow | null): string {
 }
 
 /**
+ * The same answer for a held or refused call's object — no ledger row, so nothing else could name it.
+ *
+ * 被扣下或被拒那次的对象，同样问宿主 —— 它没有台账行，别处没有名字可拿。
+ */
+function proposalNameOf(ref: { resultType: string; resultId: number | string } | null): string {
+  if (!ref) return ''
+  return recordNames.value[`${ref.resultType ?? ''}#${ref.resultId}`] || ''
+}
+
+/**
  * ③ 哪个业务对象，给表格那一列。**业务名 + 业务主键**：运行时的类型名（`crm_customer` 这类）不出现在
  * 读者这一面，控制台不认识的类型说「未登记」而不是把表名印出来。
  *
@@ -518,7 +608,16 @@ function hostNowNameOf(e: EffectRow | null): string {
  */
 function objectOf(row: AuditRow): string {
   const e = recordOf(row)
-  return objectLine({ effect: e, hostNowName: hostNowNameOf(e), mask: maskTitle, t, te }).text
+  const proposal = e ? null : proposalArgumentOf(row)
+  return objectLine({
+    effect: e,
+    proposal,
+    hostNowName: hostNowNameOf(e),
+    proposalName: proposalNameOf(proposal),
+    mask: maskTitle,
+    t,
+    te,
+  }).text
 }
 
 /**
@@ -529,12 +628,14 @@ function objectOf(row: AuditRow): string {
  */
 function sixOf(row: AuditRow) {
   const e = recordOf(row)
+  const proposal = e ? null : proposalArgumentOf(row)
   return composeSix({
     row,
     callerName: row.userId ? callerName(row.userId) : '',
-    gate: toolGate(row),
     effect: e,
+    proposal,
     hostNowName: hostNowNameOf(e),
+    proposalName: proposalNameOf(proposal),
     recordState: e ? recordState(e) : '',
     mask: maskTitle,
     resultWord: resultText(row),
@@ -688,6 +789,18 @@ async function loadRows() {
     const lastPage = Math.max(1, Math.ceil(head.total / EFFECT_WINDOW))
     const ledger = await effectApi.list(lastPage, EFFECT_WINDOW)
     effects.value = ledger.items
+    // 确认队列，给那些从没进过台账的调用用。它有自己的闸（`read Confirmation`），故一个能打开审计页、
+    // 却被那道闸拒的调用方照样拿到这一页：被扣下/被拒的调用第三问说「未记录」，也就是它原来的样子。
+    //
+    // The confirmation queue, for the calls that never reached the ledger. It has its own guard
+    // (`read Confirmation`), so a caller the audit page reaches but that guard refuses still gets the
+    // page: the third question on a held or refused call then says 「未记录」, which is where it was.
+    try {
+      const held = await confirmationApi.listAll(1, PROPOSAL_WINDOW)
+      proposals.value = held.items
+    } catch {
+      proposals.value = []
+    }
   } catch (e) {
     rows.value = []
     hasMore.value = false

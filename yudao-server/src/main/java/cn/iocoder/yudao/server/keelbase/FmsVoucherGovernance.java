@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
 package cn.iocoder.yudao.server.keelbase;
 
+import cn.com.keelbase.runtime.effect.SideEffect;
+import cn.com.keelbase.runtime.effect.SideEffectCompensator;
 import cn.iocoder.yudao.module.fms.controller.admin.voucher.vo.FmsVoucherPageReqVO;
 import cn.iocoder.yudao.module.fms.dal.dataobject.voucher.FmsVoucherDO;
 import cn.iocoder.yudao.module.fms.dal.mysql.voucher.FmsVoucherMapper;
+import cn.iocoder.yudao.module.fms.service.voucher.FmsVoucherService;
 import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
@@ -60,6 +64,19 @@ public class FmsVoucherGovernance implements GovernedModule {
     public FmsVoucherGovernance(YudaoModuleScope scope, FmsVoucherMapper mapper) {
         this.scope = scope;
         this.mapper = mapper;
+    }
+
+    /**
+     * 本模块的补偿器：撤销一次审核 = 把凭证退回「待审核」（`YD-44`）。**它随模块走** —— 不再往宿主的
+     * `YudaoLocalCompensators` 里追加 bean，故新模块的宿主级件是 0 行。
+     *
+     * The module's own compensator: undoing a review puts the voucher back to pending (`YD-44`). It travels with the
+     * module — nothing is appended to the host's `YudaoLocalCompensators`, so a new module's host-level artefacts are
+     * zero lines.
+     */
+    @Bean
+    SideEffectCompensator fmsVoucherCompensator(FmsVoucherService service, FmsVoucherMapper mapper) {
+        return new FmsVoucherCompensator(service, mapper);
     }
 
     /** Declares this module governed, so the set is countable — see {@link GovernedModuleRegistry}. */
@@ -147,5 +164,69 @@ public class FmsVoucherGovernance implements GovernedModule {
             }
         }
         return call.proceed();
+    }
+
+    /** `FmsVoucherStatusEnum.PENDING_REVIEW` —— 与工具面写下的那个状态码是同一个值。 */
+    private static final Integer FMS_PENDING_REVIEW = 0;
+
+    /**
+     * {@code fms_voucher}：本面做出的那笔写是**审核**，故撤销就是**把状态退回待审核** —— 那正是模块自己的 setter
+     * 接受的另一种目标状态（`updateVoucherReviewStatus` 只收「待审核」与「已审核」两值），于是撤销用**模块自己的
+     * 词汇**表达，而不是绕过它去改那一行。
+     *
+     * <p>**它不走 `requireCreate`** —— 那条规则读的是命名约定（`create_`），而本工具按**人做的那个动作**命名。故这个
+     * 保证**写在这里**，与旗舰那条 follow-up 补偿器写下它自己的保证同一个理由。
+     *
+     * <p>**账套必须从那一行读，而且要在调用方的上下文里读**：模块的审核按**账套**授权，而凭证表带 `tenant_id`、
+     * 宿主的租户拦截器要求上下文里有租户编号 —— 在 `as(...)` 里面读，正是为了让那两样都在。
+     *
+     * {@code fms_voucher}: the write this face makes is a **review**, so the withdrawal is putting the voucher
+     * **back to pending review** — the other target status the module's own setter accepts, so the undo is
+     * expressed in the module's own vocabulary instead of editing the row behind its back.
+     *
+     * <p>**It does not go through {@code requireCreate}** — that rule reads the naming convention ({@code create_}),
+     * and this tool is named for the act a person performs. The guarantee is therefore stated here, for the same
+     * reason the flagship's follow-up compensator states its own.
+     *
+     * <p>**The account set has to be read off the row, and read inside the caller's context**: the module's review
+     * authorises by **account set**, and the voucher table carries a {@code tenant_id} the host's tenant interceptor
+     * wants present — reading inside {@code as(...)} is what puts both of them there.
+     *
+     * <p>**它随模块走（`YD-44`）**：原先住在宿主的 `YudaoLocalCompensators` 里，搬到这里是为了让新模块不碰平台文件。
+     *
+     * <p><b>It travels with the module (`YD-44`)</b>: it used to live in the host's `YudaoLocalCompensators`; moving it
+     * here is what lets a new module leave the platform files alone.
+     */
+    static final class FmsVoucherCompensator implements SideEffectCompensator {
+
+        private final FmsVoucherService service;
+        private final FmsVoucherMapper mapper;
+
+        FmsVoucherCompensator(FmsVoucherService service, FmsVoucherMapper mapper) {
+            this.service = service;
+            this.mapper = mapper;
+        }
+
+        @Override
+        public String resultType() {
+            return "fms_voucher";
+        }
+
+        @Override
+        public void compensate(SideEffect effect) {
+            if (!"review_fms_voucher".equals(effect.getToolName())) {
+                throw new IllegalStateException("cannot compensate " + effect.getToolName()
+                        + " locally: only a review of a voucher can be taken back here");
+            }
+            YudaoLocalCompensators.as(effect, () -> {
+                FmsVoucherDO voucher = mapper.selectById(effect.getResultId());
+                if (voucher == null) {
+                    throw new IllegalStateException("cannot compensate " + effect.getToolName()
+                            + ": no voucher " + effect.getResultId());
+                }
+                service.updateVoucherReviewStatus(voucher.getAccountSetId(), List.of(effect.getResultId()),
+                        FMS_PENDING_REVIEW, YudaoLocalCompensators.asId(effect.getUserId()));
+            });
+        }
     }
 }

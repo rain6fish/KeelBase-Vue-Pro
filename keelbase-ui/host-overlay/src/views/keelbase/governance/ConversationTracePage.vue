@@ -81,6 +81,12 @@
 
   <ContentWrap v-if="trace" :title="t('keelbase.trace.stepsTitle')">
     <template #header>
+      <!-- F-2：面板标题给**同一个名字** —— 与列表同一来源、同一回落，读者才认得出打开的是哪条会话。 -->
+      <!-- F-2: the panel's heading carries the same name, from the same source and with the same
+           fallback, so the reader can tell which conversation they opened. -->
+      <span :class="trace.conversation.title ? '' : 'text-[var(--el-text-color-secondary)]'">
+        {{ trace.conversation.title || t('keelbase.trace.untitled') }}
+      </span>
       <span class="text-12px text-[var(--el-text-color-secondary)]">{{ trace.conversation.id }}</span>
       <el-button class="ml-auto" size="small" @click="trace = null">{{ t('keelbase.trace.close') }}</el-button>
     </template>
@@ -202,11 +208,21 @@ async function rename(row: ConversationData) {
     return
   }
   try {
-    const saved = await conversationApi.rename(row.id, title)
-    row.title = saved.title ?? null
-    ElMessage.success(t('keelbase.trace.renamed'))
+    await conversationApi.rename(row.id, title)
   } catch (e) {
     ElMessage.error(runtimeErrorMessage(e, t('keelbase.trace.renameFailed')))
+    return
+  }
+  ElMessage.success(t('keelbase.trace.renamed'))
+  // 名字是**服务端的状态**，故重拉列表，而不是就地把这一行改掉：另一个标签页里改的名字才能出现在这里，
+  // 这一行的其它字段（条数、最近活动）也跟着服务端走。
+  // The name is **server state**, so the list is refetched rather than patched in place: a name changed
+  // in another tab shows up here, and the row's other fields (count, last activity) follow the server too.
+  await load()
+  // 打开着的那条若是它，一并重取 —— 面板标题也就跟着名字走。
+  // If that conversation is the one open below, refetch it too, so the panel's heading follows the name.
+  if (trace.value?.conversation.id === row.id) {
+    await open(row)
   }
 }
 

@@ -455,7 +455,7 @@ console.log('== 场景 5 · 审计链与被记下的拒绝 ==');
 console.log('== 场景 6 · 撤销那条腿：审核能被收回去 ==');
 {
   // 判据的五条腿里最后一条。它证的是一条**已经落成的**审核可以被撤回，而且撤回到**模块自己的状态**上 ——
-  // 补偿器（宿主级 `YudaoLocalCompensators` 里的 `FmsVoucherCompensator`）把状态退回「待审核」，而不是绕过模块
+  // 补偿器（模块自己的 `FmsVoucherGovernance` 里的 `FmsVoucherCompensator`，`YD-44` 起随模块走）把状态退回「待审核」，而不是绕过模块
   // 去改那一行。**这一条要能在同一轮里证到**，故它排在场景 3 之后：那一轮刚把这张凭证审过。
   //
   // The last of the criterion's five legs. It proves a **landed** review can be taken back, and taken back to a state

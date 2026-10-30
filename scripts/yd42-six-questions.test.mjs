@@ -100,8 +100,9 @@ const OPERATIONS = [
       outcome: 'executed',
       tool: 'update_crm_customer',
       executionId: 'fda3e3d0-2954-4c48-be60-f1e1ece29c61',
+      authorization:
+        '{"tool":"update_crm_customer","riskLevel":"R3","riskStrategy":"confirmation","requiresConfirmation":false,"checks":[{"name":"risk_policy","ok":true},{"name":"tool_enabled","ok":true},{"name":"role_allowed","ok":true},{"name":"admin_only","ok":true}],"policy":{"revision":"c1afaee3fde0"}}',
     },
-    gate: 'auto',
     effect: {
       resultType: 'crm_customer',
       resultId: 9005,
@@ -127,8 +128,9 @@ const OPERATIONS = [
       outcome: 'executed',
       tool: 'update_crm_customer',
       executionId: 'f8f1bda5-246c-45b0-9fbe-88dc4131be92',
+      authorization:
+        '{"tool":"update_crm_customer","riskLevel":"R3","riskStrategy":"confirmation","requiresConfirmation":true,"checks":[{"name":"risk_policy","ok":true},{"name":"tool_enabled","ok":true},{"name":"role_allowed","ok":true},{"name":"admin_only","ok":true}],"policy":{"revision":"8499adb0271c"}}',
     },
-    gate: 'confirm',
     effect: {
       resultType: 'crm_customer',
       resultId: 9006,
@@ -154,8 +156,8 @@ const OPERATIONS = [
       outcome: 'declined',
       tool: 'update_crm_customer',
       executionId: null,
+      authorization: null,
     },
-    gate: 'confirm',
     effect: null,
     hostNowName: '',
     recordState: '',
@@ -168,8 +170,8 @@ const answersFor = (op) =>
   six.composeSix({
     row: op.row,
     callerName: 'KeelBase',
-    gate: op.gate,
     effect: op.effect,
+    proposal: op.proposal,
     hostNowName: op.hostNowName,
     recordState: op.recordState,
     mask,
@@ -200,6 +202,47 @@ test('the auto-allowed write says 「无需确认」 out loud', () => {
   assert.match(confirmation.text, /No confirmation needed/, 'the auto-allowed row does not say so')
 })
 
+test('the gate is read off the authorization the row recorded', () => {
+  // 词汇来自协议自己的 `RiskLevel`：`riskStrategy` 是风险级的策略，`requiresConfirmation` 是这一次的裁决位。
+  // 没有 `authorization` 的行回空串 —— 那一格说「这一行没写」，而不是拿今天去补。
+  //
+  // The vocabulary is the protocol's own `RiskLevel`: `riskStrategy` is the level's strategy and
+  // `requiresConfirmation` is the decision taken. A row with no `authorization` answers empty — the cell
+  // says the row does not say, rather than filling it in from today.
+  const g = (auth) => six.gateFromRow({ authorization: auth })
+  assert.equal(g('{"riskStrategy":"confirmation","requiresConfirmation":false}'), 'auto')
+  assert.equal(g('{"riskStrategy":"confirmation","requiresConfirmation":true}'), 'confirm')
+  assert.equal(g('{"riskStrategy":"human_approval","requiresConfirmation":true}'), 'approval')
+  assert.equal(g('{"riskStrategy":"block","requiresConfirmation":false}'), 'blocked')
+  assert.equal(g(null), '', 'a row that recorded no authorization must not answer a gate')
+  assert.equal(six.gateFromRow({}), '')
+})
+
+test('a gate handed in from outside cannot answer the fifth question', () => {
+  // 工具清单今天说 `confirm`（策略已还原），而这一行记下的裁决是**自动放行**。把「今天的闸」当作参数塞进来，
+  // 第五问仍须答「无需确认」—— 否则同一条审计行会随策略改口，而那正是这条修复要断掉的。
+  //
+  // The inventory says `confirm` today (the policy was restored), while this row recorded an **auto**
+  // decision. Hand "today's gate" in as a parameter and the fifth question must still answer "no
+  // confirmation needed" — otherwise one audit row answers differently after a policy change, which is
+  // exactly what this fix cuts.
+  const answers = six.composeSix({
+    row: OPERATIONS[0].row,
+    callerName: 'KeelBase',
+    gate: 'confirm',
+    effect: OPERATIONS[0].effect,
+    hostNowName: OPERATIONS[0].hostNowName,
+    recordState: OPERATIONS[0].recordState,
+    mask,
+    resultWord: 'Executed',
+    resultMeaning: 'It really happened; the write is in the system',
+    t,
+    te,
+  })
+  const confirmation = answers.find((a) => a.key === 'confirmation')
+  assert.match(confirmation.text, /No confirmation needed/, `got "${confirmation.text}"`)
+})
+
 test('the confirmed write names who confirmed, and the refused one says a person said no', () => {
   const confirmed = answersFor(OPERATIONS[1]).find((a) => a.key === 'confirmation')
   assert.match(confirmed.text, /KeelBase confirmed it themselves/)
@@ -228,6 +271,87 @@ test('the change shows the before it recorded and says what the after lacks', ()
 test('a refused write says nothing in the system changed', () => {
   const change = answersFor(OPERATIONS[2]).find((a) => a.key === 'change')
   assert.match(change.text, /nothing was changed/)
+})
+
+// ---------------------------------------------------------------------------------------------------
+// C 的第三问：被拒的那次调用**记了**，只是没人读 —— 确认记录里带着这次提议的参数。
+// C's third question: the refused call **was** recorded, just never read — its confirmation record
+// carries the arguments of the proposal.
+// ---------------------------------------------------------------------------------------------------
+
+/**
+ * 同一次拒绝，按 2026-10-29 那次重测在库里**实际**写下的两行：审计行 #8（`declined`、无台账行、无名录依据）
+ * 与它配上的确认记录 #2（`args_json` = `{"id":9004,"name":"改客户 明远置业集团有限公司"}`、`decided_at` 与那
+ * 一行同一秒）。第三问要的两样都在：记录类型来自工具自己的声明（`update_crm_customer` → `crm_customer`），
+ * 主键来自提议参数里的 `id`。
+ *
+ * The same refusal, exactly as that retest of 2026-10-29 wrote the two rows: audit row #8 (`declined`, no
+ * ledger row, no authorization basis) and the confirmation record #2 it pairs with (`args_json` =
+ * `{"id":9004,"name":"改客户 明远置业集团有限公司"}`, its `decided_at` in the same second). Both parts the
+ * third question wants are there: the record type from the tool's own declaration
+ * (`update_crm_customer` → `crm_customer`), the key from the `id` among the proposed arguments.
+ */
+const REFUSED_WITH_PROPOSAL = {
+  row: {
+    id: 8,
+    userId: '1',
+    action: 'tool_confirmation',
+    detail: 'update_crm_customer declined (in_band)',
+    isError: true,
+    createdAt: '2026-10-29T00:56:19Z',
+    outcome: 'declined',
+    tool: 'update_crm_customer',
+    executionId: null,
+  },
+  proposal: { resultType: 'crm_customer', resultId: 9004 },
+}
+
+const refusedAnswers = (proposal, proposalName = '') =>
+  six.composeSix({
+    row: REFUSED_WITH_PROPOSAL.row,
+    callerName: 'KeelBase',
+    gate: 'confirm',
+    effect: null,
+    proposal,
+    hostNowName: '',
+    proposalName,
+    recordState: '',
+    mask,
+    resultWord: 'Declined',
+    resultMeaning: 'A person declined it, so it will not happen',
+    t,
+    te,
+  })
+
+test('the refused call names the record its proposal was about', () => {
+  const object = refusedAnswers(REFUSED_WITH_PROPOSAL.proposal).find((a) => a.key === 'object')
+  assert.equal(object.text, 'Customer · #9004', `got "${object.text}"`)
+  assert.equal(object.answered, true, 'the refused call still answers the third question with 「未记录」')
+  assert.doesNotMatch(object.text, /crm_customer/)
+})
+
+test('the refused call carries the record name the host answered, masked', () => {
+  // 被拒那次没有台账行，记录名只能来自确认记录那条提议；宿主回的是**已掩码**的名字（`YudaoRecordNames`），
+  // 这里再掩一次是幂等的。名字是补充，不是答案的前提——没有它时上一块用例的 `Customer · #9004` 仍成立。
+  //
+  // The refused call has no ledger row, so the name can only come from its proposal; the host answers it
+  // **already masked**, and masking again is idempotent. The name is an addition, not a precondition — the
+  // case above still holds `Customer · #9004` without it.
+  const object = refusedAnswers(REFUSED_WITH_PROPOSAL.proposal, '改****').find((a) => a.key === 'object')
+  assert.equal(object.text, 'Customer · #9004 · 改****', `got "${object.text}"`)
+  assert.deepEqual(six.leaksIn(object.text), [], 'a masked record name must not read as a leak')
+})
+
+test('with the proposal the refused operation answers all six questions', () => {
+  const scored = six.scoreSix(refusedAnswers(REFUSED_WITH_PROPOSAL.proposal))
+  assert.deepEqual(scored.leaked, [])
+  assert.equal(scored.cells, 6, `only ${scored.cells} of 6 answered`)
+})
+
+test('without a paired proposal the same row still says it was not recorded', () => {
+  const object = refusedAnswers(null).find((a) => a.key === 'object')
+  assert.equal(object.text, MESSAGES['keelbase.sixQ.objectUnrecorded'])
+  assert.equal(object.answered, false)
 })
 
 // ---------------------------------------------------------------------------------------------------
@@ -296,4 +420,33 @@ test('the expanded row is the six questions', () => {
 test('the reader-facing template draws no internal tool name and no raw detail', () => {
   assert.doesNotMatch(template, /row\.tool\b/, 'the template still prints the registered tool name')
   assert.doesNotMatch(template, /row\.detail\b/, "the template still prints the runtime's raw detail")
+})
+
+test('the caller name comes from the audit read face, not from the user administration', () => {
+  // 「谁」这一问要能答出人名或账号。名录走宿主的窄读面 `/keelbase/caller-names`（已登录即可问、由
+  // `YudaoCallerDirectory` 裁到「这个调用方本来就能在台账里遇到的人」）；**不**走 `/system/user/list` ——
+  // 那条要 `system:user:query`，且 `system_users` 受芋道按表名的部门数据权限收窄，一个只挂 `audit_reader`
+  // 的账号在那里只拿得到它自己。
+  //
+  // The "who" question has to name a person or an account. The directory is read through the host's narrow
+  // face `/keelbase/caller-names` (any signed-in caller may ask; `YudaoCallerDirectory` bounds the answer to
+  // people this caller could already meet in a ledger); it is **not** read through `/system/user/list`,
+  // which needs `system:user:query` and is narrowed by Yudao's table-keyed department data permission, so an
+  // account holding only `audit_reader` gets itself.
+  // 行尾先归一：`autocrlf` 的检出是 CRLF，而下面的 `//.*$` 遇 `\r` 不匹配，注释会留下 —— 断言本身不变。
+  // Normalise line endings first: an `autocrlf` checkout is CRLF, and `//.*$` below does not match before a
+  // `\r`, which would leave the comments in — the assertion itself is unchanged.
+  const source = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/callerNames.ts'), 'utf8')
+    .replace(/\r\n/g, '\n')
+  // 断言只看**代码**：这个文件的注释里会提到旧路径（讲清为什么换掉），那不是它在调它。
+  // Assertions read the **code** only: the file's comments mention the old path (to say why it moved),
+  // and that is not the file calling it.
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((line) => line.replace(/\/\/.*$/, ''))
+    .join('\n')
+  assert.match(code, /'\/keelbase\/caller-names'/, 'the caller name no longer comes from the caller-name read face')
+  assert.doesNotMatch(code, /getUserList/, 'the caller name is read from the user administration again')
+  assert.doesNotMatch(code, /\/system\/user\//, 'the caller name is read from a /system/user endpoint again')
 })

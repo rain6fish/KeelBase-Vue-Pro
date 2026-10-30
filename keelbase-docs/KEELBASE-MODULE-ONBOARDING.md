@@ -63,6 +63,10 @@ Three things, and they usually land in **two files**: a `*Governance` aspect and
 configuration (the routes are `@Bean`s in the latter). `ListYudaoUsersTool` with `YudaoUsersRoute`
 shows the same three things split across two files instead — that split is a style choice, not a rule.
 
+A fourth thing appears only if the module's writes can be withdrawn: its `SideEffectCompensator` is a
+`@Bean` **in the module's own `*Governance`**, never appended to the host's `YudaoLocalCompensators`
+(`YD-44`). That is what keeps a new module's host-level artefacts at zero lines.
+
 ### 2.1 The governance aspect — the pointcut *is* the list
 
 `@Aspect @Component`, with its pointcut naming the module's **own service**:

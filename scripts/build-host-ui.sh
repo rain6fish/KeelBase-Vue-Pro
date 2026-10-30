@@ -468,6 +468,16 @@ if [[ -f "$REPO_ROOT/scripts/check-rendered-copy.mjs" ]]; then
   node "$REPO_ROOT/scripts/check-rendered-copy.mjs" "$UI_DIR"
 fi
 
+# 解析那一半的姊妹闸：把每个模板**真挂载**一遍，让表达式被求值——解析看不见 `{{ '*' + '*' }}` 或
+# `:title="a + '**' + b"`。作用域同一份，边界（不执行 `<script>`、不用接口数据）写在那份脚本头部。
+#
+# The parse half's sibling: every template is **mounted**, so its expressions are evaluated — a parse
+# cannot see `{{ '*' + '*' }}` or `:title="a + '**' + b"`. Same scope, and its boundary (no `<script>`,
+# no API data) is stated in that script's header.
+if [[ -f "$REPO_ROOT/scripts/check-rendered-components.mjs" ]]; then
+  node "$REPO_ROOT/scripts/check-rendered-components.mjs" "$UI_DIR"
+fi
+
 # --- 2b. the page must not carry an absolute API base pointing at a build machine -----------------
 # Upstream's `.env.prod` ships `VITE_BASE_URL=http://localhost:48080`. If that survives into the
 # artifact, the page loads fine while every call goes to the *visitor's own* machine and fails as a

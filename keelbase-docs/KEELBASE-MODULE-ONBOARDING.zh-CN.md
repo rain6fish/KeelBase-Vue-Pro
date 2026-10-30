@@ -39,6 +39,10 @@
 三件东西，落点通常是**两个文件**：一个 `*Governance` 切面、一个 `*Tools` 配置（路由是后者里的 `@Bean`）。
 `ListYudaoUsersTool` 配 `YudaoUsersRoute` 则是同样三件东西摊在两个文件里——那个拆法是风格选择，不是规矩。
 
+第四件只在**这个模块的写可以被撤销**时出现：它的 `SideEffectCompensator` 以 `@Bean` 落在**模块自己的
+`*Governance`** 里，**不再**往宿主的 `YudaoLocalCompensators` 追加（`YD-44`）。这正是新模块的「宿主级件」保持
+**0 行**的原因。
+
 ### 2.1 治理切面 —— 切点**就是**清单
 
 `@Aspect @Component`，切点点名模块**自己的 service**：

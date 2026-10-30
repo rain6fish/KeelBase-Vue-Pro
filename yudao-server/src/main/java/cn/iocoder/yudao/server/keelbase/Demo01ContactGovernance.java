@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 package cn.iocoder.yudao.server.keelbase;
 
+import cn.com.keelbase.runtime.effect.SideEffect;
+import cn.com.keelbase.runtime.effect.SideEffectCompensator;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.module.infra.controller.admin.demo.demo01.vo.Demo01ContactSaveReqVO;
 import cn.iocoder.yudao.module.infra.dal.dataobject.demo.demo01.Demo01ContactDO;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
+import cn.iocoder.yudao.module.infra.service.demo.demo01.Demo01ContactService;
 import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Component;
 
 /**
@@ -52,6 +56,19 @@ public class Demo01ContactGovernance implements GovernedModule {
     public Demo01ContactGovernance(YudaoModuleScope scope, Demo01ContactMapper mapper) {
         this.scope = scope;
         this.mapper = mapper;
+    }
+
+    /**
+     * 本模块的补偿器：**建**的就删、**改名**的拒（`YD-44`）。**它随模块走** —— 不再往宿主的
+     * `YudaoLocalCompensators` 里追加 bean，故新模块的宿主级件是 0 行。
+     *
+     * The module's own compensator: a create is deleted, a rename is refused (`YD-44`). It travels with the module —
+     * nothing is appended to the host's `YudaoLocalCompensators`, so a new module's host-level artefacts are zero
+     * lines.
+     */
+    @Bean
+    SideEffectCompensator demo01ContactCompensator(Demo01ContactService service) {
+        return new Demo01ContactCompensator(service);
     }
 
     /** The segment the pointcuts below name. / 下面那些切点所指的那一段。 */
@@ -145,5 +162,37 @@ public class Demo01ContactGovernance implements GovernedModule {
                     caller, "Demo01Contact", "update");
         }
         return call.proceed();
+    }
+
+    /**
+     * {@code infra_demo01_contact}: a create is deleted; a rename is refused. The face's two writes share
+     * one result type, and the create prefix is what tells them apart — a rename records no earlier
+     * shape, so undoing it would be a guess.
+     *
+     * {@code infra_demo01_contact}：**建**的就删，**改名**的拒。本面的两笔写共用一个结果类型，而 `create_`
+     * 前缀正是区分它们的地方——改名没有留下早先的样子，撤销它只能是猜。
+     *
+     * <p>**它随模块走（`YD-44`）**：原先住在宿主的 `YudaoLocalCompensators` 里。
+     *
+     * <p><b>It travels with the module (`YD-44`)</b>: it used to live in the host's `YudaoLocalCompensators`.
+     */
+    static final class Demo01ContactCompensator implements SideEffectCompensator {
+
+        private final Demo01ContactService service;
+
+        Demo01ContactCompensator(Demo01ContactService service) {
+            this.service = service;
+        }
+
+        @Override
+        public String resultType() {
+            return "infra_demo01_contact";
+        }
+
+        @Override
+        public void compensate(SideEffect effect) {
+            YudaoLocalCompensators.requireCreate(effect);
+            YudaoLocalCompensators.as(effect, () -> service.deleteDemo01Contact(effect.getResultId()));
+        }
     }
 }

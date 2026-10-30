@@ -8,17 +8,22 @@
 # authoritative: `maven.yml` never triggers on this repository's branches. The host's own Java tests
 # and the ai1 module's own tests run for real in `conformance`, below.
 #
-# Eight jobs, and each answers a question the others cannot (one carries a step that answers a
+# Nine jobs, and each answers a question the others cannot (one carries a step that answers a
 # question of its own, marked where it appears):
 #
 #   path-refs            every path this repository writes about itself — in a comment, a doc, a
 #                        script — points at a file it actually holds;
+#   script-tests         every `scripts/*.test.mjs` this repository ships actually runs — one glob
+#                        rather than a list, so a test added later is covered without editing this
+#                        workflow; the topical jobs still name their own files, because a failure
+#                        there should be read inside that job's question;
 #   governance-boundary  no bean of ours hands a tool to Spring AI, which is the fact `D42`'s
 #                        boundary rests on and is one `@Bean` away from no longer being true;
 #   rendered-copy        every line of copy this layer's UI **renders** — locale messages through
-#                        vue-i18n, templates through Vue's parser — carries no literal `**` or
-#                        backtick, so issue rain6fish/KeelBase-YuDao#3's class of defect reddens CI
-#                        rather than only a local build;
+#                        vue-i18n, template text through Vue's parser, and every template **mounted**
+#                        through Vue's runtime so computed expressions are evaluated — carries no
+#                        literal `**` or backtick, so issue rain6fish/KeelBase-YuDao#3's class of
+#                        defect reddens CI rather than only a local build;
 #   governance-registry  every module this host governs declares itself, and the name it declares is
 #                        the one its own pointcuts point at — the set `YD-13` made countable;
 #   coverage-ledger      *a step inside `governance-registry`* — every business service in the deployed
@@ -65,15 +70,18 @@
 # 测试 skip 开关在本仓**不作数**：`maven.yml` 在本仓的分支上根本不触发。宿主自己的 Java 测试、以及 ai1
 # 模块自己的测试，都在下面的 `conformance` 里**真跑**。
 #
-# 八道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
+# 九道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
 #
 #   path-refs            本仓写到自己身上的每一条路径——注释里的、文档里的、脚本里的——都指向一个它
 #                        确实持有的文件；
+#   script-tests         本仓带的每个 `scripts/*.test.mjs` 都真的跑得起来 —— 用一条 glob 而不是一份清单，
+#                        故以后新加的测试不改这个 workflow 就已经在射程内；分题的 job 仍各自点名自己的
+#                        文件，因为那里的失败应当在**那道 job 的问题**里去读；
 #   governance-boundary  我们自己没有任何 bean 把工具交给 Spring AI —— `D42` 那条边界所倚的**事实**，
 #                        而它离「不再成立」只差一个 `@Bean`；
-#   rendered-copy        这一层界面**渲染出来**的每一行字——词条经 vue-i18n、模板经 Vue 自己的解析器——
-#                        都不带字面的 `**` 或反引号，故 issue rain6fish/KeelBase-YuDao#3 那一类缺陷在 CI
-#                        上就红，而不是只在本地构建里；
+#   rendered-copy        这一层界面**渲染出来**的每一行字——词条经 vue-i18n、模板文本经 Vue 自己的解析器、
+#                        且每个模板再**真挂载**一次让表达式被求值——都不带字面的 `**` 或反引号，故 issue
+#                        rain6fish/KeelBase-YuDao#3 那一类缺陷在 CI 上就红，而不是只在本地构建里；
 #   governance-registry  本宿主治理的每个模块都**自报**，而它报的名字**就是**它自己 pointcut 所指的那一个
 #                        —— `YD-13` 让它**数得出来**的那个集合；
 #   coverage-ledger      *`governance-registry` 里的一个 step* —— 部署范围里每个业务 service 都在
@@ -128,6 +136,23 @@ jobs:
       - name: Cited paths must exist
         run: node scripts/check-path-refs.mjs
 
+  script-tests:
+    name: Every script test this repository ships runs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # One glob rather than a list — a list is exactly what left nine of these files outside CI
+      # (seven page/helper tests that predate this job, plus the two this week's fixes added). A test
+      # file that no step names is a test that never runs, and nothing about it looks wrong.
+      # 一条 glob 而不是一份清单 —— 正是清单让这几个文件留在了 CI 之外（7 个早于这道 job 的页面/助手
+      # 测试，加上本周两笔修复带来的两个）。没有任何 step 点名的测试文件 = 永远不跑的测试，而它表面上
+      # 看不出任何不对。
+      - name: Run every script test
+        run: node --test scripts/*.test.mjs
+
   governance-boundary:
     name: No bean of ours hands a tool to Spring AI
     runs-on: ubuntu-latest
@@ -172,6 +197,20 @@ jobs:
       - name: No message prints Markdown at the reader
         run: node --test scripts/i18n-no-markdown.test.mjs
 
+      # 上一步管的是消息里**写了什么**，这一步管消息**在不在**。2026-10-29 走查读到审计链页表头原样印着
+      # `keelbase.audit.colObject`：模板用了它，整个界面层零定义，而构建与既有门禁全绿 —— 缺键不是语法
+      # 错误，它只在渲染那一刻变成读者眼前的一串键名。这道测试把本层模板与补丁新增行里用到的每个
+      # `keelbase.*` 键，对上补丁里那两棵消息树；只往一边加，也一并判红。
+      #
+      # The step above is about what a message **says**; this one is about whether it is there at all. The
+      # 2026-10-29 walk read `keelbase.audit.colObject` printed in the audit chain page's header: the
+      # template used it, nothing in this layer defined it, yet the build and every existing gate stayed
+      # green — a missing key is not a syntax error; it becomes the key name in front of the reader only
+      # at render time. This test matches every `keelbase.*` key this layer's templates and patch
+      # additions use against the patch's two message trees, and turns red on a key added to one side only.
+      - name: Every keelbase key a page renders is defined, in both languages
+        run: node --test scripts/i18n-key-coverage.test.mjs
+
       # 展开审计行是 M7 的证据面：展开块里调用的每个 helper 都必须在同一文件里有定义或导入。
       # 2026-10-25 实测：`toolRisk` 既没定义也没导入，展开任意一行时表体整块不渲染，而构建与既有门禁全绿。
       # The audit row's expansion is M7's evidence surface: every helper the expand block calls must
@@ -184,7 +223,7 @@ jobs:
   # `scripts/build-host-ui.sh` 的 2a 段调用，而 CI 上只有字符串级的 `scripts/i18n-no-markdown.test.mjs`
   # ——它读词条文本，看不见模板，也看不见 vue-i18n 渲染之后的样子（issue `rain6fish/KeelBase-YuDao#3`
   # 记的正是被原样画出来的 `**`）。这道 job 把同一条闸接进 CI：按 1b 段的顺序铺增量（删除清单 →
-  # 覆盖目录 → 补丁，依序），然后跑闸门。
+  # 覆盖目录 → 补丁，依序），然后跑两道闸门——解析级的那道，与把每个模板**真挂载**一次的姊妹闸。
   #
   # 它不装整套应用依赖：闸只要 vue、vue-i18n、`@vue/compiler-sfc` 与 `@vue/compiler-dom` 这几个包，而
   # `check-rendered-copy.mjs` 是 `createRequire` 从 `<UI>/node_modules` 解析的。版本钉在检出自己的
@@ -200,7 +239,8 @@ jobs:
   # string-level `scripts/i18n-no-markdown.test.mjs` — which reads message text and can see neither the
   # templates nor what vue-i18n renders (issue `rain6fish/KeelBase-YuDao#3` is exactly a `**` drawn
   # literally). This job wires the same gate into CI: it lays the delta down in §1b's order (removals →
-  # overlay → patches), then runs the gate.
+  # overlay → patches), then runs both gates — the parse-level one, and its sibling that **mounts**
+  # every template so computed expressions are evaluated.
   #
   # It does not install the whole app: the gate needs vue, vue-i18n, `@vue/compiler-sfc` and
   # `@vue/compiler-dom`, because `check-rendered-copy.mjs` resolves them through `createRequire` from
@@ -381,20 +421,43 @@ jobs:
           KEELBASE_YUDAO_UI: target/yudao-ui-admin-vue3
         run: node --test scripts/rendered-copy-expressions.test.mjs
 
-      # 「缺检出必须是红」这件事本身也得有人守：拿一个不存在的目录跑同一个闸，断言它退出 **2**。它防的是
-      # 后来有人把上面那条调用包进 `|| true`、或把闸改成一个安静的 0。
+      # 挂载闸门也要有人测：一条只有挂载才看得见的种子（`{{ '*' + '*' }}`），解析闸必须绿、挂载闸必须红并点名。
+      # 它顺带守住「桩层坏掉时不许假绿」—— 桩把模板渲染空了，那条种子就红不起来，这一步随之红。
       #
-      # The "a missing checkout must be red" fact needs a keeper of its own: run the same gate against a
-      # directory that is not there and require exit **2**. It is what stops a later edit from wrapping
-      # the call above in `|| true` or turning the gate into a quiet 0.
+      # The mount gate needs a keeper too: one seed only a mount can see (`{{ '*' + '*' }}`), where the parse
+      # gate must stay green and the mount gate must go red naming the file. It also keeps "a broken stub
+      # layer must not read green" — if the stubs render everything empty, the seed cannot go red, and this
+      # step goes red with it.
+      - name: The mount gate goes red on a marker only a mount can see
+        env:
+          KEELBASE_YUDAO_UI: target/yudao-ui-admin-vue3
+        run: node --test scripts/rendered-copy-components.test.mjs
+
+      # 2a 段的另一半：把每个模板**真挂载**一次，表达式被求值。解析看不见 `{{ '*' + '*' }}` 这类
+      # 算出来的记号；这一步看得见。边界（不执行 `<script>`、不用接口数据）写在那份脚本头部。
+      # The other half of §2a: every template is **mounted**, so expressions are evaluated. A parse
+      # cannot see a computed `{{ '*' + '*' }}`; this step can. Its boundary (no `<script>`, no API
+      # data) is stated in that script's header.
+      - name: No mounted template renders a literal `**` or a backtick
+        run: node scripts/check-rendered-components.mjs "$UI_DIR"
+
+      # 「缺检出必须是红」这件事本身也得有人守：拿一个不存在的目录跑上面两道闸，断言它们都退出 **2**。
+      # 它防的是后来有人把上面那两条调用包进 `|| true`、或把闸改成一个安静的 0。
+      #
+      # The "a missing checkout must be red" fact needs a keeper of its own: run both gates above against
+      # a directory that is not there and require exit **2** from each. It is what stops a later edit from
+      # wrapping those calls in `|| true` or turning a gate into a quiet 0.
       - name: A missing checkout exits 2, never reads as a skip
         run: |
           set +e
           node scripts/check-rendered-copy.mjs "$RUNNER_TEMP/no-such-ui" >/dev/null 2>&1
-          rc=$?
+          parse_rc=$?
+          node scripts/check-rendered-components.mjs "$RUNNER_TEMP/no-such-ui" >/dev/null 2>&1
+          mount_rc=$?
           set -e
-          echo "the gate exited $rc for a missing checkout"
-          test "$rc" = 2
+          echo "the gates exited $parse_rc and $mount_rc for a missing checkout"
+          test "$parse_rc" = 2
+          test "$mount_rc" = 2
 
   governance-registry:
     name: Every governed module declares itself

@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,534 @@
+@@ -1,4 +1,535 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -35,6 +35,7 @@ index 96269a8..2611a9b 100644
 +      colAction: 'Action',
 +      colTool: 'Tool',
 +      colWhat: 'What',
++      colObject: 'Object',
 +      colOutcome: 'Outcome',
 +      colResult: 'Result',
 +      colStatus: 'Status',
@@ -541,7 +542,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,528 @@
+@@ -1,4 +1,529 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -574,6 +575,7 @@ index 35f1e1a..856d201 100644
 +      colAction: '动作',
 +      colTool: '工具',
 +      colWhat: '做了什么',
++      colObject: '对象',
 +      colOutcome: '结局',
 +      colResult: '结果',
 +      colStatus: '状态',

@@ -71,12 +71,45 @@ function traceMessages() {
   return { en, zh }
 }
 
+function renameBody() {
+  const at = script.indexOf('async function rename')
+  assert.notEqual(at, -1, 'the rename handler is gone')
+  return script.slice(at, script.indexOf('onMounted', at))
+}
+
 test('F-2: the page names a conversation and lets its owner name it', () => {
   assert.match(template, /t\('keelbase\.trace\.colTitle'\)/, 'the name column is gone')
   assert.match(template, /row\.title \|\| t\('keelbase\.trace\.untitled'\)/, 'an unnamed row no longer says so')
   assert.match(template, /rename\(row\)/, 'the rename control is gone')
-  assert.match(script, /conversationApi\.rename\(row\.id, title\)/, 'the page no longer calls the rename entry')
-  assert.match(script, /row\.title = saved\.title \?\? null/, 'the row is not refreshed from the answer')
+})
+
+// 名字是服务端的状态：改完要**重拉**，不能就地把那一行改掉 —— 就地改只同步了本页，另一个标签页里改的名字
+// 这里看不到，这一行的条数/最近活动也停在旧值上（2026-10-29 的 F-2 验收把这条列为缺口）。
+//
+// The name is server state: after a rename the list is **refetched** rather than patched in place.
+// Patching only syncs this page — a name changed in another tab never shows up here, and the row's
+// count and last activity stay at their old values (the 2026-10-29 F-2 acceptance listed this as a gap).
+test('F-2: a rename is taken from the server again, not patched into the row', () => {
+  const body = renameBody()
+  assert.match(body, /await conversationApi\.rename\(row\.id, title\)/, 'the page no longer calls the rename entry')
+  assert.match(body, /await load\(\)/, 'the list is not refetched after a rename')
+  assert.ok(
+    !/row\.title\s*=/.test(body),
+    'the row is patched in place again — a name changed in another tab would be missed',
+  )
+  assert.match(body, /trace\.value\?\.conversation\.id === row\.id/, 'the open trace is not refreshed when its own conversation is renamed')
+  assert.match(body, /await open\(row\)/, 'the open trace is not refetched after a rename')
+})
+
+// 面板标题给同一个名字：列表里那一列说「哪条会话」，面板说「你打开的就是这条」——两处同一来源、同一回落。
+// The panel's heading carries the same name: the list column says which conversation, the heading says
+// "this is the one you opened" — same source, same fallback.
+test('F-2: the trace panel names the conversation it is showing', () => {
+  assert.match(
+    template,
+    /trace\.conversation\.title \|\| t\('keelbase\.trace\.untitled'\)/,
+    'the panel heading carries no name',
+  )
 })
 
 test('F-2: the count column reads the whole transcript, not the two turns the list carries', () => {

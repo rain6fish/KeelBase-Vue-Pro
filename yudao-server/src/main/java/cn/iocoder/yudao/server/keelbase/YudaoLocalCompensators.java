@@ -7,12 +7,7 @@ import cn.com.keelbase.runtime.identity.ActingCaller;
 import cn.iocoder.yudao.framework.tenant.core.util.TenantUtils;
 import cn.iocoder.yudao.module.crm.service.customer.CrmCustomerService;
 import cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService;
-import cn.iocoder.yudao.module.fms.dal.dataobject.voucher.FmsVoucherDO;
-import cn.iocoder.yudao.module.fms.dal.mysql.voucher.FmsVoucherMapper;
-import cn.iocoder.yudao.module.fms.service.voucher.FmsVoucherService;
-import cn.iocoder.yudao.module.infra.service.demo.demo01.Demo01ContactService;
 import cn.iocoder.yudao.module.products.service.products.ProductsService;
-import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -48,6 +43,15 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>调用方与租户**以与工具相同的方式**传递（`ActingCaller` 与 `YudaoCallerTenant`）：模块自己的切面与它的租户拦截器
  * 都会读它们，而生成模块的删除**本身就在治理之下**。
+ *
+ * <p>**补偿器随它的模块走（`YD-44`）。** 新接入模块的补偿器**不再**往本类里追加 bean —— 它由那个模块自己的
+ * `*Governance` 以 `@Bean` 提供，本类只留三样东西：最初的三个补偿器、上面那份共用说明、以及三个可复用的静态小件
+ * （`as` / `asId` / `requireCreate`）。判据：新模块的「宿主级件」为 **0 行**（`接入成本判据_2026-10-29.md` §5.1）。
+ *
+ * <p><b>A compensator travels with its module (`YD-44`).</b> A newly onboarded module no longer appends a bean here:
+ * its own `*Governance` declares the `@Bean`. This class keeps only the first three compensators, the shared notes
+ * above, and three reusable static helpers (`as`, `asId`, `requireCreate`). The criterion is that a new module's
+ * host-level artefacts are **zero lines** (`接入成本判据_2026-10-29.md` §5.1).
  */
 @Configuration
 public class YudaoLocalCompensators {
@@ -65,16 +69,6 @@ public class YudaoLocalCompensators {
     @Bean
     SideEffectCompensator crmFollowUpRecordCompensator(CrmFollowUpRecordService service) {
         return new CrmFollowUpRecordCompensator(service);
-    }
-
-    @Bean
-    SideEffectCompensator fmsVoucherCompensator(FmsVoucherService service, FmsVoucherMapper mapper) {
-        return new FmsVoucherCompensator(service, mapper);
-    }
-
-    @Bean
-    SideEffectCompensator demo01ContactCompensator(Demo01ContactService service) {
-        return new Demo01ContactCompensator(service);
     }
 
     /**
@@ -162,95 +156,8 @@ public class YudaoLocalCompensators {
         }
     }
 
-    /**
-     * {@code fms_voucher}：本面做出的那笔写是**审核**，故撤销就是**把状态退回待审核** —— 那正是模块自己的 setter
-     * 接受的另一种目标状态（`updateVoucherReviewStatus` 只收「待审核」与「已审核」两值），于是撤销用**模块自己的
-     * 词汇**表达，而不是绕过它去改那一行。
-     *
-     * <p>**它不走 `requireCreate`** —— 那条规则读的是命名约定（`create_`），而本工具按**人做的那个动作**命名。故这个
-     * 保证**写在这里**，与旗舰那条 follow-up 补偿器写下它自己的保证同一个理由。
-     *
-     * <p>**账套必须从那一行读，而且要在调用方的上下文里读**：模块的审核按**账套**授权，而凭证表带 `tenant_id`、
-     * 宿主的租户拦截器要求上下文里有租户编号 —— 在 `as(...)` 里面读，正是为了让那两样都在。
-     *
-     * {@code fms_voucher}: the write this face makes is a **review**, so the withdrawal is putting the voucher
-     * **back to pending review** — the other target status the module's own setter accepts, so the undo is
-     * expressed in the module's own vocabulary instead of editing the row behind its back.
-     *
-     * <p>**It does not go through {@code requireCreate}** — that rule reads the naming convention ({@code create_}),
-     * and this tool is named for the act a person performs. The guarantee is therefore stated here, for the same
-     * reason the flagship's follow-up compensator states its own.
-     *
-     * <p>**The account set has to be read off the row, and read inside the caller's context**: the module's review
-     * authorises by **account set**, and the voucher table carries a {@code tenant_id} the host's tenant interceptor
-     * wants present — reading inside {@code as(...)} is what puts both of them there.
-     */
-    static final class FmsVoucherCompensator implements SideEffectCompensator {
-
-        private final FmsVoucherService service;
-        private final FmsVoucherMapper mapper;
-
-        FmsVoucherCompensator(FmsVoucherService service, FmsVoucherMapper mapper) {
-            this.service = service;
-            this.mapper = mapper;
-        }
-
-        @Override
-        public String resultType() {
-            return "fms_voucher";
-        }
-
-        @Override
-        public void compensate(SideEffect effect) {
-            if (!"review_fms_voucher".equals(effect.getToolName())) {
-                throw new IllegalStateException("cannot compensate " + effect.getToolName()
-                        + " locally: only a review of a voucher can be taken back here");
-            }
-            as(effect, () -> {
-                FmsVoucherDO voucher = mapper.selectById(effect.getResultId());
-                if (voucher == null) {
-                    throw new IllegalStateException("cannot compensate " + effect.getToolName()
-                            + ": no voucher " + effect.getResultId());
-                }
-                service.updateVoucherReviewStatus(voucher.getAccountSetId(), List.of(effect.getResultId()),
-                        FMS_PENDING_REVIEW, asId(effect.getUserId()));
-            });
-        }
-    }
-
-    /**
-     * {@code infra_demo01_contact}: a create is deleted; a rename is refused. The face's two writes share
-     * one result type, and the create prefix is what tells them apart — a rename records no earlier
-     * shape, so undoing it would be a guess.
-     *
-     * {@code infra_demo01_contact}：**建**的就删，**改名**的拒。本面的两笔写共用一个结果类型，而 `create_`
-     * 前缀正是区分它们的地方——改名没有留下早先的样子，撤销它只能是猜。
-     */
-    static final class Demo01ContactCompensator implements SideEffectCompensator {
-
-        private final Demo01ContactService service;
-
-        Demo01ContactCompensator(Demo01ContactService service) {
-            this.service = service;
-        }
-
-        @Override
-        public String resultType() {
-            return "infra_demo01_contact";
-        }
-
-        @Override
-        public void compensate(SideEffect effect) {
-            requireCreate(effect);
-            as(effect, () -> service.deleteDemo01Contact(effect.getResultId()));
-        }
-    }
-
-    /** `FmsVoucherStatusEnum.PENDING_REVIEW` —— 与工具面写下的那个状态码是同一个值。 */
-    private static final Integer FMS_PENDING_REVIEW = 0;
-
-    /** 调用方在副作用行上是字符串；`deleteFollowUpRecord` 要的是数字。 */
-    private static Long asId(String value) {
+    /** 调用方在副作用行上是字符串；`deleteFollowUpRecord` 要的是数字。包内可见：模块自己的补偿器也用（`YD-44`）。 */
+    static Long asId(String value) {
         try {
             return value == null ? null : Long.valueOf(value);
         } catch (NumberFormatException notAnId) {
@@ -264,7 +171,7 @@ public class YudaoLocalCompensators {
      *
      * 这里只有**建**撤得动，而撤不动时说清为什么才是要点：拒绝**点名缺的是什么**，而不是悄悄做错。
      */
-    private static void requireCreate(SideEffect effect) {
+    static void requireCreate(SideEffect effect) {
         if (!effect.getToolName().startsWith("create_")) {
             throw new IllegalStateException("cannot compensate " + effect.getToolName()
                     + " locally: this runtime records no before-snapshot, so the row cannot be put back");
@@ -279,7 +186,7 @@ public class YudaoLocalCompensators {
      * 以本宿主跑工具的方式跑补偿——在**做出那笔写的调用方**下、在**那次调用所处的租户**下。两者都会被模块自己的切面
      * 与数据层读到，而**缺租户会让数据层直接拒跑**。
      */
-    private static void as(SideEffect effect, Runnable body) {
+    static void as(SideEffect effect, Runnable body) {
         ActingCaller.as(effect.getUserId(),
                 () -> TenantUtils.execute(YudaoCallerTenant.current(), () -> {
                     body.run();
