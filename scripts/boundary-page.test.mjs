@@ -9,6 +9,9 @@
 // 故挂载 SFC 的测试只会在本机绿、下次取树就没了。这里钉的是让这个块成立的三份文件之间的契约 ——
 // 组件模板、宿主补丁里的中英词条、页面所读的门禁记录。删掉块、漏掉一条词条、或改掉记录里的 id，都会红。
 //
+// 同一个契约也钉住 M0 的**治理覆盖账本**那一节：行只带模块/对象/姿态（散文不进产物）、四态在中英两套里都在、
+// 记录读的是提交在仓里的 `conformance/governance-coverage.tsv`。
+//
 // The boundary page must draw the "not held by it" block as its own section, in both languages, from
 // the gate's record — not from a sentence typed into the template. Run with:
 //
@@ -20,6 +23,10 @@
 // make the block real — the component template, the bilingual messages in the host patch, and the
 // gate record the page reads. Removing the block, dropping a message, or changing the record's id
 // turns this red.
+//
+// The same contract pins M0's **onboarding ledger** section too: rows stop at module/object/posture (no
+// prose in the artefact), both bundles carry the four postures, and the record reads the ledger committed
+// at `conformance/governance-coverage.tsv`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -187,6 +194,54 @@ test('the gate record pins the SKILL path as partially governed, and names where
   }
   assert.match(row, /gap:\s*'external-effect-no-ledger'/, 'the declared gap is an external effect with no ledger row');
   assert.match(row, /Ai1SkillToolFactory\.java:\d+/, 'the row cites the assembly point it describes');
+});
+
+test('the page draws the onboarding ledger from the gate record, in both languages', () => {
+  const vue = read(PAGE);
+  const tpl = templateOf(vue);
+
+  // 表由记录驱动：行来自 `coverage.rows`，小计来自 `coverage.totals`，姿态词来自 `ledgerPosture.*` ——
+  // 页面不另算一份，也不把哪一种姿态写死在模板里。
+  // The table is record-driven: rows from `coverage.rows`, totals from `coverage.totals`, posture words
+  // from `ledgerPosture.*` — the page keeps no second copy and hard-codes no posture in the template.
+  assert.match(tpl, /boundary\.coverage\.rows/, 'the ledger table no longer reads boundary.coverage.rows');
+  assert.match(tpl, /boundary\.coverage\.totals/, 'the totals line no longer reads boundary.coverage.totals');
+  assert.match(
+    tpl,
+    /t\(`keelbase\.boundary\.ledgerPosture\.\$\{row\.posture\}`\)/,
+    'posture labels no longer come from the ledgerPosture.* family',
+  );
+
+  // 中英两套必须同时有四态与那六个键：一边少一个，另一边的读者就会读到空白。
+  // Both bundles must carry the four postures and the six keys — one side short and that reader sees a blank.
+  const { en, zh } = boundaryMessages();
+  const keys = ['ledgerTitle', 'ledgerWhat', 'ledgerTotals', 'ledgerColModule', 'ledgerColObject', 'ledgerColPosture'];
+  for (const [lang, block] of [['en', en], ['zh', zh]]) {
+    for (const key of keys) assert.ok(block[key], `${lang} carries keelbase.boundary.${key}`);
+    assert.deepEqual(
+      Object.keys(block.ledgerPosture).sort(),
+      ['exempt', 'gap', 'seam', 'tool-only'],
+      `${lang} ledger postures disagree with the record's four`,
+    );
+  }
+});
+
+test('the boundary record carries the ledger as identifiers only — no prose reaches the artefact', () => {
+  const gate = read(GATE);
+
+  // 记录读的是提交在仓里的那本账；schema 钉住形状，页面据此判断这一节在不在。
+  // The record reads the committed ledger; the schema pins the shape the page branches on.
+  assert.match(gate, /conformance\/governance-coverage\.tsv/, 'the boundary record no longer reads the ledger');
+  assert.match(gate, /schema: 'keelbase-governance-coverage\/1'/, 'the record no longer pins the ledger schema');
+
+  // 一行只带三格：模块、对象、姿态。账本的 `reason`（第 6 列）是中文散文，进产物就是双语红线被踩。
+  // A row carries three cells only: module, object, posture. The ledger's `reason` (column 6) is Chinese
+  // prose, and putting it in the artefact would break the bilingual rule.
+  assert.match(
+    gate,
+    /rows\.push\(\{ module: cols\[0\], object: cols\[1\], posture: cols\[3\] \}\)/,
+    'a ledger row no longer stops at module/object/posture',
+  );
 });
 
 test('the checks are drawn as a path × control matrix, ticked only by each row\'s own holds', () => {

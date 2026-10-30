@@ -262,8 +262,51 @@ for (const file of javaFiles) {
 // rule, so its words have to come from its own i18n and this object carries identifiers and enums only —
 // `verdict`, the path ids, each entry in `holds`, and the coordinates of any offender. `computed` comes out
 // of this run; `stated` is the design fact a run can only *confirm*, never derive.
+// 治理覆盖账本（`conformance/governance-coverage.tsv`）—— M0 的那本账：部署范围里每个业务 service 一个姿态。
+// **只带标识与枚举**：账本里的 `reason` 是中文散文，不进产物；词由控制台按读者语言给。`null` 表示这一构建没带
+// 账本，页面据此不画那一节 —— 判「账本缺了」的是它自己的门 `check-governance-coverage.mjs`，不是这里。
+//
+// The onboarding-coverage ledger (`conformance/governance-coverage.tsv`) — M0's book: one posture per business
+// service in the deployed scope. **Identifiers and enums only**: the ledger's `reason` column is Chinese prose
+// and does not go into the artefact; the console supplies the words. `null` means this build carries no ledger
+// and the page draws no such section — the ledger's own gate is what judges it missing, not this one.
+const coverage = (() => {
+  let text
+  try {
+    text = readFileSync(join(ROOT, 'conformance/governance-coverage.tsv'), 'utf8')
+  } catch {
+    return null
+  }
+  const rows = []
+  for (const line of text.split(/\r?\n/)) {
+    if (line.trim() === '' || line.startsWith('#')) continue
+    const cols = line.split('\t')
+    if (cols.length < 4) continue
+    rows.push({ module: cols[0], object: cols[1], posture: cols[3] })
+  }
+  const tally = (subset) => ({
+    services: subset.length,
+    seam: subset.filter((r) => r.posture === 'seam').length,
+    'tool-only': subset.filter((r) => r.posture === 'tool-only').length,
+    gap: subset.filter((r) => r.posture === 'gap').length,
+    exempt: subset.filter((r) => r.posture === 'exempt').length,
+  })
+  return {
+    schema: 'keelbase-governance-coverage/1',
+    totals: tally(rows),
+    modules: [...new Set(rows.map((r) => r.module))].sort().map((module) => ({
+      module,
+      ...tally(rows.filter((r) => r.module === module)),
+    })),
+    rows,
+  }
+})()
+
 const boundary = {
   schema: 'keelbase-governance-boundary/1',
+  // 治理覆盖账本：与 `stated.paths` 同性质 —— 设计事实，页面只画、不重算。
+  // The onboarding ledger: a design fact like `stated.paths`; the page draws it and recomputes nothing.
+  coverage,
   computed: {
     scope: {
       // The roots are read from the same constant the walk uses, so the page cannot report a scope the

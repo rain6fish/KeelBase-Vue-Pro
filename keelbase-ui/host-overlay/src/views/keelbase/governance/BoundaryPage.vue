@@ -17,6 +17,10 @@
   `D42` 上游解析器路、`D44`-B 的 ai1 MCP、SKILL、ai1 RAG —— 五条各自「扣住什么、扣不住什么」都在这里，
   不留「默认没写 = 已覆盖」。
 
+  再往下一节是**治理覆盖账本**（M0）：部署范围里每个业务 service 一个姿态（接缝受治理 / 只有工具面 / 已排期 /
+  明确不接）。它与上面同一份记录的性质 —— 取自构建带着的 `conformance/governance-coverage.tsv`，由同一个门禁
+  的 `--emit` 铺进产物；账本里的「理由」是散文、不进产物，故这一页不画它。
+
   Which AI paths this build's governance holds, and which it does not.
 
   This page decides nothing and recomputes nothing: it reads the record the UI build lays into the artefact
@@ -33,6 +37,11 @@
   holds, why upstream's path is harmless today (the only `ToolCallback` bean in this build is upstream's own
   sample), and that it is one `@Bean` away from not being. The gate can only confirm it. What is drawn here
   includes that warning.
+
+  Below that sits the **onboarding ledger** (M0): one posture per business service in the deployed scope
+  (onboarded at the seam / tool face only / scheduled / out of scope). It is the same kind of record as the
+  paths above — carried from `conformance/governance-coverage.tsv` into the artefact by the same gate's
+  `--emit`; the ledger's reason column is prose and stays out of the artefact, so the page does not draw it.
 -->
 <template>
   <ContentWrap :title="t('keelbase.boundary.title')">
@@ -183,6 +192,39 @@
         </el-descriptions-item>
       </el-descriptions>
 
+      <!-- 治理覆盖账本（M0）：每个业务 service 一个姿态。与上面那两张表同一份记录的性质 —— 取自构建里带着的
+           账本、由门禁 `check-ungoverned-tool-beans.mjs` 的 `--emit` 铺进产物；页面只画、不重算。
+           账本里的「理由」是散文，不进产物，故这一页不画它；「未接入」那一态在这里是可读的事实，不是待办编号。
+           / The onboarding ledger (M0): one posture per business service, carried the same way as the record
+           above; drawn, never recomputed. The ledger's reason column is prose and stays out of the artefact,
+           so this page does not draw it — "scheduled" here is a readable fact, not a to-do number. -->
+      <template v-if="boundary.coverage">
+        <div class="font-medium mt-16px mb-4px">{{ t('keelbase.boundary.ledgerTitle') }}</div>
+        <div class="text-12px mb-6px">{{ t('keelbase.boundary.ledgerWhat') }}</div>
+        <div class="text-12px text-[var(--el-text-color-secondary)] mb-6px">
+          {{
+            t('keelbase.boundary.ledgerTotals', {
+              services: boundary.coverage.totals.services,
+              seam: boundary.coverage.totals.seam,
+              toolOnly: boundary.coverage.totals['tool-only'],
+              gap: boundary.coverage.totals.gap,
+              exempt: boundary.coverage.totals.exempt
+            })
+          }}
+        </div>
+        <el-table :data="boundary.coverage.rows" stripe class="ledger-table">
+          <el-table-column :label="t('keelbase.boundary.ledgerColModule')" prop="module" width="150" />
+          <el-table-column :label="t('keelbase.boundary.ledgerColObject')" prop="object" min-width="190" />
+          <el-table-column :label="t('keelbase.boundary.ledgerColPosture')" width="240">
+            <template #default="{ row }">
+              <el-tag :type="ledgerTagType(row.posture)" size="small">
+                {{ t(`keelbase.boundary.ledgerPosture.${row.posture}`) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+
       <!-- 会绕过它的 bean：有才画，且是这一页唯一「坏了」的样子 / only when there are any -->
       <template v-if="boundary.computed.offenders.length">
         <div class="font-medium mt-16px mb-6px">{{ t('keelbase.boundary.offendersTitle') }}</div>
@@ -216,8 +258,25 @@ type PathRow = {
   sources: string[]
 }
 
+/** 治理覆盖账本的一行（M0）：只有标识与枚举，没有散文。 / One ledger row (M0): identifiers and enums only. */
+type LedgerRow = {
+  module: string
+  object: string
+  posture: 'seam' | 'tool-only' | 'gap' | 'exempt'
+}
+
+type LedgerTotals = { services: number; seam: number; 'tool-only': number; gap: number; exempt: number }
+
+type Coverage = {
+  schema: string
+  totals: LedgerTotals
+  modules: ({ module: string } & LedgerTotals)[]
+  rows: LedgerRow[]
+}
+
 type Boundary = {
   schema: string
+  coverage: Coverage | null
   computed: {
     scope: { roots: string[]; filesScanned: number; excludedPaths: string[] }
     reads: string
@@ -252,6 +311,14 @@ function postureTagType(posture: PathRow['posture']): 'success' | 'warning' | 'd
   if (posture === 'governed') return 'success'
   if (posture === 'partially-governed') return 'warning'
   return 'danger'
+}
+
+/** 账本姿态 → 标签颜色：seam 绿、tool-only 黄、gap 红、exempt 灰。 / ledger posture → tag colour. */
+function ledgerTagType(posture: LedgerRow['posture']): 'success' | 'warning' | 'danger' | 'info' {
+  if (posture === 'seam') return 'success'
+  if (posture === 'tool-only') return 'warning'
+  if (posture === 'gap') return 'danger'
+  return 'info'
 }
 
 const boundary = ref<Boundary | null>(null)

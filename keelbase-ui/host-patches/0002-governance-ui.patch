@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,520 @@
+@@ -1,4 +1,534 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -265,6 +265,20 @@ index 96269a8..2611a9b 100644
 +      none: 'none',
 +      missing: 'This build carries no boundary record — the UI was laid down without it',
 +      loadFailed: 'The boundary could not be read',
++      ledgerTitle: 'Onboarding coverage',
++      ledgerWhat:
++        'One row per business service in the deployed scope, carried from the coverage ledger this build was made from. Onboarded at the seam means a governance aspect narrows the REST path and the tool face together; tool face only means the engine sees the tool call while the REST write is not narrowed; scheduled means the gap is known and dated; out of scope means deliberately not governed, with a reason on file.',
++      ledgerTotals:
++        '{services} services: {seam} onboarded at the seam, {toolOnly} tool face only, {gap} scheduled, {exempt} out of scope.',
++      ledgerColModule: 'Module',
++      ledgerColObject: 'Object',
++      ledgerColPosture: 'Posture',
++      ledgerPosture: {
++        seam: 'Onboarded at the seam',
++        'tool-only': 'Tool face only',
++        gap: 'Scheduled',
++        exempt: 'Out of scope',
++      },
 +    },
 +    // 每个审计页顶部的一句覆盖声明：只说**这张面读到哪、哪些 AI 路径它到不了**。
 +    // One coverage statement per audit page: what that face reads, and which AI paths it cannot reach.
@@ -527,7 +541,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,515 @@
+@@ -1,4 +1,528 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -790,6 +804,19 @@ index 35f1e1a..856d201 100644
 +      none: '无',
 +      missing: '本构建没有带边界记录 —— 界面是没带它铺下去的',
 +      loadFailed: '读不到这条边界',
++      ledgerTitle: '治理覆盖账本',
++      ledgerWhat:
++        '部署范围里每个业务 service 一行，取自本次构建所用的覆盖账本。「接缝受治理」指治理切面同时收窄 REST 路径与工具面；「只有工具面」指引擎看得见工具调用、而 REST 写入没有收窄；「已排期」指缺口已知并有日期；「明确不接」指有意不治理、理由在案。',
++      ledgerTotals: '共 {services} 个 service：{seam} 个接缝受治理、{toolOnly} 个只有工具面、{gap} 个已排期、{exempt} 个明确不接。',
++      ledgerColModule: '模块',
++      ledgerColObject: '对象',
++      ledgerColPosture: '姿态',
++      ledgerPosture: {
++        seam: '接缝受治理',
++        'tool-only': '只有工具面',
++        gap: '已排期',
++        exempt: '明确不接',
++      },
 +    },
 +    // 每个审计页顶部的一句覆盖声明：只说**这张面读到哪、哪些 AI 路径它到不了**。
 +    login: {
