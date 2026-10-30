@@ -141,11 +141,11 @@ system	notice	cn.iocoder.yudao.module.system.service.notice.NoticeService	gap		M
 system	notify-message	cn.iocoder.yudao.module.system.service.notify.NotifyMessageService	seam	SystemNotifyMessageGovernance			
 system	notify-send	cn.iocoder.yudao.module.system.service.notify.NotifySendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	notify-template	cn.iocoder.yudao.module.system.service.notify.NotifyTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	o-auth2-approve	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ApproveService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	o-auth2-client	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	o-auth2-code	cn.iocoder.yudao.module.system.service.oauth2.OAuth2CodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	o-auth2-grant	cn.iocoder.yudao.module.system.service.oauth2.OAuth2GrantService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	o-auth2-token	cn.iocoder.yudao.module.system.service.oauth2.OAuth2TokenService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-approve	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ApproveService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-client	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-code	cn.iocoder.yudao.module.system.service.oauth2.OAuth2CodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-grant	cn.iocoder.yudao.module.system.service.oauth2.OAuth2GrantService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-token	cn.iocoder.yudao.module.system.service.oauth2.OAuth2TokenService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	operate-log	cn.iocoder.yudao.module.system.service.logger.OperateLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	permission	cn.iocoder.yudao.module.system.service.permission.PermissionService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	post	cn.iocoder.yudao.module.system.service.dept.PostService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
