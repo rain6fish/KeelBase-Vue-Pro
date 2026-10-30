@@ -8,7 +8,7 @@ import java.util.List;
  *
  * <p><b>它补的是登记处过去数不到的那一半。</b>登记处过去只装模块（{@link GovernedModule}）；而 AI 在本宿主上还经**工具**
  * 到达执行——把可调用物交给引擎或模型的地方。这些地方过去**一个都没登记**，于是「本宿主被数全了吗」在模块那一栏之外
- * 无从问起。这里有十二处：八个**工具面**（声明 {@code @Bean AiTool} 的配置、或直接 {@code implements AiTool} 的组件）、
+ * 无从问起。这里逐条列出：**工具面**（声明 {@code @Bean AiTool} 的配置、或直接 {@code implements AiTool} 的组件）、
  * 两条**工具路**（把工具交给模型的缝：本部署自己的引擎工具面 {@code YudaoGovernedAgentTools}，与 ai1 外部工具交给
  * 引擎的外壳 {@code Ai1ExternalToolAdapter}）、以及 {@code ai1} 那两条**装配端**（{@code Ai1McpToolFactory} 与
  * {@code Ai1SkillToolFactory}——它们在本机上**装配**模型可调的工具，装配出来的每一个都经上面那条外壳进引擎）。
@@ -18,7 +18,7 @@ import java.util.List;
  * <p><b>为什么工具是**一份手写目录**，而模块是**在自己类上自报**。</b>这是刻意的不对称，理由只有一条：工具面里有一个是
  * **生成的**——`generated/ProductsTools`（来自 `specs/products.json`）。生成的文件不许手改，而让生成器给它发出声明是
  * **另一个工作项**（生成器，`YD-25`），不在本项射程内。于是工具的声明落在这**一处手写的地方**：模块有「能自报的载体」
- * （切面，生成器已经替它发出 {@code implements GovernedModule}），工具面则没有——除非动生成器。把十二处收进一份可读的
+ * （切面，生成器已经替它发出 {@code implements GovernedModule}），工具面则没有——除非动生成器。把它们收进一份可读的
  * 目录，比在类上逐个加记号、再给生成面与 {@code ai1} 那两处各开一个特例要诚实。
  *
  * <p><b>⚠ 它是一份清单、不是一批 bean——而这是修正过的一版。</b>第一版把每一条都做成 {@code @Bean GovernedPath}，
@@ -39,7 +39,7 @@ import java.util.List;
  * <p><b>It fills the half the registry could not count.</b> The registry used to hold modules alone
  * ({@link GovernedModule}); the AI also reaches execution here through <em>tools</em> — the places that
  * hand callables to the engine or to a model. None of those places was declared, so beyond the module
- * column "is this host accounted for?" had no answer. There are twelve: eight <b>tool faces</b> (a
+ * column "is this host accounted for?" had no answer. The list names the <b>tool faces</b> (a
  * {@code @Configuration} declaring {@code @Bean AiTool}, or a component that {@code implements AiTool}),
  * two <b>tool paths</b> (the seams that hand tools to a model: this deployment's own engine face
  * {@code YudaoGovernedAgentTools}, and the adapter that hands ai1's external tools to the engine,
@@ -55,7 +55,7 @@ import java.util.List;
  * the declaration is <b>a separate work item</b> (the generator, `YD-25`), outside this task. So the tool
  * declarations land in <b>this one hand-written place</b>: a module has a carrier that can declare itself
  * (the aspect, which the generator already emits {@code implements GovernedModule} for), a tool face does
- * not — not without touching the generator. Gathering the twelve into one readable catalogue is more
+ * not — not without touching the generator. Gathering them into one readable catalogue is more
  * honest than a marker on each class plus a special case for the generated face and `ai1`'s two.
  *
  * <p><b>⚠ It is a list, not a set of beans — and this is the corrected version.</b> The first version made
@@ -78,8 +78,8 @@ import java.util.List;
  */
 public final class GovernedToolFaces {
 
-    // No Spring annotation, on purpose — see the class comment. A catalogue is data; wiring it as twelve
-    // @Bean methods is what a bean name collided with. / 刻意不带 Spring 注解——见类注释。目录是数据；把它接成十二个
+    // No Spring annotation, on purpose — see the class comment. A catalogue is data; wiring each entry as its own
+    // @Bean methods is what a bean name collided with. / 刻意不带 Spring 注解——见类注释。目录是数据；把它接成一批
     // @Bean 方法，正是 bean 名相撞的来源。
     private GovernedToolFaces() {
     }
@@ -93,9 +93,10 @@ public final class GovernedToolFaces {
      */
     public static List<GovernedPath> all() {
         return List.of(
-                // 八个工具面 / the eight tool faces
+                // 工具面 / the tool faces
                 new ToolFace("CrmCustomerTools"),
                 new ToolFace("CrmFollowUpTools"),
+                new ToolFace("CrmContractTools"),
                 new ToolFace("BpmOALeaveTools"),
                 new ToolFace("FmsVoucherTools"),
                 new ToolFace("SystemNotifyMessageTools"),
