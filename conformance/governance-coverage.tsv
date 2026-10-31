@@ -137,7 +137,7 @@ system	mail-send	cn.iocoder.yudao.module.system.service.mail.MailSendService	exe
 system	mail-template	cn.iocoder.yudao.module.system.service.mail.MailTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	member	cn.iocoder.yudao.module.system.service.member.MemberService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	menu	cn.iocoder.yudao.module.system.service.permission.MenuService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	notice	cn.iocoder.yudao.module.system.service.notice.NoticeService	gap		M2 业务面（公告）	@rain	2027-06-30
+system	notice	cn.iocoder.yudao.module.system.service.notice.NoticeService	seam	SystemNoticeGovernance			
 system	notify-message	cn.iocoder.yudao.module.system.service.notify.NotifyMessageService	seam	SystemNotifyMessageGovernance			
 system	notify-send	cn.iocoder.yudao.module.system.service.notify.NotifySendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	notify-template	cn.iocoder.yudao.module.system.service.notify.NotifyTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
