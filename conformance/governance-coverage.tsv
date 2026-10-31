@@ -75,7 +75,7 @@ crm	owner-record	cn.iocoder.yudao.module.crm.service.permission.CrmOwnerRecordSe
 crm	performance-config	cn.iocoder.yudao.module.crm.service.performance.CrmPerformanceConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	permission	cn.iocoder.yudao.module.crm.service.permission.CrmPermissionService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	product	cn.iocoder.yudao.module.crm.service.product.CrmProductService	seam	CrmProductGovernance			
-crm	product-category	cn.iocoder.yudao.module.crm.service.product.CrmProductCategoryService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	product-category	cn.iocoder.yudao.module.crm.service.product.CrmProductCategoryService	exempt		产品分类是目录/配置面（管理面，D4 甲）而非业务行：CrmProductCategoryDO 仅 {id,name,parentId}（CrmProductCategoryDO:33-47；DDL sql/keelbase-crm.sql:375-386 无 owner 列，只有审计 creator），两级共享目录（CATEGORY_LEVEL=2、PARENT_ID_NULL 为根）；服务与接口无 @CrmPermission（CrmProductCategoryServiceImpl:31-138），写端点由 crm:product-category:create|update|delete 管理权限把关（CrmProductCategoryController:34/41/50）、读由 :query（:59/67）；它只作产品行的引用与保存校验（crm_product.category_id、CrmProductServiceImpl:126-127），产品工具要求调用方给出既有 categoryId（CrmProductTools:225），AI 不需要独立的建/改分类动作，分类由管理员在控制台维护	@rain	2027-09-30
 crm	receivable	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivableService	seam	CrmReceivableGovernance			
 crm	receivable-plan	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivablePlanService	seam	CrmReceivablePlanGovernance			
 crm	statistics-customer	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsCustomerService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
