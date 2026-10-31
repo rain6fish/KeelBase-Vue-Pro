@@ -117,7 +117,7 @@ infra	config	cn.iocoder.yudao.module.infra.service.config.ConfigService	exempt		
 infra	contact	cn.iocoder.yudao.module.infra.service.demo.demo01.Demo01ContactService	seam	Demo01ContactGovernance			
 infra	data-source-config	cn.iocoder.yudao.module.infra.service.db.DataSourceConfigService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 infra	database-table	cn.iocoder.yudao.module.infra.service.db.DatabaseTableService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-infra	file	cn.iocoder.yudao.module.infra.service.file.FileService	gap		M2 业务面（文件）	@rain	2027-06-30
+infra	file	cn.iocoder.yudao.module.infra.service.file.FileService	seam	InfraFileGovernance			
 infra	file-config	cn.iocoder.yudao.module.infra.service.file.FileConfigService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 infra	job	cn.iocoder.yudao.module.infra.service.job.JobService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 infra	job-log	cn.iocoder.yudao.module.infra.service.job.JobLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

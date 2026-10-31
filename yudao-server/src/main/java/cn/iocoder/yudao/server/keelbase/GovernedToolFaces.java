@@ -106,6 +106,7 @@ public final class GovernedToolFaces {
                 new ToolFace("BpmOALeaveTools"),
                 new ToolFace("FmsVoucherTools"),
                 new ToolFace("SystemNotifyMessageTools"),
+                new ToolFace("InfraFileTools"),
                 new ToolFace("ProductsTools"), // 生成的 / generated
                 new ToolFace("ConsolePages"),
                 new ToolFace("ListYudaoUsersTool"),
