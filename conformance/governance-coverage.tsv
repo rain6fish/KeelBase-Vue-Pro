@@ -74,7 +74,7 @@ crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRec
 crm	owner-record	cn.iocoder.yudao.module.crm.service.permission.CrmOwnerRecordService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	performance-config	cn.iocoder.yudao.module.crm.service.performance.CrmPerformanceConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	permission	cn.iocoder.yudao.module.crm.service.permission.CrmPermissionService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
-crm	product	cn.iocoder.yudao.module.crm.service.product.CrmProductService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	product	cn.iocoder.yudao.module.crm.service.product.CrmProductService	seam	CrmProductGovernance			
 crm	product-category	cn.iocoder.yudao.module.crm.service.product.CrmProductCategoryService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
 crm	receivable	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivableService	seam	CrmReceivableGovernance			
 crm	receivable-plan	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivablePlanService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
