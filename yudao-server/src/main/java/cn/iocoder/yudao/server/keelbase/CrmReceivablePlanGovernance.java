@@ -7,6 +7,7 @@ import cn.iocoder.yudao.module.crm.controller.admin.receivable.vo.plan.CrmReceiv
 import cn.iocoder.yudao.module.crm.controller.admin.receivable.vo.plan.CrmReceivablePlanSaveReqVO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.permission.CrmPermissionDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.receivable.CrmReceivablePlanDO;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.crm.enums.common.CrmBizTypeEnum;
 import cn.iocoder.yudao.module.crm.enums.common.CrmSceneTypeEnum;
 import cn.iocoder.yudao.module.crm.enums.permission.CrmPermissionLevelEnum;
@@ -102,10 +103,13 @@ public class CrmReceivablePlanGovernance implements GovernedModule {
 
     private final YudaoModuleScope scope;
     private final CrmPermissionService permissions;
+    private final CrmReceivablePlanMapper plans;
 
-    public CrmReceivablePlanGovernance(YudaoModuleScope scope, CrmPermissionService permissions) {
+    public CrmReceivablePlanGovernance(YudaoModuleScope scope, CrmPermissionService permissions,
+                                       CrmReceivablePlanMapper plans) {
         this.scope = scope;
         this.permissions = permissions;
+        this.plans = plans;
     }
 
     @Override
@@ -176,10 +180,23 @@ public class CrmReceivablePlanGovernance implements GovernedModule {
     }
 
     /**
-     * 创建：属主从调用方盖上去。发生在校验之前——`ownerUserId` 是必填，晚了就被挡在方法体之外。
+     * 创建：属主从调用方盖上去，**建完再补盖 `creator`**。
      *
-     * Create: the owner is stamped from the caller, before validation — the save VO declares it required, and
-     * later would be too late.
+     * <p>属主发生在上游校验之前——`ownerUserId` 是必填，晚了就被挡在方法体之外。`creator` 则得更晚：框架的
+     * 审计字段处理器读的是安全上下文，而 AI 工具那条路把调用方发布在 `ActingCaller` 里，于是工具建的计划带着
+     * **NULL 的 `creator`** 落库。模块自己的 `CrmReceivablePlanController.buildReceivableDetailList` 会把它当
+     * 用户 id 解析（`Long.parseLong(getCreator())`），`/page`、`/get`、`/page-by-customer` 三条路因此都答 500
+     * —— 一条工具建出来的计划，模块自己读不回来。故按 id 写回，在同一次受治理调用里、也就是同一个租户上下文里
+     * （与 `Demo01ContactGovernance.stampCreator` 同一做法）。
+     *
+     * Create: the owner is stamped from the caller, and the **`creator` is written back after the insert**.
+     * The owner goes in before upstream's validation (`ownerUserId` is required, and later would be too
+     * late). The `creator` has to come later: the framework's audit-field handler reads the security
+     * context, while the AI tool path publishes its caller through `ActingCaller`, so a tool-created plan
+     * lands with a **NULL `creator`**. The module's own detail builder parses it as a user id
+     * (`Long.parseLong(getCreator())`), so `/page`, `/get` and `/page-by-customer` all answer 500 — a plan
+     * the tool created could not be read back by the module itself. The stamp is written by id, inside the
+     * same governed call and hence the same tenant context, the way `Demo01ContactGovernance` does it.
      */
     @Around("execution(* cn.iocoder.yudao.module.crm.service.receivable.CrmReceivablePlanService.createReceivablePlan(..))")
     public Object stampOwner(ProceedingJoinPoint call) throws Throwable {
@@ -188,7 +205,14 @@ public class CrmReceivablePlanGovernance implements GovernedModule {
                 && call.getArgs()[0] instanceof CrmReceivablePlanSaveReqVO row) {
             row.setOwnerUserId(caller);
         }
-        return call.proceed();
+        Object outcome = call.proceed();
+        if (caller != null && outcome instanceof Long id) {
+            CrmReceivablePlanDO stamp = new CrmReceivablePlanDO();
+            stamp.setId(id);
+            stamp.setCreator(String.valueOf(caller));
+            plans.updateById(stamp);
+        }
+        return outcome;
     }
 
     /**

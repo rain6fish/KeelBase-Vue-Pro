@@ -5,7 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import cn.com.keelbase.runtime.authz.RuleDeniedException;
@@ -14,6 +17,7 @@ import cn.iocoder.yudao.module.crm.controller.admin.receivable.vo.plan.CrmReceiv
 import cn.iocoder.yudao.module.crm.controller.admin.receivable.vo.plan.CrmReceivablePlanSaveReqVO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.permission.CrmPermissionDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.receivable.CrmReceivablePlanDO;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.crm.enums.common.CrmBizTypeEnum;
 import cn.iocoder.yudao.module.crm.enums.common.CrmSceneTypeEnum;
 import cn.iocoder.yudao.module.crm.enums.permission.CrmPermissionLevelEnum;
@@ -47,6 +51,7 @@ class CrmReceivablePlanGovernanceTest {
 
     private YudaoModuleScope scope;
     private CrmPermissionService permissions;
+    private CrmReceivablePlanMapper plans;
     private CrmReceivablePlanGovernance aspect;
     private ProceedingJoinPoint call;
 
@@ -54,7 +59,8 @@ class CrmReceivablePlanGovernanceTest {
     void setUp() {
         scope = mock(YudaoModuleScope.class);
         permissions = mock(CrmPermissionService.class);
-        aspect = new CrmReceivablePlanGovernance(scope, permissions);
+        plans = mock(CrmReceivablePlanMapper.class);
+        aspect = new CrmReceivablePlanGovernance(scope, permissions, plans);
         call = mock(ProceedingJoinPoint.class);
         when(scope.callerToEnforce()).thenReturn(CALLER);
         when(scope.creatingCaller()).thenReturn(CALLER);
@@ -173,6 +179,40 @@ class CrmReceivablePlanGovernanceTest {
         aspect.stampOwner(call);
 
         assertEquals(CALLER, create.getOwnerUserId(), "a client may not name someone else as owner");
+    }
+
+    /**
+     * 工具建出来的计划必须带调用方的 `creator`：模块自己的详情构建器把它当用户 id 解析，NULL 会让 `/page`、
+     * `/get`、`/page-by-customer` 三条路一起 500。审计字段处理器读的是安全上下文，工具路径发布在
+     * `ActingCaller` 里，故这一笔由切面按 id 写回。
+     *
+     * <p>A plan the tool created must carry the caller as `creator`: the module's own detail builder parses it
+     * as a user id, and NULL makes `/page`, `/get` and `/page-by-customer` answer 500 together. The audit-field
+     * handler reads the security context, while the tool path publishes through `ActingCaller`, so the aspect
+     * writes the stamp back by id.
+     */
+    @Test
+    void theCreatorIsWrittenBackAfterTheInsert() throws Throwable {
+        CrmReceivablePlanSaveReqVO create = new CrmReceivablePlanSaveReqVO();
+        when(call.getArgs()).thenReturn(new Object[]{create});
+        when(call.proceed()).thenReturn(1L);
+
+        aspect.stampOwner(call);
+
+        verify(plans).updateById(org.mockito.ArgumentMatchers.<CrmReceivablePlanDO>argThat(stamp ->
+                Long.valueOf(1L).equals(stamp.getId()) && String.valueOf(CALLER).equals(stamp.getCreator())));
+    }
+
+    @Test
+    void withNoCallerTheCreatorIsNotStamped() throws Throwable {
+        when(scope.creatingCaller()).thenReturn(null);
+        CrmReceivablePlanSaveReqVO create = new CrmReceivablePlanSaveReqVO();
+        when(call.getArgs()).thenReturn(new Object[]{create});
+        when(call.proceed()).thenReturn(1L);
+
+        aspect.stampOwner(call);
+
+        verify(plans, never()).updateById(any(CrmReceivablePlanDO.class));
     }
 
     private void signature(String name) {
