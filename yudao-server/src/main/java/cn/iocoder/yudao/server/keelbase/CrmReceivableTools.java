@@ -20,6 +20,8 @@ import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -245,6 +247,12 @@ public class CrmReceivableTools {
 
     static final class CreateRoute implements ModuleRoute {
 
+        /** The three required arguments, as a caller writes them. / 三个必填项在文字里的写法。 */
+        private static final Pattern CONTRACT_ID = Pattern.compile("合同(?:编号|号)?\\s*[=:：]?\\s*(\\d+)");
+        private static final Pattern PRICE = Pattern.compile("金额\\s*[=:：]?\\s*(\\d+(?:\\.\\d+)?)");
+        private static final Pattern RETURN_TIME =
+                Pattern.compile("日期\\s*[=:：]?\\s*(\\d{4}-\\d{2}-\\d{2}(?:[ T]\\d{2}:\\d{2}:\\d{2})?)");
+
         @Override
         public String toolName() {
             return "create_crm_receivable";
@@ -257,11 +265,35 @@ public class CrmReceivableTools {
 
         @Override
         public Map<String, Object> args(Map<String, Object> context) {
+            // 会话只有一个结构化槽，它讲的是「目标」、不是合同编号；拿它填 `contractId` 是在猜这个槽的意思。
+            // 用户在文字里明确写出的合同、金额与日期 ——「合同=12 金额=100 日期=2026-10-31」—— 由这里读出来：
+            // 三者缺一个这笔回款就登记不了，而引擎会在**人批准之前**就拒掉一份漏了它们的提议。
+            //
             // The chat carries one structured slot and it names a target, not a contract; filling `contractId`
-            // from it would be a guess at what the slot means. The planner falls back for the rest.
-            // 会话只有一个结构化槽，它讲的是「目标」，不是合同编号；拿它填 `contractId` 是在猜这个槽的意思。
-            // 其余交给规划器的回落。
-            return Map.of();
+            // from it would be a guess at what the slot means. What the caller wrote explicitly —
+            // `合同=12 金额=100 日期=2026-10-31` — is read here instead: a receivable cannot be registered
+            // without all three, and the engine refuses a proposal that omits them **before** a person is asked.
+            Map<String, Object> args = new LinkedHashMap<>();
+            if (context.get("message") instanceof String typed && !typed.isBlank()) {
+                Long contractId = asLong(match(typed, CONTRACT_ID));
+                if (contractId != null) {
+                    args.put("contractId", contractId);
+                }
+                BigDecimal price = asDecimal(match(typed, PRICE));
+                if (price != null) {
+                    args.put("price", price);
+                }
+                String returnTime = match(typed, RETURN_TIME);
+                if (!returnTime.isBlank()) {
+                    args.put("returnTime", returnTime);
+                }
+            }
+            return args;
+        }
+
+        private static String match(String text, Pattern pattern) {
+            Matcher matcher = pattern.matcher(text);
+            return matcher.find() ? matcher.group(1) : "";
         }
     }
 
