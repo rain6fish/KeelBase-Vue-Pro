@@ -102,6 +102,7 @@ public final class GovernedToolFaces {
                 new ToolFace("CrmClueTools"),
                 new ToolFace("CrmBusinessTools"),
                 new ToolFace("CrmContactTools"),
+                new ToolFace("InfraFileTools"),
                 new ToolFace("CrmProductTools"),
                 new ToolFace("BpmOALeaveTools"),
                 new ToolFace("FmsVoucherTools"),
