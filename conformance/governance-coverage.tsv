@@ -55,7 +55,7 @@ bpm	model	cn.iocoder.yudao.module.bpm.service.definition.BpmModelService	exempt	
 bpm	oa-leave	cn.iocoder.yudao.module.bpm.service.oa.BpmOALeaveService	seam	BpmOALeaveGovernance			
 bpm	process-definition	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessDefinitionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	process-expression	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessExpressionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
-bpm	process-instance	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	process-instance	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceService	seam	BpmProcessInstanceGovernance			
 bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceCopyService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
 bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessListenerService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
