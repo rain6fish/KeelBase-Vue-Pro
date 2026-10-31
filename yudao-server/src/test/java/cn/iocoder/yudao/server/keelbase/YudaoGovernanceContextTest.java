@@ -20,6 +20,8 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -155,17 +157,88 @@ class YudaoGovernanceContextTest {
             }
         }
 
+        Set<Class<?>> properties = configurationPropertiesTypes(declarations);
+        Set<Class<?>> produced = beanMethodReturnTypes(declarations);
         int index = 0;
         for (Class<?> dependency : dependencies) {
             if (dependency.isPrimitive() || dependency.isArray()
                     || dependency == List.class || dependency == Set.class
                     || suppliedByTheContainer(dependency)
-                    || aDeclarationSupplies(dependency, declared)) {
+                    || aDeclarationSupplies(dependency, declared)
+                    || properties.contains(dependency)
+                    || produced.contains(dependency)) {
+                continue;
+            }
+            Object configuration = configurationPojo(dependency);
+            if (configuration != null) {
+                ctx.getBeanFactory().registerSingleton("configuration" + index++, configuration);
                 continue;
             }
             ctx.getBeanFactory().registerSingleton("mockDependency" + index++, mock(dependency));
         }
     }
+
+    /**
+     * `@EnableConfigurationProperties` 点名的类型由容器在 refresh 时注册，**不**该被 mock。
+     *
+     * <p>为什么只能从注解读、不能问容器：那些 bean 由 `ConfigurationClassPostProcessor` 在 refresh 阶段导入，
+     * 本方法跑在 refresh **之前**——问 bean factory 会答「没有」（问 context 更会直接抛「尚未 refresh」）。
+     * 读注解是唯一在此时可得的答案。丁的 `YudaoBypassAudit.Properties` 就是这样撞出两个候选的。
+     *
+     * <p>The types named by `@EnableConfigurationProperties` are registered by the container during refresh and must
+     * not be mocked. They cannot be asked for: the definitions are imported by `ConfigurationClassPostProcessor` during
+     * refresh, and this runs **before** it — the bean factory answers "none" and the context throws "not refreshed yet".
+     * Reading the annotation is the only answer available here; the bypass audit's `Properties` is what collided.
+     */
+    /**
+     * `@ConfigurationProperties` 的类**不是外部服务**，它自带默认值；给 mock 会让它的字段全为 null，而某个 `@Bean`
+     * 方法在装配时读这些字段就会炸（`WebProperties.getAdminApi()` 返回 null 就这样让本测试红过）。故给**真实实例**。
+     *
+     * <p>A `@ConfigurationProperties` class is **not** an external service: it carries defaults, and a mock leaves
+     * every field null — which blows up any `@Bean` method that reads one while wiring (a null `adminApi` on
+     * `WebProperties` did exactly that). A real instance is the right dependency here.
+     */
+    private static Object configurationPojo(Class<?> dependency) {
+        if (!dependency.isAnnotationPresent(ConfigurationProperties.class)) {
+            return null;
+        }
+        try {
+            return dependency.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException notAConfigurationPojo) {
+            return null;
+        }
+    }
+
+    /**
+     * 某个 `@Bean` 方法**返回**的类型也由本包提供，不该再 mock —— 参数类型与返回类型会撞成两个候选
+     * （丁的 `YudaoBypassAuditWriter` 就是这样）。
+     *
+     * <p>A type that some `@Bean` method **returns** is supplied by the package too and must not be mocked; the
+     * parameter type and the produced type otherwise collide into two candidates (the bypass audit's writer did).
+     */
+    private static Set<Class<?>> beanMethodReturnTypes(List<Class<?>> declarations) {
+        Set<Class<?>> types = new LinkedHashSet<>();
+        for (Class<?> type : declarations) {
+            for (Method method : type.getDeclaredMethods()) {
+                if (method.isAnnotationPresent(Bean.class)) {
+                    types.add(method.getReturnType());
+                }
+            }
+        }
+        return types;
+    }
+
+    private static Set<Class<?>> configurationPropertiesTypes(List<Class<?>> declarations) {
+        Set<Class<?>> types = new LinkedHashSet<>();
+        for (Class<?> type : declarations) {
+            EnableConfigurationProperties declared = type.getAnnotation(EnableConfigurationProperties.class);
+            if (declared != null) {
+                types.addAll(List.of(declared.value()));
+            }
+        }
+        return types;
+    }
+
 
     /**
      * 依赖类型**被某个声明类实现/继承**时，由那一个 bean 提供，不再给接口塞 mock ——
