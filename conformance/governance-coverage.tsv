@@ -63,7 +63,7 @@ bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupServic
 crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
 crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
 crm	clue	cn.iocoder.yudao.module.crm.service.clue.CrmClueService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
-crm	contact	cn.iocoder.yudao.module.crm.service.contact.CrmContactService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	contact	cn.iocoder.yudao.module.crm.service.contact.CrmContactService	seam	CrmContactGovernance			
 crm	contact-business	cn.iocoder.yudao.module.crm.service.contact.CrmContactBusinessService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
 crm	contract	cn.iocoder.yudao.module.crm.service.contract.CrmContractService	seam	CrmContractGovernance			
 crm	contract-config	cn.iocoder.yudao.module.crm.service.contract.CrmContractConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
