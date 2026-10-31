@@ -14,6 +14,7 @@ import cn.iocoder.yudao.module.crm.dal.dataobject.contract.CrmContractDO;
 import cn.iocoder.yudao.module.crm.enums.common.CrmSceneTypeEnum;
 import cn.iocoder.yudao.module.crm.service.contract.CrmContractService;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -202,6 +203,13 @@ public class CrmContractTools {
             if (args.get("totalPrice") != null) {
                 row.setTotalPrice(new BigDecimal(String.valueOf(args.get("totalPrice"))));
             }
+            // 这两个字段 VO 声明为必填，而工具面不向调用方索取：下单日期取创建时刻，折扣取零。不补它们，
+            // 服务端的 bean 校验会在**批准之后**拒绝这次写（实测：ConstraintViolationException）。
+            // The VO declares these two required, and this tool does not ask the caller for them: the order
+            // date is the creation instant and the discount is zero. Without them the server-side bean
+            // validation refuses the write **after approval** (measured: ConstraintViolationException).
+            row.setOrderDate(LocalDateTime.now());
+            row.setDiscountPercent(BigDecimal.ZERO);
             // The owner is not set here on purpose: CrmContractGovernance stamps it from the caller, the way it does
             // for the module's own REST path.
             // 属主**刻意不在这里设**：由 CrmContractGovernance 从调用方盖上去，与它对模块 REST 路径的做法相同。
