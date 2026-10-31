@@ -129,6 +129,12 @@ public class YudaoBypassAudit {
         return new YudaoBypassAuditWriter(dataSource);
     }
 
+    /** 只读的那一面，给控制台的分页区块用。 / The read side, for the console's paged section. */
+    @Bean
+    YudaoBypassAuditReader yudaoBypassAuditReader(javax.sql.DataSource dataSource) {
+        return new YudaoBypassAuditReader(dataSource);
+    }
+
     @Bean
     FilterRegistrationBean<BypassAuditFilter> bypassAuditFilter(WebProperties webProperties,
                                                                 Properties properties,
