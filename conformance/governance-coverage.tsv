@@ -61,10 +61,10 @@ bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessLi
 bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
 bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	seam	CrmBusinessGovernance			
-crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	exempt		商机阶段配置面（管理面，D4 甲）：CrmBusinessStatusTypeDO 仅 {id,name,deptIds}、无属主字段；服务与接口无 @CrmPermission，写端点由 crm:business-status:create|update|delete 管理权限把关（CrmBusinessStatusController:51/58/67）；商机行只读它（CrmBusinessServiceImpl:100 取默认状态、:193 校验状态组、:243 校验状态）	@rain	2027-09-30
 crm	clue	cn.iocoder.yudao.module.crm.service.clue.CrmClueService	seam	CrmClueGovernance			
 crm	contact	cn.iocoder.yudao.module.crm.service.contact.CrmContactService	seam	CrmContactGovernance			
-crm	contact-business	cn.iocoder.yudao.module.crm.service.contact.CrmContactBusinessService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	contact-business	cn.iocoder.yudao.module.crm.service.contact.CrmContactBusinessService	exempt		联系人↔商机关联表：CrmContactBusinessDO 仅 {id,contactId,businessId}、无属主字段；写方法虽带宽窄 @CrmPermission 但权限取自父行（Impl:46/72/98/110/122），direct REST 端点亦经同一父行判权（CrmContactController:204-235）；且 createContactBusinessList 由 CrmContactServiceImpl.createContact:92 与 CrmBusinessServiceImpl.createBusiness:116 带出，两个父对象均已是 seam	@rain	2027-09-30
 crm	contract	cn.iocoder.yudao.module.crm.service.contract.CrmContractService	seam	CrmContractGovernance			
 crm	contract-config	cn.iocoder.yudao.module.crm.service.contract.CrmContractConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	customer	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerService	seam	CrmCustomerGovernance			
