@@ -60,7 +60,7 @@ bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessIns
 bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessListenerService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
 bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
-crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
+crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	seam	CrmBusinessGovernance			
 crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
 crm	clue	cn.iocoder.yudao.module.crm.service.clue.CrmClueService	seam	CrmClueGovernance			
 crm	contact	cn.iocoder.yudao.module.crm.service.contact.CrmContactService	gap		M1 排期中（计划 §5 顺序）	@rain	2027-02-28
