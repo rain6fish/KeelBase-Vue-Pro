@@ -28,7 +28,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>调用方**自己**——任何已登录用户都可以知道自己的名字；</li>
  *   <li>持有启用的 `audit_reader` 角色时，**账本里出现过的**调用方——`ai_audit_logs.user_id`（运行时那条
- *       审计链）与 `system_operate_log.user_id`（宿主自己的操作审计）的并集，且限同一租户。</li>
+ *       审计链）、`system_operate_log.user_id`（宿主自己的操作审计）与 `keelbase_bypass_log.caller_id`
+ *       （上游 REST 写的旁路留痕）的并集，且限同一租户。</li>
  * </ul>
  *
  * <p>于是这条端点**当不了名录用**：它答不出一个从未在台账里出现过的 id，也答不出别的租户的人。读不出来时
@@ -48,8 +49,9 @@ import org.springframework.stereotype.Component;
  * <p><b>This is not a directory.</b> The class answers only for people the caller could already meet in
  * the ledger: the caller themselves (any signed-in user may know their own name), and — when the caller
  * holds an enabled `audit_reader` role — the callers that appear in `ai_audit_logs.user_id` (the
- * runtime's audit chain) or `system_operate_log.user_id` (the host's own operation audit), within the
- * same tenant. The endpoint therefore cannot be used as a directory: it will not name an id that never
+ * runtime's audit chain) or `system_operate_log.user_id` (the host's own operation audit) or
+ * `keelbase_bypass_log.caller_id` (the upstream REST write trail), within the same tenant. The endpoint
+ * therefore cannot be used as a directory: it will not name an id that never
  * appeared in a ledger, nor anyone in another tenant. A failed read narrows — no row simply means no
  * name, and the page falls back to the id exactly as before. It never throws.
  */
@@ -147,6 +149,25 @@ public class YudaoCallerDirectory {
             }
         } catch (DataAccessException cannotRead) {
             log.debug("[ledgerCallers] 操作审计里读不出操作者，本批跳过：{}", cannotRead.getMessage());
+        }
+        // 旁路留痕也是一本账：一次上游 REST 写在那里留下一行，写明是谁发的。它是**第三本**，不与上面两本合并
+        // 成一行 —— 只在这条「能不能叫出名字」的问题上取并集：读者能在这张表里遇到的人，就该能在这里读到名字，
+        // 否则边界页上那列只剩一串数字。
+        //
+        // The bypass trail is a ledger too: an upstream REST write leaves a row there naming who sent it. It is
+        // a **third** ledger and is never merged into the other two as one row — only unified for this one
+        // question, "may this caller be named": whoever a reader can meet in that table should be nameable
+        // here, or the boundary page's column is back to bare numbers.
+        try {
+            List<Number> callers = jdbc().queryForList(
+                    "select distinct caller_id from keelbase_bypass_log"
+                            + " where tenant_id = ? and caller_id in (" + placeholders + ")",
+                    Number.class, params.toArray());
+            for (Number caller : callers) {
+                found.add(caller.longValue());
+            }
+        } catch (DataAccessException cannotRead) {
+            log.debug("[ledgerCallers] 旁路留痕里读不出调用方，本批跳过：{}", cannotRead.getMessage());
         }
         return found;
     }

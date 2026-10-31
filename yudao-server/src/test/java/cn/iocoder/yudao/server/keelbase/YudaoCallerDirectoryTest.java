@@ -62,13 +62,17 @@ class YudaoCallerDirectoryTest {
                     + " user_id varchar(255), action varchar(255))");
             statement.execute("create table system_operate_log (id bigint auto_increment primary key,"
                     + " user_id bigint, tenant_id bigint, deleted smallint default 0)");
+            statement.execute("create table keelbase_bypass_log (id bigint auto_increment primary key,"
+                    + " caller_id bigint, tenant_id bigint)");
             statement.execute("insert into system_users (id, tenant_id, nickname, username) values"
                     + " (1, 1, '管理员', 'admin'),"
                     + " (9001, 1, '走查读者', 'm7reader'),"
                     + " (9002, 1, '审计读者', 'm7audit'),"
+                    + " (9003, 1, '直连写入者', 'consolewriter'),"
                     + " (42, 2, '别的租户', 'other')");
             statement.execute("insert into ai_audit_logs (user_id, action) values ('9001', 'tool_call')");
             statement.execute("insert into system_operate_log (user_id, tenant_id) values (9002, 1)");
+            statement.execute("insert into keelbase_bypass_log (caller_id, tenant_id) values (9003, 1)");
         }
     }
 
@@ -96,6 +100,18 @@ class YudaoCallerDirectoryTest {
         Map<String, String> names = directory.namesFor(9002L, List.of(1L, 9001L, 9002L, 777L));
 
         assertEquals(Map.of("9001", "走查读者", "9002", "审计读者"), names);
+    }
+
+    @Test
+    void anAuditReaderNamesSomeoneWhoseOnlyTraceIsInTheBypassTrail() {
+        // 9003 只在旁路留痕里出现过（一次直连上游 REST 的写，没走 AI、也可能没进芋道操作审计）。
+        // 边界页那张表就摆着这个 id，故它必须叫得出名字 —— 否则那一列只剩一串数字。
+        // 9003 appears only in the bypass trail (a direct upstream REST write, no AI, and possibly no YuDao
+        // operation-audit row). The boundary page's table shows that id, so it has to be nameable — otherwise
+        // the column is back to bare numbers.
+        Map<String, String> names = directory.namesFor(9002L, List.of(9003L));
+
+        assertEquals(Map.of("9003", "直连写入者"), names);
     }
 
     @Test

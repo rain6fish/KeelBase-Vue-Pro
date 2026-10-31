@@ -76,7 +76,8 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
     /** 一条插入语句，一处写死：列与表名都在 `sql/keelbase-bypass-audit.sql`。 */
     private static final String INSERT = "insert into keelbase_bypass_log "
             + "(occurred_at, method, path, module, object_name, caller_id, tenant_id, "
-            + "http_status, result_code, duration_ms) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            + "http_status, result_code, duration_ms, body_length, body_sha256, body_fields) "
+            + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     private final BlockingQueue<YudaoBypassAuditRow> queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
     private final AtomicLong dropped = new AtomicLong();
@@ -141,7 +142,8 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
             jdbc().update(INSERT, OffsetDateTime.ofInstant(row.occurredAt(), ZoneOffset.UTC),
                     row.method(), row.path(),
                     row.module(), row.object(), row.callerId(), row.tenantId(),
-                    row.httpStatus(), row.resultCode(), row.durationMs());
+                    row.httpStatus(), row.resultCode(), row.durationMs(),
+                    row.bodyLength(), row.bodySha256(), row.bodyFields());
         } catch (RuntimeException failed) {
             // 报**最里层**那句：`BadSqlGrammarException` 只说「语法不对」，而真正的原因（表不在这个 schema、
             // 库连错了、类型对不上）在它的 cause 里。一条读不出原因的警告，等于让人去猜。

@@ -2,6 +2,7 @@
 package cn.iocoder.yudao.server.keelbase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -12,8 +13,11 @@ import cn.iocoder.yudao.framework.security.core.LoginUser;
 import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
 import cn.iocoder.yudao.framework.web.core.util.WebFrameworkUtils;
 import jakarta.servlet.ServletException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -206,6 +210,120 @@ class YudaoBypassAuditFilterTest {
         assertEquals("user", YudaoBypassAuditFilter.subjectOf("/admin-api/system/user/create")[1]);
         assertNull(YudaoBypassAuditFilter.subjectOf("/ai/chat/stream"),
                 "the runtime's own surface is not the admin API");
+    }
+
+    @Test
+    void aJsonWriteRecordsTheBodyShapeAndNotOneValue() throws Exception {
+        // 正文里的值一个都不该出现在行里：标记串、口令都不例外。留下的是长度、摘要前 12 位与顶层字段名。
+        // Not one value from the body belongs in the row, markers and passwords included. What stays is the
+        // length, the first 12 digits of a digest, and the top-level field names.
+        String body = "{\"customerId\":9005,\"note\":\"body-marker-should-never-land\","
+                + "\"password\":\"hunter2-should-never-land\"}";
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+        MockHttpServletRequest request = jsonRequest("PUT", "/admin-api/crm/customer/update", bytes);
+        AtomicReference<String> seenDownstream = new AtomicReference<>();
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) ->
+                seenDownstream.set(new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8)));
+
+        assertEquals(1, rows.size());
+        assertEquals(body, seenDownstream.get(), "the body still reaches the chain, byte for byte");
+        YudaoBypassAuditRow row = rows.get(0);
+        assertEquals(bytes.length, row.bodyLength(), "the length is measured on the bytes, not the characters");
+        assertEquals(sha256Prefix(bytes), row.bodySha256(), "the digest is over the same bytes");
+        assertEquals("customerId,note,password", row.bodyFields(), "top-level names, in document order");
+        assertFalse(row.toString().contains("body-marker-should-never-land"),
+                "a value from the body reached the row: " + row);
+        assertFalse(row.toString().contains("hunter2-should-never-land"),
+                "a password from the body reached the row: " + row);
+    }
+
+    @Test
+    void aStreamingWriteKeepsItsRowButNoBody() throws Exception {
+        // 流式答复的请求不读正文（用户的问题不该被当成「一次写的正文」记下来），但**行照留**。
+        // A streaming answer's request is not body-read (the user's question is not "a write's body"), but
+        // the row is still left.
+        MockHttpServletRequest request = jsonRequest("POST",
+                "/admin-api/ai1/session/message/send-stream",
+                "{\"sessionId\":1,\"content\":\"hello\"}".getBytes(StandardCharsets.UTF_8));
+        request.addHeader("Accept", "text/event-stream");
+        AtomicReference<String> seenDownstream = new AtomicReference<>();
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) ->
+                seenDownstream.set(new String(req.getInputStream().readAllBytes(), StandardCharsets.UTF_8)));
+
+        assertEquals(1, rows.size(), "one write, one row — streaming changes the body reading, not the trace");
+        assertEquals("{\"sessionId\":1,\"content\":\"hello\"}", seenDownstream.get(),
+                "the request body still arrives at the controller");
+        assertNull(rows.get(0).bodyLength(), "no length: the body was not read");
+        assertNull(rows.get(0).bodySha256(), "no digest: the body was not read");
+        assertNull(rows.get(0).bodyFields(), "no field names: the body was not read");
+    }
+
+    @Test
+    void aStreamPathIsNotBodyReadEvenWithoutAnAcceptHeader() throws Exception {
+        MockHttpServletRequest request = jsonRequest("POST",
+                "/admin-api/ai1/session/message/resume-stream",
+                "{\"sessionId\":1}".getBytes(StandardCharsets.UTF_8));
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> { });
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).bodyLength(), "the path says streaming, so the body stays unread");
+    }
+
+    @Test
+    void aNonJsonWriteHasNoBodySummary() throws Exception {
+        MockHttpServletRequest request = request("POST", "/admin-api/crm/customer/update");
+        request.setContentType("application/x-www-form-urlencoded");
+        request.setContent("note=form-value".getBytes(StandardCharsets.UTF_8));
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> { });
+
+        assertEquals(1, rows.size());
+        assertNull(rows.get(0).bodyLength(), "a form body is not read: the summary is about JSON writes");
+    }
+
+    @Test
+    void anOverlongBodyIsNotReadButTheRowStillSaysSomething() throws Exception {
+        byte[] big = new byte[YudaoBypassAuditBody.MAX_BYTES + 1];
+        java.util.Arrays.fill(big, (byte) 'x');
+        MockHttpServletRequest request = jsonRequest("POST", "/admin-api/crm/customer/update", big);
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> { });
+
+        assertEquals(1, rows.size(), "the row is never lost to a body that is too large to summarise");
+        assertNull(rows.get(0).bodyLength(), "over the cap means not read — and that is said as null");
+    }
+
+    @Test
+    void aKeyThatLooksLikeAValueIsNotRecordedAsAFieldName() throws Exception {
+        // 以手机号为键的 map：键就是值。只收像字段名的键。
+        // A map keyed by phone number: the key is the value. Only identifier-shaped keys are kept.
+        MockHttpServletRequest request = jsonRequest("POST", "/admin-api/crm/customer/update",
+                "{\"13800138000\":{\"x\":1},\"姓名\":2,\"okField\":3}".getBytes(StandardCharsets.UTF_8));
+
+        filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> { });
+
+        assertEquals(1, rows.size());
+        assertEquals("okField", rows.get(0).bodyFields(),
+                "a key shaped like a value is dropped rather than recorded as a field name");
+    }
+
+    private static MockHttpServletRequest jsonRequest(String method, String uri, byte[] body) {
+        MockHttpServletRequest request = request(method, uri);
+        request.setContentType("application/json");
+        request.setContent(body);
+        return request;
+    }
+
+    private static String sha256Prefix(byte[] body) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(body);
+        StringBuilder hex = new StringBuilder();
+        for (byte b : hash) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.substring(0, 12);
     }
 
     private static MockHttpServletRequest request(String method, String uri) {
