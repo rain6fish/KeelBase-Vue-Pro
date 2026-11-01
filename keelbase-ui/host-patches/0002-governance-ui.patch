@@ -203,8 +203,8 @@ index 96269a8..2611a9b 100644
 +    },
 +    boundary: {
 +      title: 'Governance boundary',
-+      verdictOk: 'Nothing of ours is outside governance',
-+      verdictViolated: '{n} path(s) would escape governance',
++      verdictOk: 'This scan found no bean of ours that bypasses governance',
++      verdictViolated: 'This scan found {n} bean(s) of ours that bypass governance',
 +      scope: 'Read {files} file(s) over {roots} root(s)',
 +      reads: 'What is read: a {\'@\'}Bean method whose declared return type hands out {types}',
 +      excluded: 'Deliberately not read: {paths} — upstream keeps its own model-to-tool path there, and its sample bean is the very fact this boundary rests on',
@@ -742,8 +742,8 @@ index 35f1e1a..856d201 100644
 +    },
 +    boundary: {
 +      title: '治理边界',
-+      verdictOk: '我们的东西没有一样在治理之外',
-+      verdictViolated: '有 {n} 条路径会绕过治理',
++      verdictOk: '本次扫描没发现我们自己的 bean 绕开治理',
++      verdictViolated: '本次扫描发现 {n} 个我们自己的 bean 绕开治理',
 +      scope: '读了 {roots} 个根下的 {files} 个文件',
 +      reads: '读的是 {\'@\'}Bean 的声明返回类型是否交出 {types}',
 +      excluded: '有意不读：{paths} —— 上游在那里留着自己的模型→工具路，而它那个示例 bean 正是本边界所倚的事实',

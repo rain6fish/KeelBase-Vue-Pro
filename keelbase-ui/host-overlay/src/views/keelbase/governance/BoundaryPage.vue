@@ -37,6 +37,11 @@
 <template>
   <ContentWrap :title="t('keelbase.boundary.title')">
     <template #header>
+      <!-- 标签只报**本次扫描**的结论：我们自己的声明有没有绕开治理。不说「全都管住了」——
+           那与下面第三档「完全不设防」自相矛盾。 -->
+      <!-- The tag reports **this scan's** result only: whether any of our own declarations bypasses
+           governance. It does not say "everything is governed", which would contradict the third
+           summary tier below. -->
       <el-tag
         v-if="boundary"
         :type="boundary.computed.verdict === 'ok' ? 'success' : 'danger'"
