@@ -873,6 +873,29 @@ jobs:
           # model-path columns — one extra or one missing is red. The rules live in the script's header.
           node scripts/ci/run-governance-gate.mjs | tee conformance.out
 
+      # F-2 的运行时那一半：`0.1.15` 起 `/ai/conversations` 带 `title` / `messageCount`，并多了
+      # `PUT /ai/conversations/{id}/title`。脚本读的就是这三样在不在，判词在它自己的文件头；
+      # 0.1.14 形状上它是红的（自证：`scripts/conversation-titles-check.test.mjs`），0.1.15 上必须绿。
+      # 口令**不写死**：`F2_PASS` 没给时从 `admin` 那一行解析（`scripts/admin-credential.mjs`），CI 即如此。
+      # 这套栈是一次性的，故允许脚本经 `POST /ai/chat` 把一个会话补到三条回合 —— 只有超过两条回合，
+      # `messageCount` 与 `messages.length` 才分得开，那一格要真 PASS 而不是 SKIP。
+      #
+      # The runtime half of F-2: since `0.1.15` the list carries `title` / `messageCount` and the rename
+      # endpoint answers. The script reads whether those three are live; its verdicts live in its own
+      # header. It is red on the 0.1.14 shape (self-test: `scripts/conversation-titles-check.test.mjs`) and
+      # must be green on 0.1.15. The password is **never hardcoded**: without `F2_PASS` it is resolved from
+      # the `admin` row (`scripts/admin-credential.mjs`), which is how CI runs. This stack is ephemeral, so
+      # the script may add turns through `POST /ai/chat` until one conversation has three — only past two
+      # turns can `messageCount` be told apart from `messages.length`, and that cell must really PASS, not
+      # SKIP.
+      - name: Conversation titles answer over HTTP (F-2)
+        env:
+          HOST_URL: http://127.0.0.1:48085
+          PG_DB: ruoyi-vue-pro
+          PG_USER: root
+          PG_PASSWORD: password
+        run: node scripts/check-conversation-titles.mjs --full
+
       - name: Report the host's tail when the run went red
         if: failure()
         run: tail -n 200 host.log || true
