@@ -192,7 +192,7 @@ public class Demo01ContactGovernance implements GovernedModule {
         @Override
         public void compensate(SideEffect effect) {
             YudaoLocalCompensators.requireCreate(effect);
-            YudaoLocalCompensators.as(effect, () -> service.deleteDemo01Contact(effect.getResultId()));
+            YudaoLocalCompensators.as(effect, () -> service.deleteDemo01Contact(YudaoLocalCompensators.asId(effect.getResultId())));
         }
     }
 }
