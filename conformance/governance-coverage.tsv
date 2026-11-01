@@ -92,7 +92,7 @@ fms	auxiliary-item	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryItemSe
 fms	auxiliary-type	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryTypeService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 fms	balance-sheet	cn.iocoder.yudao.module.fms.service.report.FmsBalanceSheetService	gap		M2 账务面	@rain	2027-06-30
 fms	cash-flow-statement	cn.iocoder.yudao.module.fms.service.report.FmsCashFlowStatementService	gap		M2 账务面	@rain	2027-06-30
-fms	closing-period	cn.iocoder.yudao.module.fms.service.closing.FmsClosingPeriodService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-period	cn.iocoder.yudao.module.fms.service.closing.FmsClosingPeriodService	seam	FmsClosingPeriodGovernance			
 fms	closing-scheme	cn.iocoder.yudao.module.fms.service.closing.FmsClosingSchemeService	gap		M2 账务面	@rain	2027-06-30
 fms	closing-template	cn.iocoder.yudao.module.fms.service.closing.FmsClosingTemplateService	gap		M2 账务面	@rain	2027-06-30
 fms	closing-voucher	cn.iocoder.yudao.module.fms.service.closing.FmsClosingVoucherService	gap		M2 账务面	@rain	2027-06-30
