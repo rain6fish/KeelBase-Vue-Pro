@@ -38,6 +38,10 @@ import org.springframework.context.annotation.Configuration;
  * <p><b>写为什么带 `reason`。</b>上游的取消 VO 把理由声明为必填（`@NotEmpty`），缺了会在**批准之后**被服务端校验拒绝，
  * 那比不声明更糟。故工具把理由列为可选：调用方省略时补一句默认原因，而不是让一次已经批准的写卡在校验上。
  *
+ * <p><b>写的结果 id 是流程实例 id，以文本记下。</b>账本说清一次写**产出了什么**，而这里产出的是 Flowable 的
+ * UUID、不是数字。运行时 0.1.16 起两者都收 —— 字符串 id 不再被判成「没有 id」，故撤回落地的同时，副作用行也
+ * 落在同一行上（见 `AiTool.resultType()`）。
+ *
  * <p><b>当前任务名借的是 `BpmTaskService` 的读。</b>任务名只用于投影，本面不写任务；任务面作为独立对象受治理
  * （账本里 `bpm task` 仍是 gap），这里只是读它，不假装它已接入。
  *
@@ -60,6 +64,11 @@ import org.springframework.context.annotation.Configuration;
  * would be refused by server-side validation **after** approval, which is worse than not declaring it. The tool keeps
  * the reason optional and supplies a default when the caller omits it, rather than letting an approved write trip on
  * validation.
+ *
+ * <p><b>The write's result id is the instance id, recorded as text.</b> The ledger says what a write
+ * produced, and here that is a Flowable UUID rather than a number. The runtime takes either since
+ * 0.1.16 — a text id is no longer read as "no id" — so a withdrawal that lands leaves its effect row
+ * behind with it (see {@code AiTool.resultType()}).
  *
  * <p><b>The current task name borrows a read from `BpmTaskService`.</b> Task names are projection only — this face
  * writes no task; the task surface is its own object and is still a `gap` in the ledger. It is read here, not claimed
@@ -261,7 +270,12 @@ public class BpmProcessInstanceTools {
         @Override
         public Map<String, Object> args(Map<String, Object> context) {
             Map<String, Object> args = new LinkedHashMap<>();
-            // The instance travels as `targetId`, the runtime's one generic structured slot. / 实例以 `targetId` 传递：运行时唯一的通用结构化槽位。
+            // The instance travels as `targetId`, the runtime's one generic structured slot. It is a
+            // Flowable UUID, which is why that slot carries text: typed for numbers, it refused this
+            // very request at deserialization and the surface's only write was unreachable.
+            //
+            // 实例以 `targetId` 传递：运行时唯一的通用结构化槽位。它是 Flowable 的 UUID，而那个槽位之所以收文本
+            // 正是为此：按数字定型时，它会在反序列化阶段就拒掉这一条请求，本面唯一的写便不可达。
             if (context.get("targetId") != null) {
                 args.put("id", context.get("targetId"));
             }
