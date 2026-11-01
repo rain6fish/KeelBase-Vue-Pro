@@ -93,21 +93,21 @@ fms	auxiliary-type	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryTypeSe
 fms	balance-sheet	cn.iocoder.yudao.module.fms.service.report.FmsBalanceSheetService	gap		M2 账务面	@rain	2027-06-30
 fms	cash-flow-statement	cn.iocoder.yudao.module.fms.service.report.FmsCashFlowStatementService	gap		M2 账务面	@rain	2027-06-30
 fms	closing-period	cn.iocoder.yudao.module.fms.service.closing.FmsClosingPeriodService	seam	FmsClosingPeriodGovernance			
-fms	closing-scheme	cn.iocoder.yudao.module.fms.service.closing.FmsClosingSchemeService	gap		M2 账务面	@rain	2027-06-30
-fms	closing-template	cn.iocoder.yudao.module.fms.service.closing.FmsClosingTemplateService	gap		M2 账务面	@rain	2027-06-30
-fms	closing-voucher	cn.iocoder.yudao.module.fms.service.closing.FmsClosingVoucherService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-scheme	cn.iocoder.yudao.module.fms.service.closing.FmsClosingSchemeService	seam	FmsClosingSchemeGovernance			
+fms	closing-template	cn.iocoder.yudao.module.fms.service.closing.FmsClosingTemplateService	exempt		结账模板是建账时预置的分录规则（fms_closing_template）：写由 fms:closing:update 与服务内账套写权限把关；读只答模板定义本身；AI 不维护模板，它要的是由模板生成的那笔凭证做没做（结账方案面已答）（D4 甲）	@rain	2027-09-30
+fms	closing-voucher	cn.iocoder.yudao.module.fms.service.closing.FmsClosingVoucherService	exempt		结转凭证面是模块内部的生成机器：四个读口与一个内部写口都不收 userId、不判权，由已判权的结账概况/报表/凭证内部调用；三条端点只有生成动作（同事务内先删旧凭证再生成），由 fms:closing:profit-loss 与账套写权限把关——那是人看着账按下的键；AI 需要的状态已由结账概况（profitLossVoucherGenerated）与结账方案面（各方案本期已生成凭证编号）答出	@rain	2027-09-30
 fms	currency	cn.iocoder.yudao.module.fms.service.config.FmsCurrencyService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 fms	digest	cn.iocoder.yudao.module.fms.service.config.FmsDigestService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 fms	finance-indicator	cn.iocoder.yudao.module.fms.service.config.FmsFinanceIndicatorService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 fms	finance-parameter	cn.iocoder.yudao.module.fms.service.config.FmsFinanceParameterService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 fms	home	cn.iocoder.yudao.module.fms.service.home.FmsHomeService	gap		M2 账务面	@rain	2027-06-30
 fms	income-statement	cn.iocoder.yudao.module.fms.service.report.FmsIncomeStatementService	gap		M2 账务面	@rain	2027-06-30
-fms	initial-balance	cn.iocoder.yudao.module.fms.service.config.FmsInitialBalanceService	gap		M2 账务面	@rain	2027-06-30
+fms	initial-balance	cn.iocoder.yudao.module.fms.service.config.FmsInitialBalanceService	seam	FmsInitialBalanceGovernance			
 fms	ledger	cn.iocoder.yudao.module.fms.service.ledger.FmsLedgerService	gap		M2 账务面	@rain	2027-06-30
 fms	report-common	cn.iocoder.yudao.module.fms.service.report.FmsReportCommonService	gap		M2 账务面	@rain	2027-06-30
-fms	subject	cn.iocoder.yudao.module.fms.service.config.FmsSubjectService	gap		M2 账务面	@rain	2027-06-30
+fms	subject	cn.iocoder.yudao.module.fms.service.config.FmsSubjectService	exempt		科目表是账套主数据（fms_subject 无属主人列，只带 accountSetId）：建/改/删/导入由 fms:config:subject:* 管理权限把关且服务内再校验账套写权限；读一律由服务以 userId 校验账套读权限；AI 不维护科目，它要的读在报表/凭证/结账面（D4 甲）	@rain	2027-09-30
 fms	voucher	cn.iocoder.yudao.module.fms.service.voucher.FmsVoucherService	seam	FmsVoucherGovernance			
-fms	voucher-template	cn.iocoder.yudao.module.fms.service.config.FmsVoucherTemplateService	gap		M2 账务面	@rain	2027-06-30
+fms	voucher-template	cn.iocoder.yudao.module.fms.service.config.FmsVoucherTemplateService	exempt		凭证模板是录凭证时套用的配置（fms_voucher_template 无属主人列）：写由 fms:config:voucher-template:* 与服务内账套写权限把关；服务读只收 accountSetId、账套读权限在 controller 上；AI 不维护模板，套用模板是录凭证时的控制台动作（D4 甲）	@rain	2027-09-30
 fms	voucher-word	cn.iocoder.yudao.module.fms.service.config.FmsVoucherWordService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
 infra	api-access-log	cn.iocoder.yudao.module.infra.service.logger.ApiAccessLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 infra	api-error-log	cn.iocoder.yudao.module.infra.service.logger.ApiErrorLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
