@@ -43,8 +43,8 @@ ai1-springai	knowledge-document	cn.iocoder.yudao.module.ai1.service.knowledge.Ai
 ai1-springai	mcp	cn.iocoder.yudao.module.ai1.service.mcp.Ai1McpService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 ai1-springai	model	cn.iocoder.yudao.module.ai1.service.model.Ai1ModelService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 ai1-springai	provider	cn.iocoder.yudao.module.ai1.service.model.Ai1ProviderService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	session	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionService	gap		M2（与 F-2 同族）	@rain	2027-06-30
-ai1-springai	session-message	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionMessageService	gap		M2（与 F-2 同族）	@rain	2027-06-30
+ai1-springai	session	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionService	exempt		会话行自带属主 ai1_session.user_id：四条「我的」客户端方法都以 userId 入参，Ai1SessionServiceImpl:78-83 validateSessionMy 以 ObjUtil.notEqual(session.getUserId(), userId) 拒绝他人，:87-89 列表按 (agentId,userId) 过滤；管理端 getSessionPage :92 由 ai1:session:query（Ai1SessionController:82）把关，属 D4；updateSessionTitle/touchSession 只由聊天运行时（Ai1SessionMessageServiceImpl:147/162）调用，deleteSessionListByAgentIds 只由 Ai1AgentServiceImpl:100 调用。会话由聊天流程自己创建与刷活，AI 无需直操，故不接工具面	@rain	2027-09-30
+ai1-springai	session-message	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionMessageService	exempt		消息行无属主列，归属经 session_id→ai1_session.user_id 派生：两条写路径 Ai1SessionMessageServiceImpl:77/122 都先 validateSessionMy；读 getSessionMessageListBySessionId:64 在 service 里不收窄，由 controller 调前 validateSessionMy（Ai1SessionMessageController:43）兜住，管理端 /list 由 ai1:session:query（:71）把关（D4）；getSessionMessage(id):183 只被生成 worker Ai1SessionStreamTool:609/991 使用，updateSessionMessage:188 只由该 worker :861/995 回填。消息由该 worker 自动落库与回填、模型上下文已在 :758 装配，AI 无需独立读工具	@rain	2027-09-30
 ai1-springai	skill	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 ai1-springai	skill-file	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillFileService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 bpm	category	cn.iocoder.yudao.module.bpm.service.definition.BpmCategoryService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
