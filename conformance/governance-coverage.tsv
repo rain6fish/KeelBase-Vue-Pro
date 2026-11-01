@@ -48,15 +48,15 @@ ai1-springai	session-message	cn.iocoder.yudao.module.ai1.service.session.Ai1Sess
 ai1-springai	skill	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 ai1-springai	skill-file	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillFileService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
 bpm	category	cn.iocoder.yudao.module.bpm.service.definition.BpmCategoryService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
-bpm	comment	cn.iocoder.yudao.module.bpm.service.comment.BpmCommentService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	comment	cn.iocoder.yudao.module.bpm.service.comment.BpmCommentService	exempt		评论住在引擎表 ACT_HI_COMMENT：模块无表/DO/Mapper，也无自己的权限（借 bpm:task:query / bpm:task:update），读只按流程实例、无属主维度；写有 11 处是任务面在记审批结果（BpmTaskServiceImpl:614 起），只有 controller 一处是人写的	@rain	2027-09-30
 bpm	form	cn.iocoder.yudao.module.bpm.service.definition.BpmFormService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
-bpm	message	cn.iocoder.yudao.module.bpm.service.message.BpmMessageService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	message	cn.iocoder.yudao.module.bpm.service.message.BpmMessageService	exempt		出站短信发送面：没有自己的行、没有读，四个方法全是一次 smsSendApi.sendSingleSmsToAdmin（收件人来自 DTO，不是查询条件）；四处调用全在引擎事件里（流程通过/不通过 BpmProcessInstanceServiceImpl:1053/1056、任务分派 BpmTaskServiceImpl:1614、超时 :1661），没有控制器	@rain	2027-09-30
 bpm	model	cn.iocoder.yudao.module.bpm.service.definition.BpmModelService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	oa-leave	cn.iocoder.yudao.module.bpm.service.oa.BpmOALeaveService	seam	BpmOALeaveGovernance			
 bpm	process-definition	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessDefinitionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	process-expression	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessExpressionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	process-instance	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceService	seam	BpmProcessInstanceGovernance			
-bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceCopyService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceCopyService	seam	BpmProcessInstanceCopyGovernance			
 bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessListenerService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	seam	BpmTaskGovernance			
 bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
