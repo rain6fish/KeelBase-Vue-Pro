@@ -106,6 +106,7 @@ public final class GovernedToolFaces {
                 new ToolFace("CrmProductTools"),
                 new ToolFace("BpmOALeaveTools"),
                 new ToolFace("BpmProcessInstanceTools"),
+                new ToolFace("BpmTaskTools"),
                 new ToolFace("FmsVoucherTools"),
                 new ToolFace("SystemNotifyMessageTools"),
                 new ToolFace("SystemNoticeTools"),

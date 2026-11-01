@@ -58,7 +58,7 @@ bpm	process-expression	cn.iocoder.yudao.module.bpm.service.definition.BpmProcess
 bpm	process-instance	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceService	seam	BpmProcessInstanceGovernance			
 bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceCopyService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
 bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessListenerService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
-bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	seam	BpmTaskGovernance			
 bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	seam	CrmBusinessGovernance			
 crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	exempt		商机阶段配置面（管理面，D4 甲）：CrmBusinessStatusTypeDO 仅 {id,name,deptIds}、无属主字段；服务与接口无 @CrmPermission，写端点由 crm:business-status:create|update|delete 管理权限把关（CrmBusinessStatusController:51/58/67）；商机行只读它（CrmBusinessServiceImpl:100 取默认状态、:193 校验状态组、:243 校验状态）	@rain	2027-09-30
