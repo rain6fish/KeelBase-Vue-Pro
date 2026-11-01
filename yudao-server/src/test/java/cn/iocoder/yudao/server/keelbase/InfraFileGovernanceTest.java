@@ -5,7 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import cn.com.keelbase.runtime.authz.RuleDeniedException;
@@ -14,121 +19,159 @@ import cn.iocoder.yudao.module.infra.dal.dataobject.file.FileDO;
 import cn.iocoder.yudao.module.infra.dal.mysql.file.FileMapper;
 import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.Signature;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * 文件切面的三条进门路径：分页后过滤并重算 total、按 id 读交回空、删除只认创建者。
+ * `infra_file` 的四道门：分页后过滤并重算 total、按 id 读扣下别人的行、单条删除只认创建者、批量删除逐行只认创建者。
+ * 文件行没有属主列——属主是审计串 `creator`——故分页是**模块答完之后**再过滤，删除的归属要在写跑起来之前回答。
  *
- * <p>为什么 total 要单列一条：文件没有属主列，切面只能在模块答完之后过滤，故那个 total 是**本页的**——把它写在
- * 断言里，是为了让「它哪天被谁改成全表数」当场红。
- *
- * <p>Three doors into the file rows: the page is filtered after the module answers (with `total` recomputed), a read
- * by id comes back empty for another's row, and a delete is for the creator only. The total gets its own test because
- * the file table has no owner column, so the number can only be this page's — pinning it here makes any later attempt
- * to pass it off as a table count go red.
+ * <p>Four doors for `infra_file`: the page filtered after the module answers with its total recomputed, another's
+ * row withheld from a read by id, the single delete accepting only the creator, and the bulk delete checking every
+ * row. The file table has no owner column — the owner is the audit string `creator` — so the page is filtered after
+ * the module answers and the delete's ownership is answered before the write runs.
  */
 class InfraFileGovernanceTest {
 
     private static final long CALLER = 42L;
 
     private YudaoModuleScope scope;
-    private FileMapper files;
+    private FileMapper mapper;
     private InfraFileGovernance aspect;
     private ProceedingJoinPoint call;
 
     @BeforeEach
     void setUp() {
         scope = mock(YudaoModuleScope.class);
-        files = mock(FileMapper.class);
-        aspect = new InfraFileGovernance(scope, files);
+        mapper = mock(FileMapper.class);
+        aspect = new InfraFileGovernance(scope, mapper);
         call = mock(ProceedingJoinPoint.class);
         when(scope.callerToEnforce()).thenReturn(CALLER);
     }
 
     @Test
-    void thePageKeepsOnlyTheCallersRowsAndCountsThisPage() throws Throwable {
-        PageResult<FileDO> page = new PageResult<>(List.of(file(1L, "42"), file(2L, "99")), 2L);
-        when(call.proceed()).thenReturn(page);
+    void thePageKeepsOnlyTheCallersFilesAndResizes() throws Throwable {
+        FileDO mine = file(1L, "42");
+        FileDO theirs = file(2L, "7");
+        when(scope.belongsToCaller("42", CALLER)).thenReturn(true);
+        when(scope.belongsToCaller("7", CALLER)).thenReturn(false);
+        when(call.proceed()).thenReturn(new PageResult<>(List.of(mine, theirs), 2L));
 
         @SuppressWarnings("unchecked")
-        PageResult<FileDO> narrowed = (PageResult<FileDO>) aspect.narrowToCaller(call);
+        PageResult<FileDO> page = (PageResult<FileDO>) aspect.narrowToCaller(call);
 
-        assertEquals(1, narrowed.getList().size(), "another caller's row must not survive the page");
-        assertEquals(1L, narrowed.getTotal(), "the total is this page's kept rows, not the table's count");
-        assertEquals(1L, narrowed.getList().get(0).getId());
+        assertEquals(List.of(1L), page.getList().stream().map(FileDO::getId).toList());
+        assertEquals(1L, page.getTotal(), "the total describes the rows this page kept, not the table");
     }
 
     @Test
-    void withNoCallerThePageIsUntouched() throws Throwable {
+    void withNoCallerThePageIsReturnedAsItCame() throws Throwable {
         when(scope.callerToEnforce()).thenReturn(null);
-        PageResult<FileDO> page = new PageResult<>(List.of(file(1L, "42"), file(2L, "99")), 2L);
-        when(call.proceed()).thenReturn(page);
+        PageResult<FileDO> original = new PageResult<>(List.of(file(2L, "7")), 1L);
+        when(call.proceed()).thenReturn(original);
 
-        assertSame(page, aspect.narrowToCaller(call), "a REST request keeps the module's own answer");
+        assertSame(original, aspect.narrowToCaller(call));
     }
 
     @Test
-    void anothersFileIsHandedBackAsNothing() throws Throwable {
-        when(call.proceed()).thenReturn(file(2L, "99"));
+    void anOutcomeThatIsNotAPageIsLeftAlone() throws Throwable {
+        when(call.proceed()).thenReturn("something else");
 
-        assertNull(aspect.withholdOthersRow(call), "not yours answers the way not-there answers");
+        assertEquals("something else", aspect.narrowToCaller(call));
     }
 
     @Test
-    void theCallersOwnFileComesBack() throws Throwable {
+    void aReadByIdHandsAnothersFileBackAsNothing() throws Throwable {
+        when(scope.belongsToCaller("7", CALLER)).thenReturn(false);
+        when(call.proceed()).thenReturn(file(2L, "7"));
+
+        assertNull(aspect.withholdOthersRow(call));
+    }
+
+    @Test
+    void aReadByIdReturnsTheCallersOwnFile() throws Throwable {
         FileDO mine = file(1L, "42");
+        when(scope.belongsToCaller("42", CALLER)).thenReturn(true);
         when(call.proceed()).thenReturn(mine);
 
         assertSame(mine, aspect.withholdOthersRow(call));
     }
 
     @Test
-    void aDeleteNeedsTheCreator() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{2L});
-        Signature signature = signature("deleteFile");
-        when(call.getSignature()).thenReturn(signature);
-        when(files.selectById(2L)).thenReturn(file(2L, "99"));
+    void aDeleteOfAnothersFileIsRefusedBeforeItRuns() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{9L});
+        when(mapper.selectById(9L)).thenReturn(file(9L, "7"));
+        doThrow(new RuleDeniedException(null, "该行不在你的数据范围内", "File", "delete", null))
+                .when(scope).requireOwned("7", CALLER, "File", "delete");
 
-        assertThrows(RuleDeniedException.class, () -> aspect.requireCreator(call),
-                "only the creator may delete a file");
-    }
-
-    @Test
-    void aBatchDeleteIsRefusedWholeWhenOneRowIsForeign() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{List.of(1L, 2L)});
-        Signature signature = signature("deleteFileList");
-        when(call.getSignature()).thenReturn(signature);
-        when(files.selectById(1L)).thenReturn(file(1L, "42"));
-        when(files.selectById(2L)).thenReturn(file(2L, "99"));
-
-        assertThrows(RuleDeniedException.class, () -> aspect.requireCreator(call),
-                "one foreign row refuses the whole batch");
+        assertThrows(RuleDeniedException.class, () -> aspect.requireOwnership(call));
+        verify(call, never()).proceed();
     }
 
     @Test
     void aDeleteOfTheCallersOwnFileProceeds() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{1L});
-        Signature signature = signature("deleteFile");
-        when(call.getSignature()).thenReturn(signature);
-        when(files.selectById(1L)).thenReturn(file(1L, "42"));
-        when(call.proceed()).thenReturn("deleted");
+        when(call.getArgs()).thenReturn(new Object[]{9L});
+        when(mapper.selectById(9L)).thenReturn(file(9L, "42"));
 
-        assertEquals("deleted", aspect.requireCreator(call));
+        aspect.requireOwnership(call);
+
+        verify(scope).requireOwned("42", CALLER, "File", "delete");
+        verify(call).proceed();
     }
 
-    private static FileDO file(Long id, String creator) {
+    @Test
+    void aDeleteOfAMissingRowIsLeftToTheModule() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{9L});
+        when(mapper.selectById(9L)).thenReturn(null);
+
+        aspect.requireOwnership(call);
+
+        verify(scope).requireOwned(null, CALLER, "File", "delete");
+        verify(call).proceed();
+    }
+
+    @Test
+    void aBulkDeleteIsRefusedWhenAnyRowIsNotTheCallers() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{List.of(1L, 2L)});
+        when(mapper.selectByIds(List.of(1L, 2L))).thenReturn(List.of(file(1L, "42"), file(2L, "7")));
+        doThrow(new RuleDeniedException(null, "该行不在你的数据范围内", "File", "delete", null))
+                .when(scope).requireOwned("7", CALLER, "File", "delete");
+
+        assertThrows(RuleDeniedException.class, () -> aspect.requireOwnershipOfEveryRow(call));
+        verify(call, never()).proceed();
+    }
+
+    @Test
+    void aBulkDeleteOfTheCallersOwnFilesProceeds() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{List.of(1L, 2L)});
+        when(mapper.selectByIds(List.of(1L, 2L))).thenReturn(List.of(file(1L, "42"), file(2L, "42")));
+
+        aspect.requireOwnershipOfEveryRow(call);
+
+        verify(scope, times(2)).requireOwned("42", CALLER, "File", "delete");
+        verify(call).proceed();
+    }
+
+    @Test
+    void aBulkDeleteWithNoIdsDoesNotQueryTheTable() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{List.of()});
+
+        aspect.requireOwnershipOfEveryRow(call);
+
+        verify(mapper, never()).selectByIds(any());
+        verify(call).proceed();
+    }
+
+    @Test
+    void theModuleDeclaresItselfAndTheColumnItReads() {
+        assertEquals("infra", aspect.module());
+        assertEquals("creator", aspect.ownerField());
+    }
+
+    private static FileDO file(long id, String creator) {
         FileDO row = new FileDO();
         row.setId(id);
         row.setCreator(creator);
-        row.setName("f" + id);
         return row;
-    }
-
-    private static Signature signature(String name) {
-        Signature signature = mock(Signature.class);
-        when(signature.getName()).thenReturn(name);
-        return signature;
     }
 }
