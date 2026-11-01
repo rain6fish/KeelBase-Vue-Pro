@@ -111,6 +111,8 @@ public final class GovernedToolFaces {
                 new ToolFace("FmsVoucherTools"),
                 new ToolFace("FmsClosingPeriodTools"),
                 new ToolFace("FmsReportingTools"),
+                new ToolFace("FmsInitialBalanceTools"),
+                new ToolFace("FmsClosingSchemeTools"),
                 new ToolFace("SystemNotifyMessageTools"),
                 new ToolFace("SystemNoticeTools"),
                 new ToolFace("ProductsTools"), // 生成的 / generated
