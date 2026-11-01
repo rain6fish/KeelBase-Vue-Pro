@@ -36,7 +36,7 @@
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-core</artifactId>
-            <version>0.1.16-SNAPSHOT</version>
+            <version>0.1.16</version>
         </dependency>
 
         <!-- KeelBase's Spring AI adapter — the model loop on KeelBase's **own** path. It implements the
@@ -52,7 +52,7 @@
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-springai</artifactId>
-            <version>0.1.16-SNAPSHOT</version>
+            <version>0.1.16</version>
         </dependency>
 
         <!-- The trace id the host writes beside its own logs and hands to the runtime for execution
