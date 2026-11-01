@@ -2,9 +2,9 @@
 package cn.iocoder.yudao.server.keelbase;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,216 +13,139 @@ import static org.mockito.Mockito.when;
 
 import cn.com.keelbase.runtime.authz.RuleDeniedException;
 import cn.com.keelbase.runtime.identity.ActingCaller;
-import cn.iocoder.yudao.framework.common.pojo.PageResult;
-import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskApproveReqVO;
-import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskPageReqVO;
-import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskRejectReqVO;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.Signature;
-import org.flowable.engine.TaskService;
-import org.flowable.task.api.Task;
-import org.flowable.task.api.TaskQuery;
-import org.flowable.task.api.history.HistoricTaskInstance;
+import org.aspectj.lang.annotation.Around;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 /**
- * 任务切面的进门路径：工具路径上补调用方、按 `assignee` 收「全部」页、审批与驳回前拒绝别人的任务、八个动作直接拒绝；
- * 请求路径上**一律不碰**。
+ * 任务切面的进门路径：工具路径上按模块 controller 那一句权限码收束；请求路径上**一律不碰**。
  *
- * <p>「全部」页那条是这组里最要紧的一条：模块**根本不读** `userId`，所以实参补了也白补，收窄只能落在返回行上——
- * 断言看的是留下的行与 `total`，而不是实参。
+ * <p>另有一条钉子：**引擎内部读不得进切点**。`getTask` / `getHistoricTask` 在工具发起的那次事务里被
+ * `processTaskCanceled`（读下一个人手上的任务）与 create/assign 的事务回调同步调用；按受理人收窄它，那条状态更新会被
+ * 静默跳过。`getTasksByProcessInstanceIds` 则是 `BpmProcessInstanceTools` 借来读全部任务名的，收窄会把它饿死。
  *
- * <p>The task aspect's doors: on the tool path it fills the caller, narrows the "all" page by `assignee`, refuses a
- * decision on someone else's task and refuses the eight actions outright; on the request path it touches **nothing**.
- * The "all"-page assertion matters most: the module **never reads** `userId`, so filling the argument does nothing and
- * the narrowing can only land on the returned rows — which is what the assertion reads, together with `total`.
+ * <p>The task aspect's doors: on the tool path it holds the read to the permission code the module's own controller
+ * names; on the request path it touches **nothing**. One test is a pin rather than a behaviour: **the engine's internal
+ * reads must stay out of the pointcuts** — `getTask` / `getHistoricTask` are called synchronously inside a tool-initiated
+ * transaction by `processTaskCanceled` (reading the next person's task) and by the create/assign callbacks, so narrowing
+ * them by assignee silently skips that status update; `getTasksByProcessInstanceIds` is what `BpmProcessInstanceTools`
+ * borrows to read every task's name, and narrowing it would starve that read.
  */
 class BpmTaskGovernanceTest {
 
-    private static final long CALLER = 42L;
-    private static final String CALLER_ID = "42";
+    private static final String CALLER = "42";
 
-    private YudaoModuleScope scope;
-    private TaskService engineTasks;
+    private YudaoToolPermissions permissions;
     private BpmTaskGovernance aspect;
     private ProceedingJoinPoint call;
+    private Signature signature;
 
     @BeforeEach
     void setUp() {
-        scope = mock(YudaoModuleScope.class);
-        engineTasks = mock(TaskService.class);
-        aspect = new BpmTaskGovernance(scope, engineTasks);
+        permissions = mock(YudaoToolPermissions.class);
+        aspect = new BpmTaskGovernance(permissions);
         call = mock(ProceedingJoinPoint.class);
-        when(scope.callerToEnforce()).thenReturn(CALLER);
+        signature = mock(Signature.class);
+        when(call.getSignature()).thenReturn(signature);
     }
 
     @Test
-    void theTodoPageFillsTheCallerWhenTheToolPassedAnother() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{7L, new BpmTaskPageReqVO()});
-        when(call.proceed(any(Object[].class))).thenReturn("page");
-
-        assertEquals("page", asTool(() -> aspect.fillCallerIntoPage(call)));
-
-        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
-        verify(call).proceed(args.capture());
-        assertEquals(CALLER, args.getValue()[0], "a page that named someone else is held to the caller");
-    }
-
-    @Test
-    void theDonePageFillsTheCallerToo() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{null, new BpmTaskPageReqVO()});
-        when(call.proceed(any(Object[].class))).thenReturn("page");
-
-        asTool(() -> aspect.fillCallerIntoPage(call));
-
-        ArgumentCaptor<Object[]> args = ArgumentCaptor.forClass(Object[].class);
-        verify(call).proceed(args.capture());
-        assertEquals(CALLER, args.getValue()[0], "a null user id upstream is the string \"null\" — never everyone");
-    }
-
-    @Test
-    void theFullPageKeepsOnlyTheCallersRows() throws Throwable {
-        HistoricTaskInstance mine = historic("42");
-        HistoricTaskInstance others = historic("7");
-        HistoricTaskInstance unassigned = historic(null);
-        when(call.proceed()).thenReturn(new PageResult<>(List.of(mine, others, unassigned), 3L));
-        when(scope.belongsToCaller("42", CALLER)).thenReturn(true);
-        when(scope.belongsToCaller("7", CALLER)).thenReturn(false);
-        when(scope.belongsToCaller(null, CALLER)).thenReturn(false);
-
-        @SuppressWarnings("unchecked")
-        PageResult<HistoricTaskInstance> kept = (PageResult<HistoricTaskInstance>) asTool(
-                () -> aspect.keepOnlyCallersRows(call));
-
-        assertEquals(List.of(mine), kept.getList(), "the module ignores userId here, so the rows are narrowed instead");
-        assertEquals(1L, kept.getTotal(), "the total is this page's, not the table's — declared");
-    }
-
-    @Test
-    void onTheRequestPathThePagesAreLeftToTheModule() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{null, new BpmTaskPageReqVO()});
+    void theTodoPageAsksTheCodeItsControllerNames() throws Throwable {
+        when(signature.getName()).thenReturn("getTaskTodoPage");
+        when(permissions.refusal(CALLER, "bpm:task:query")).thenReturn(null);
         when(call.proceed()).thenReturn("page");
 
-        assertEquals("page", aspect.fillCallerIntoPage(call), "no tool published a caller");
+        assertEquals("page", asTool(() -> aspect.requireReadPermission(call)));
 
-        verify(call).proceed();
-        verifyNoInteractions(scope);
+        verify(permissions).refusal(CALLER, "bpm:task:query");
     }
 
     @Test
-    void anApprovalOfAnothersTaskIsRefusedBeforeTheModuleRuns() throws Throwable {
-        BpmTaskApproveReqVO request = approveRequest("t1");
-        Task others = task("7");
-        TaskQuery query = finding("t1");
-        when(query.singleResult()).thenReturn(others);
-        when(engineTasks.createTaskQuery()).thenReturn(query);
-        when(call.getArgs()).thenReturn(new Object[]{CALLER, request});
+    void theManagerPageAsksItsOwnWiderCode() throws Throwable {
+        when(signature.getName()).thenReturn("getTaskPage");
+        when(permissions.refusal(CALLER, "bpm:task:manager-query")).thenReturn(null);
+        when(call.proceed()).thenReturn("page");
+
+        assertEquals("page", asTool(() -> aspect.requireReadPermission(call)));
+
+        verify(permissions).refusal(CALLER, "bpm:task:manager-query");
+    }
+
+    @Test
+    void aReadWithoutTheCodeIsRefusedBeforeTheModuleRuns() throws Throwable {
+        when(signature.getName()).thenReturn("getTaskDonePage");
+        when(permissions.refusal(CALLER, "bpm:task:query"))
+                .thenReturn("not permitted: this caller lacks the 'bpm:task:query' permission");
 
         RuleDeniedException refused = assertThrows(RuleDeniedException.class,
-                () -> asTool(() -> aspect.requireAssigneeForApproval(call)));
+                () -> asTool(() -> aspect.requireReadPermission(call)));
 
         assertEquals("BpmTask", refused.subject());
-        assertEquals("approveTask", refused.action());
+        assertEquals("getTaskDonePage", refused.action());
         verify(call, never()).proceed();
     }
 
     @Test
-    void anApprovalOfTheCallersOwnTaskProceeds() throws Throwable {
-        BpmTaskApproveReqVO request = approveRequest("t1");
-        Task mine = task("42");
-        TaskQuery query = finding("t1");
-        when(query.singleResult()).thenReturn(mine);
-        when(engineTasks.createTaskQuery()).thenReturn(query);
-        when(call.getArgs()).thenReturn(new Object[]{CALLER, request});
-        when(scope.belongsToCaller("42", CALLER)).thenReturn(true);
-        when(call.proceed()).thenReturn("approved");
+    void onTheRequestPathNothingIsAsked() throws Throwable {
+        when(call.proceed()).thenReturn("page");
 
-        assertEquals("approved", asTool(() -> aspect.requireAssigneeForApproval(call)));
-        verify(call).proceed();
-    }
-
-    @Test
-    void anUnassignedTaskIsNotTheCallersToApprove() throws Throwable {
-        BpmTaskApproveReqVO request = approveRequest("t1");
-        Task unassigned = task(null);
-        TaskQuery query = finding("t1");
-        when(query.singleResult()).thenReturn(unassigned);
-        when(engineTasks.createTaskQuery()).thenReturn(query);
-        when(call.getArgs()).thenReturn(new Object[]{CALLER, request});
-        when(scope.belongsToCaller(null, CALLER)).thenReturn(false);
-
-        assertThrows(RuleDeniedException.class, () -> asTool(() -> aspect.requireAssigneeForApproval(call)),
-                "the module lets a blank assignee through for auto-approve; the tool path does not");
-        verify(call, never()).proceed();
-    }
-
-    @Test
-    void aRejectionOfAnothersTaskIsRefused() throws Throwable {
-        BpmTaskRejectReqVO request = rejectRequest("t1");
-        Task others = task("7");
-        TaskQuery query = finding("t1");
-        when(query.singleResult()).thenReturn(others);
-        when(engineTasks.createTaskQuery()).thenReturn(query);
-        when(call.getArgs()).thenReturn(new Object[]{CALLER, request});
-
-        RuleDeniedException refused = assertThrows(RuleDeniedException.class,
-                () -> asTool(() -> aspect.requireAssigneeForRejection(call)));
-
-        assertEquals("rejectTask", refused.action());
-        verify(call, never()).proceed();
-    }
-
-    @Test
-    void onTheRequestPathTheDecisionIsLeftToTheModule() throws Throwable {
-        when(call.getArgs()).thenReturn(new Object[]{CALLER, approveRequest("t1")});
-        when(call.proceed()).thenReturn("approved");
-
-        assertEquals("approved", aspect.requireAssigneeForApproval(call), "the module's own assignee check is inside");
+        assertEquals("page", aspect.requireReadPermission(call), "the controller's @PreAuthorize already answered");
 
         verify(call).proceed();
-        verifyNoInteractions(engineTasks);
+        verifyNoInteractions(permissions);
     }
 
     @Test
-    void theUntouchableActionsAreRefusedOnTheToolPath() throws Throwable {
-        List<String> actions = List.of("transferTask", "delegateTask", "createSignTask", "deleteSignTask",
-                "returnTask", "moveTaskToEnd", "copyTask", "withdrawTask");
-        for (String action : actions) {
-            Signature signature = mock(Signature.class);
-            when(signature.getName()).thenReturn(action);
-            when(call.getSignature()).thenReturn(signature);
-
-            RuleDeniedException refused = assertThrows(RuleDeniedException.class,
-                    () -> asTool(() -> aspect.refuseOutOfScopeActions(call)), action);
-
-            assertEquals(action, refused.action(), action);
-            assertTrue(refused.nextStep() != null && !refused.nextStep().isBlank(), action + " names a next step");
-        }
-        verify(call, never()).proceed();
+    void eachReadMapsToTheCodeItsEndpointUses() {
+        assertEquals("bpm:task:query", BpmTaskGovernance.permissionFor("getTaskTodoPage"));
+        assertEquals("bpm:task:query", BpmTaskGovernance.permissionFor("getTaskDonePage"));
+        assertEquals("bpm:task:manager-query", BpmTaskGovernance.permissionFor("getTaskPage"));
     }
 
     @Test
-    void onTheRequestPathTheUntouchableActionsAreLeftToTheModule() throws Throwable {
-        when(call.proceed()).thenReturn("done");
-
-        assertEquals("done", aspect.refuseOutOfScopeActions(call), "no tool published a caller");
-
-        verify(call).proceed();
-        verifyNoInteractions(scope);
-    }
-
-    @Test
-    void itDeclaresItselfAndNamesTheEnginesOwnerField() {
+    void itDeclaresItselfAndNamesTheEnginesTaskField() {
         assertEquals("bpm", aspect.module(), "the module its pointcuts name");
-        assertEquals("assignee", aspect.ownerField(), "the engine's field, not a column on a row");
+        assertEquals("assignee", aspect.ownerField(), "the engine's task field, not a column on a row");
+    }
+
+    /**
+     * 引擎内部读与扇出读**一个都不许出现在切点里**。这条用反射读注解，而不是跑一条真链路：它要守的是「谁哪天顺手把
+     * `getTask` 加进切点」，而那件事不会有任何可见症状，直到别人的任务状态不再更新。
+     *
+     * None of the engine's internal or fan-out reads may appear in a pointcut. This reads the annotations by reflection
+     * rather than driving a real call: what it guards is "someone adds `getTask` to the pointcut one day", which has no
+     * visible symptom until another person's task stops being marked cancelled.
+     */
+    @Test
+    void thePointcutsLeaveTheEnginesInternalReadsAndTheBorrowedBulkReadAlone() {
+        List<String> cut = new ArrayList<>();
+        for (Method method : BpmTaskGovernance.class.getDeclaredMethods()) {
+            Around around = method.getAnnotation(Around.class);
+            if (around != null) {
+                cut.add(around.value());
+            }
+        }
+        String all = String.join(" ", cut);
+
+        for (String banned : List.of("getTask(", "getHistoricTask(", "getTasksByProcessInstanceIds",
+                "getTaskMapByProcessInstanceIds", "processTask", "triggerTask", "moveTaskToEnd", "validateTask")) {
+            assertFalse(all.contains("BpmTaskService." + banned),
+                    "pointcut names BpmTaskService." + banned + " — the engine calls it inside a tool's own"
+                            + " transaction, so narrowing it skips the module's own bookkeeping");
+        }
+        assertTrue(all.contains("BpmTaskService.getTaskTodoPage(..)"), "the todo page is cut");
+        assertTrue(all.contains("BpmTaskService.getTaskDonePage(..)"), "the done page is cut");
+        assertTrue(all.contains("BpmTaskService.getTaskPage(..)"), "the manager page is cut");
     }
 
     /** Runs the advice as {@code CALLER}, the way a tool publishes the caller through {@link ActingCaller}. */
     private Object asTool(Advice advice) {
-        return ActingCaller.as(CALLER_ID, () -> {
+        return ActingCaller.as(CALLER, () -> {
             try {
                 return advice.run();
             } catch (RuntimeException failed) {
@@ -231,38 +154,6 @@ class BpmTaskGovernanceTest {
                 throw new AssertionError("the advice raised a checked failure", other);
             }
         });
-    }
-
-    private static TaskQuery finding(String taskId) {
-        TaskQuery query = mock(TaskQuery.class);
-        when(query.taskId(taskId)).thenReturn(query);
-        return query;
-    }
-
-    private static Task task(String assignee) {
-        Task task = mock(Task.class);
-        when(task.getAssignee()).thenReturn(assignee);
-        return task;
-    }
-
-    private static HistoricTaskInstance historic(String assignee) {
-        HistoricTaskInstance task = mock(HistoricTaskInstance.class);
-        when(task.getAssignee()).thenReturn(assignee);
-        return task;
-    }
-
-    private static BpmTaskApproveReqVO approveRequest(String id) {
-        BpmTaskApproveReqVO request = new BpmTaskApproveReqVO();
-        request.setId(id);
-        request.setReason("同意");
-        return request;
-    }
-
-    private static BpmTaskRejectReqVO rejectRequest(String id) {
-        BpmTaskRejectReqVO request = new BpmTaskRejectReqVO();
-        request.setId(id);
-        request.setReason("不同意");
-        return request;
     }
 
     @FunctionalInterface

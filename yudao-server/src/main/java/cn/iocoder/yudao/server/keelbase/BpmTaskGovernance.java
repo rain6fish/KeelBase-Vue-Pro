@@ -3,126 +3,127 @@ package cn.iocoder.yudao.server.keelbase;
 
 import cn.com.keelbase.runtime.authz.RuleDeniedException;
 import cn.com.keelbase.runtime.identity.ActingCaller;
-import cn.iocoder.yudao.framework.common.pojo.PageResult;
-import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskApproveReqVO;
-import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskRejectReqVO;
-import java.util.List;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.flowable.engine.TaskService;
-import org.flowable.task.api.Task;
-import org.flowable.task.api.history.HistoricTaskInstance;
 import org.springframework.stereotype.Component;
 
 /**
- * 流程任务在模块自己的接缝上受治理 —— BPM 的**第二个流程面对象**，也是**第三种属主读法**。请假单的属主是行上的
- * `user_id`；流程实例的属主是引擎字段 `startUserId`（「谁发起」）；任务**没有发起人**，它有的是**分派人**
- * `assignee`（「谁该办」）——同样是引擎字段、同样是一条字符串。
+ * BPM 的任务在**模块自己的接缝上**受治理 —— 流程面的**第二个对象**，与流程实例同一台机器、**另一个字段**：实例的属主是
+ * `startUserId`，任务的是引擎的 `assignee`（以及转办/委派后记着原审批人的 `owner`）。
  *
- * <p><b>四问的答案（读的是上游这一版的代码）。</b>
+ * <p><b>六问的答案（读的是上游这一版的代码）。</b>
  *
  * <ol>
- *   <li><b>三个分页在 `userId` 为 null 时各返回什么？**两个收，一个漏**。</b>
- *       `getTaskTodoPage` 与 `getTaskDonePage` 一律加 `taskAssignee(String.valueOf(userId))`；`userId` 为 null 时
- *       `String.valueOf` 得到的是**字符串 `"null"`**，查询照样按它过滤 ⇒ **零行**，不是全表。第三个
- *       `getTaskPage`（「全部」页，管理页 `/manager-page` 用的就是它）**根本不读 `userId`** —— 查询里只有名称、
- *       分类与时间，没有任何分派人条件 ⇒ **无论传谁都返回全表**。**这是唯一的洞**，而且是补不上的那种：把调用方
- *       填进第 0 个实参，它看都不看。故本切面对前两者补实参、对第三个**按返回行再收**，并把 `total` 改写成
- *       「本页留下的行数」——一个**声明过的、按页的**总数，不是表的总数（见 §2.1）。</li>
- *   <li><b>任务 id 从哪来、能不能按 id 直读？判「这个人能不能办」看的是 `assignee` 还是候选人/候选组？</b>
- *       id 来自引擎：分页返回 `Task.getId()`（待办）与 `HistoricTaskInstance.getId()`（已办、全部）。按 id 直读有
- *       两条：`getTask(String)` 是 `TaskService.createTaskQuery().taskId(id)`，`getHistoricTask(String)` 是历史孪生
- *       —— **都没有调用方维度，不收窄**，与流程实例那个对象相同。判据是 **`assignee`**：`validateTask` 比对它；
- *       **不是候选人/候选组**——本模块在**任务创建时**就把候选人策略算成一个人写进 `assignee`
- *       （`BpmUserTaskActivityBehavior` 经 `BpmTaskCandidateInvoker` 取人、`TaskHelper.changeTaskAssignee` 落地），
- *       模块里没有任何一处 `addCandidateUser` / `taskCandidateUser`。故任务一旦存在，它的**审批人就是它的分派人**。
- *       唯一还看 `owner` 的地方是**待办详情**那条读（`getTodoTask` → `isAssignUserTask || isAddSignUserTask`，
- *       即加签任务），分页与 `validateTask` 都不看；本切面只认 `assignee`，加签任务的 `owner` 不在工具面上（见下方
- *       的收窄声明）。</li>
- *   <li><b>审批 / 驳回自己校验 `assignee` 吗？`userId` 是判权还是只记账？** **校验，且只用于判权**。两者第一行都是
- *       `validateTask(userId, reqVO.getId())`，不是本人（且 `assignee` 非空）就抛 `TASK_OPERATE_FAIL_ASSIGN_NOT_SELF`；
- *       `userId` 不进评论、不进状态变量——落库的是**理由文本**，不是「谁批的」。故本切面**不发明第二套判据**，只把
- *       同一个答案提前成 {@link RuleDeniedException}，让 AI 读到「下一步该做什么」（模块异常里没有这一层）。
- *       模块在 **`assignee` 为空时放行**（这是给「无审批人自动通过」留的），而工具路径上那就是**一个没分派给任何人
- *       的任务被人办了**；本切面因此**更严**：必须**恰好等于**调用方，空值同样拒绝。</li>
- *   <li><b>哪些方法明确不该由 AI 触碰？**逐条：**</b>`transferTask`（把任务送进别人的待办）；`delegateTask`（同上，
- *       暂时性地，并给对方发通知）；`createSignTask`（给别人造任务，并把当前任务挪去 `owner`）；`deleteSignTask`
- *       （**批量**取消并删除一棵任务子树）；`returnTask`（把流程倒回上游节点，影响发起人与已经批过的人）；
- *       `moveTaskToEnd`（结束整个流程实例，而且**只收 processInstanceId、根本不收用户**）；`copyTask`（给**别人**
- *       造抄送行，它的 `userId` 入参连读都没读）；`withdrawTask`（把已完成的审批**重新打开**，与回退同类——把流程
- *       往回挪）。这八个在**工具路径上一律拒绝**；请求路径一律不碰（模块自己的控制器与权限已经回答）。
- *       另有若干**不是调用方动作**的系统入口不投影、也不在工具面上：`processTaskCreated` / `processTaskCanceled` /
- *       `processTaskAssigned` / `processTaskCompleted` / `processTaskTimeout` / `processChildProcessTimeout`
- *       （引擎事件钩子）与 `triggerTask`（ReceiveTask 触发器），以及模块内部的扇出读
- *       `getTasksByProcessInstanceIds` / `getTaskMapByProcessInstanceIds`（流程实例那条面正在用它们）、
- *       `getTaskListByProcessInstanceId`（整个实例的历史，不带调用方维度）。</li>
+ *   <li><b>分页无过滤返回什么？</b>`getTaskPage(Long userId, …)`（`BpmTaskServiceImpl:265`）的**第 0 个实参从头到尾没被读过**
+ *       —— 方法体只按 `name` / `category` / 租户筛，`userId` 一次都没用。`BpmTaskPageReqVO` 里也**没有受理人字段**：受理人
+ *       筛选位就是那个被丢掉的实参。故它返回**整张历史任务表**（按租户），而调用它的 `/manager-page` 只靠
+ *       `@PreAuthorize('bpm:task:manager-query')` 把关。相邻两个分页**已经自窄**：`getTaskTodoPage` 与 `getTaskDonePage`
+ *       都拿第 0 个实参去做 `taskAssignee(String.valueOf(userId))`。</li>
+ *   <li><b>按 id 读是否收窄？</b>否。`getTask` / `getHistoricTask`（`:338` / `:343`）是裸引擎查询，且都带
+ *       `includeTaskLocalVariables` —— 读回来的不只是一条待办，还有它上面的 `status` / `reason` / 签字图片地址。谁能看一条任务，
+ *       模块自己的答案是**受理人或拥有人**（`isAssignUserTask` / `isOwnerUserTask`，`:541` / `:553`，`getTodoTask` 用的就是这一对）。</li>
+ *   <li><b>创建任务的 VO 能让客户端指认别人吗？</b>**没有「创建任务」这条路**：任务由引擎生成。客户端能指认别人的地方只有加签 /
+ *       转办 / 委派 / 抄送的目标用户（`BpmTaskSignCreateReqVO.userIds`、`…TransferReqVO.assigneeUserId`、`…DelegateReqVO.delegateUserId`、
+ *       `…CopyReqVO.copyUserIds`）—— 那是这几个动作**本身的用途**，不是可伪造的属主字段。</li>
+ *   <li><b>按 id 的写各自查什么？</b>完成 / 不通过 / 退回 / 转办 / 委派 / 加签都先过 `validateTask(userId, id)`（`:317`）：
+ *       受理人非空且不是自己 ⇒ `TASK_OPERATE_FAIL_ASSIGN_NOT_SELF`；受理人为空时放行（无审批人的自动通过策略要把 `userId` 传 null）。
+ *       撤回**自己**的已办：`withdrawTask` 自己按 `.taskAssignee(userId).finished()` 查（`:1302`）。**两处例外**：`deleteSignTask`
+ *       （`:1260`）只调 `validateTaskCanSignDelete(id)`、**根本没看 `userId`**；`copyTask`（`:1292`）连存在都不校验，`userId` 也没用。</li>
+ *   <li><b>哪些方法必须排除在切点外？</b>见下面「排除名单」。</li>
+ *   <li><b>AI 是否要直接操作任务？</b>不要。审批是人的责任：完成 / 不通过 / 退回都要看流程模型给这一节点的表单、按钮与理由要求
+ *       （`getTodoTask` 才拼得出），而这些内容本面的工具**刻意不投影**；转办 / 委派 / 加签是把一件事交到**另一个人**手上，
+ *       同样是人的判断。工具面因此**只开一条读**（`list_my_bpm_tasks`），写一条都不开 —— 理由见 `BpmTaskTools` 的类注释。</li>
  * </ol>
  *
- * <p><b>为什么只在工具路径上工作。</b>{@link ActingCaller#current()} 非空，说明这次调用是**工具**发起的：没有请求、
- * 没有登录用户，模块自己的 `@PreAuthorize` 与控制器一条都不经过。请求路径上 `current()` 为 null —— REST 侧由模块
- * 自己回答（`todo-page` / `done-page` 已传登录人，管理页由 `manager-query` 权限把关），这里**不做第二遍**。
+ * <p><b>排除名单，逐条带理由。</b>
+ * <ul>
+ *   <li>`processTaskCreated` / `processTaskCanceled` / `processTaskAssigned` / `processTaskCompleted` / `processTaskTimeout` /
+ *       `processChildProcessTimeout` / `triggerTask`：引擎事件钩子，不是调用方动作；它们是 `BpmTaskEventListener` 在**同一次事务里**
+ *       回调进来的，收窄它们等于改引擎的记账。</li>
+ *   <li>`getTask` / `getHistoricTask`：**这是本对象的扇出读，而且扇出就发生在工具路径上**。`processTaskCanceled` 用 `getTask(taskId)`
+ *       读**下一节点（别人）**的任务来更新状态（`:1465`），`processTaskCreated` / `processTaskAssigned` 的事务回调也读它
+ *       （`:1426` / `:1501`）；一次工具发起的撤回或结束流程，会同步把这两个监听器带起来。按受理人收窄它，会让别人那条任务
+ *       「查不到」⇒ 状态更新被静默跳过（那里只是 `log.error` 后 return）。故它**不在切点里** —— 这与流程实例那条
+ *       `getProcessInstance` 的结论相反，而相反的原因正是「扇出跑不跑在工具路径上」。</li>
+ *   <li>`validateTask` / `validateTaskExists`：模块自己的判据，且 `validateTask` 收的就是 `userId`；切面不发明第二套。</li>
+ *   <li>`getTasksByProcessInstanceIds` / 默认方法 `getTaskMapByProcessInstanceIds`：`BpmProcessInstanceTools` 的
+ *       `currentTaskName` 借它们读**所有**任务名；在工具路径上按 `assignee` 收窄会把这个读**饿死**（那张表里全是别人的任务）。
+ *       CGLIB 下默认方法里的 `this` 就是代理，故连 `getTaskMapByProcessInstanceIds` 一起排除。单测钉住了这一条。</li>
+ *   <li>`getTaskListByProcessInstanceId` / `getRunningTaskListByProcessInstanceId` /
+ *       `getFinishedTaskListByProcessInstanceIdWithoutCancel` / `getAllChildrenTaskListByParentTaskId` / `getTaskListByParentTaskId`
+ *       / `getActivityListByProcessInstanceId` / `getHistoricActivityListByExecutionId` / `getAttachments`：模块内部扇出与装配读。</li>
+ *   <li>`moveTaskToEnd`：`rejectTask` 与流程实例撤回内部会调它，不是独立动作。</li>
+ *   <li>全部写方法：本面没有写工具（见第六问）。它们**不收窄**不是遗漏 —— 模块自己的 `validateTask(userId, …)` 已经是同一句判据；
+ *       而 `deleteSignTask` 与 `copyTask` 那两处**模块漏掉的**判据，本切面不替它编：那是 REST 面上 `bpm:task:update` 之下的一处
+ *       上游缺口，写在这里只会是一个没人能执行到的承诺。已如实记在交接件里。</li>
+ * </ul>
  *
- * <p><b>收窄口径（声明的收窄）。</b>只认 **`assignee`**：加签任务里「`owner` 是我、`assignee` 已置空」的那些，本切面
- * **不当成我的** —— 它们在模块自己的审批界面上照样能办，但工具面不给。管理员与「范围是全部行」的角色
- * （{@link YudaoModuleScope#callerToEnforce()} 为 null）**不被本切面加码**，与其它接缝同一种放过方式。故它比模块
- * **更严、不是等于**。
+ * <p><b>声明的收窄。</b>读侧问的就是**模块 controller 自己那一句权限**（`/todo-page`、`/done-page` 是 `bpm:task:query`，
+ * `/manager-page` 是 `bpm:task:manager-query`），故它**与模块相等、不更严也不更宽**；行范围上的收窄由模块自己做（待办/已办按
+ * `assignee`），管理页**不**按人过滤 —— 那是「全部任务」这个页面的意思，按人收窄会把它变成一句谎话。**今天**本对象的工具面只有
+ * 一条读（我的待办），管理页那条通知是为「以后任何工具问全部任务」留的门：它不能比 REST 更松。
  *
- * <p>Tasks governed at the module's own seam — BPM's **second process-face object**, and the **third reading of an
- * owner**. The leave request's owner is the column `user_id`; a process instance's is the engine field `startUserId`
- * ("who started it"); a task has no starter — what it has is an **assignee** ("who owes the decision"), another engine
- * field, another string.
+ * <p><b>只在工具路径上工作。</b>`ActingCaller` 只由持有运行时 `Principal` 的工具发布；宿主自己的请求路径上它是空的，而那条路径上
+ * `@PreAuthorize` 已经问过同一句。故 `ActingCaller` 为空时原样放行：REST 行为与上游一字不差。
  *
- * <p><b>The four questions, from upstream's code.</b> (1) Of the three pages, **two narrow and one leaks**:
- * `getTaskTodoPage` and `getTaskDonePage` always add `taskAssignee(String.valueOf(userId))`, and with a null user id
- * that renders the string `"null"` — a filter that matches nothing, so they answer **zero rows**, never everything.
- * The third, `getTaskPage` (the "all" page its manager screen calls), **never reads `userId` at all**: the query carries
- * name, category and time only, so it answers **the whole table whoever asks**. That is the one hole — and one the
- * argument cannot close, because the module ignores it. So the advice fills the caller in for the first two and
- * **filters the returned page** for the third, rewriting `total` to the rows kept: a **declared, page-local** total,
- * not the table's (§2.1). (2) Task ids come from the engine (the pages hand back `Task.getId()` and
- * `HistoricTaskInstance.getId()`); by id there are `getTask(String)` and its history twin, both bare engine queries
- * with **no caller dimension and no narrowing**, as with the instance object. The question "may this person act" is
- * answered by **`assignee`** — `validateTask` compares it — and **not** by candidate users or groups: this module
- * resolves the candidate strategy into one person **at task creation** (`BpmUserTaskActivityBehavior` via
- * `BpmTaskCandidateInvoker`, written by `TaskHelper.changeTaskAssignee`) and never calls `addCandidateUser` /
- * `taskCandidateUser`. The only place `owner` also counts is the **todo detail** read (`getTodoTask` →
- * `isAssignUserTask || isAddSignUserTask`, i.e. sign tasks); the pages and `validateTask` do not look at it, and this
- * aspect recognises `assignee` alone. (3) Approval and rejection **do check the assignee**, and the user id is used
- * **only** for that check: both start with `validateTask(userId, reqVO.getId())` and throw
- * `TASK_OPERATE_FAIL_ASSIGN_NOT_SELF`; the id enters neither the comment nor the status variables — what is recorded
- * is the **reason text**. So this aspect invents no second predicate; it raises the same answer early as a
- * {@link RuleDeniedException}, because the module's exception carries no reason / impact / nextStep. The module
- * **lets a blank `assignee` through** (the auto-approve path), which on the tool path means an unassigned task being
- * decided by anyone; this aspect is therefore **stricter**: the caller must be **exactly** the assignee, blank
- * included. (4) Not for the AI, one by one: `transferTask` (another inbox), `delegateTask` (same, temporarily, plus a
- * notice), `createSignTask` (tasks for others, current one moved to `owner`), `deleteSignTask` (a **batch** cancel and
- * delete of a task subtree), `returnTask` (the flow moves backwards, to the starter and everyone who already
- * approved), `moveTaskToEnd` (ends the whole instance, and takes **no user at all**), `copyTask` (copy rows for
- * **others**; its `userId` parameter is never even read), `withdrawTask` (re-opens a completed approval — the same
- * class as a return). All eight are **refused on the tool path** and left alone on the request path. The engine
- * event hooks and `triggerTask`, and the module's internal fan-out reads, are neither projected nor on a tool face.
+ * <p>BPM tasks governed at the module's own seam — the process face's **second object**, on the same machine as process
+ * instances but keyed on a different field: an instance's owner is `startUserId`, a task's is the engine's `assignee`
+ * (plus `owner`, the original approver after a transfer or delegation).
  *
- * <p><b>Why only on the tool path.</b> A non-null {@link ActingCaller#current()} means the call came from a **tool**:
- * no request, no login user, none of the module's controllers or `@PreAuthorize` runs. On the request path the module
- * answers for itself (its todo and done pages already carry the login user, its manager page is gated by
- * `manager-query`), and this aspect does **not** check twice.
+ * <p><b>The six answers, from upstream's code.</b> (1) `getTaskPage(Long userId, …)` (`BpmTaskServiceImpl:265`) **never
+ * reads its first argument**: the body filters by name, category and tenant only, and `BpmTaskPageReqVO` has no assignee
+ * field — the assignee filter is that dropped argument. So it returns the whole historic-task table (per tenant), held
+ * only by `@PreAuthorize('bpm:task:manager-query')` on `/manager-page`. Its two neighbours already narrow themselves:
+ * the todo and done pages pass the same argument into `taskAssignee(String.valueOf(userId))`. (2) Reads by id are not
+ * narrowed: `getTask` / `getHistoricTask` (`:338` / `:343`) are bare engine queries **with task local variables** —
+ * status, reason and signature image come back with the task. The module's own answer to "who may see a task" is its
+ * assignee or its owner (`isAssignUserTask` / `isOwnerUserTask`, `:541` / `:553`). (3) There is **no create-a-task VO**:
+ * tasks are created by the engine. A client can name other users only as the *target* of sign / transfer / delegate /
+ * copy — what those actions are for, not a forgeable owner field. (4) Every by-id write except two goes through
+ * `validateTask(userId, id)` (`:317`): assignee non-blank and not the caller is refused; a blank assignee is allowed
+ * because the auto-approve strategy passes a null user. Withdrawal checks `.taskAssignee(userId).finished()` itself
+ * (`:1302`). The two exceptions: `deleteSignTask` (`:1260`) calls `validateTaskCanSignDelete(id)` and **never looks at
+ * `userId`**, and `copyTask` (`:1292`) checks nothing at all. (5) The exclusions are listed above, each with its reason.
+ * (6) The AI should **not** operate tasks. Approving is a human's job: the form, buttons and reason requirement for the
+ * node come from `getTodoTask`, which this face deliberately does not project, and transferring, delegating or adding a
+ * signer hands the work to another person — also a human's call. So the face opens **one read** and no write.
  *
- * <p><b>Narrowing (declared).</b> `assignee` only: a sign task whose `assignee` has been cleared and whose `owner` is
- * the caller is **not** treated as theirs here — the module's own screens still let them act on it, this face does not.
- * Administrators and roles ranged over every row ({@link YudaoModuleScope#callerToEnforce()} null) are not added to,
- * the same way every seam leaves them alone. So it is **stricter than the module, not equal to it**.
+ * <p><b>The exclusions, with reasons.</b> The engine event hooks are not caller actions and are invoked back through
+ * `BpmTaskEventListener` **inside the same transaction**. `getTask` / `getHistoricTask` are this object's fan-out read and
+ * **the fan-out happens on the tool path**: `processTaskCanceled` reads the *next* node's (someone else's) task to update
+ * its status (`:1465`), and the create/assign transaction callbacks read it too (`:1426` / `:1501`). A tool-initiated
+ * withdrawal or rejection raises those listeners synchronously, so narrowing by assignee would make that task "missing" and
+ * the status update would be silently skipped (there it only logs and returns). That is the opposite conclusion to the
+ * process-instance `getProcessInstance`, and the difference is exactly whether the fan-out runs on the tool path.
+ * `getTasksByProcessInstanceIds` and the default `getTaskMapByProcessInstanceIds` are what `BpmProcessInstanceTools`
+ * borrows to read **every** task's name; narrowing them by assignee would starve that read, and under CGLIB `this` inside
+ * the default method is the proxy — so both are excluded and a unit test pins it. `validateTask*` are the module's own
+ * predicate; `moveTaskToEnd` is an internal step; the remaining bulk reads are internal fan-outs and assemblies. The
+ * write methods are not cut because this face opens no write tool, and the module's own `validateTask(userId, …)` is
+ * already that same question. The two places the module forgets it (`deleteSignTask`, `copyTask`) are upstream's hole
+ * under `bpm:task:update` on the REST path; an advice here would be a promise nothing can reach, so it is reported in the
+ * hand-off instead of written down as code.
+ *
+ * <p><b>Declared narrowing.</b> On reads it asks the very permission code the module's own controller asks — `bpm:task:query`
+ * for the todo and done pages, `bpm:task:manager-query` for the manager page — so it is **equal to the module, no stricter
+ * and no wider**. The row scope is the module's own (todo and done filter by `assignee`); the manager page is deliberately
+ * **not** filtered per caller, because "all tasks" is what that page means and narrowing it would make the answer a lie.
+ * Today this object's tool face has one read (my todo list); the manager-page advice is the door for any later tool that
+ * asks for every task, and it must not be looser than REST.
+ *
+ * <p><b>It acts on the tool path only.</b> {@code ActingCaller} is published only by a tool holding the runtime's
+ * {@code Principal}; on the host's request path it is empty, and there `@PreAuthorize` has already asked the same
+ * question. So the advice lets anything through when it is empty: REST behaviour is exactly upstream's.
  */
 @Aspect
 @Component
 public class BpmTaskGovernance implements GovernedModule {
 
-    private final YudaoModuleScope scope;
-    private final TaskService engineTasks;
+    private final YudaoToolPermissions permissions;
 
-    public BpmTaskGovernance(YudaoModuleScope scope, TaskService engineTasks) {
-        this.scope = scope;
-        this.engineTasks = engineTasks;
+    public BpmTaskGovernance(YudaoToolPermissions permissions) {
+        this.permissions = permissions;
     }
 
     /** Declares this module governed, so the set is countable — see {@link GovernedModuleRegistry}. */
@@ -131,160 +132,50 @@ public class BpmTaskGovernance implements GovernedModule {
         return "bpm";
     }
 
-    /** The approver lives on the engine's task, spelled `assignee`. / 分派人住在引擎任务上，拼作 `assignee`。 */
+    /** The engine's task field, not a column on this host's own table. / 引擎的任务字段，不是本宿主自己表上的列。 */
     @Override
     public String ownerField() {
         return "assignee";
     }
 
     /**
-     * 待办与已办：调用方的 id 顶掉第 0 个实参，模块自己按 `taskAssignee` 收束。
+     * 三个读，各按模块 controller 上那一条权限码收束。一条通知而不是三条，因为这是**同一个问题**——不同的只是权限码，而权限码
+     * 从点切已经点名的那个方法名读出来。
      *
-     * The todo and done pages: the caller's id replaces argument 0, and the module scopes by `taskAssignee` itself.
+     * <p>The three reads, each held to the permission code its own controller names. One advice rather than three, because
+     * the question is one question — only the code differs, and it is read off the method name the pointcut already names.
      */
     @Around("execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.getTaskTodoPage(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.getTaskDonePage(..))")
-    public Object fillCallerIntoPage(ProceedingJoinPoint call) throws Throwable {
-        Long caller = toolCallerToEnforce();
-        Object[] args = call.getArgs();
-        if (caller == null || args.length < 2) {
-            return call.proceed();
-        }
-        Object[] narrowed = args.clone();
-        narrowed[0] = caller;
-        return call.proceed(narrowed);
-    }
-
-    /**
-     * 「全部」页：模块**完全不读** `userId`，实参填了也没用，故只能按返回行再收。留下的行是本页里分派给调用方的那些
-     * （加签里 `owner` 是调用方、`assignee` 已置空的**不算**）；`total` 随之改写成**本页留下的行数**——它是**按页的**
-     * 总数，不是表的总数。
-     *
-     * The "all" page: the module **never reads** `userId`, so filling the argument changes nothing and the returned
-     * rows are what is left to narrow. The rows kept are this page's tasks assigned to the caller (a sign task whose
-     * `assignee` is cleared and whose `owner` is the caller does **not** count); `total` becomes the rows kept — a
-     * **page-local** total, not the table's.
-     */
-    @Around("execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.getTaskPage(..))")
-    public Object keepOnlyCallersRows(ProceedingJoinPoint call) throws Throwable {
-        Object page = call.proceed();
-        Long caller = toolCallerToEnforce();
-        if (caller == null || !(page instanceof PageResult<?> result)) {
-            return page;
-        }
-        List<?> rows = result.getList();
-        List<?> mine = rows.stream()
-                .filter(row -> row instanceof HistoricTaskInstance task
-                        && scope.belongsToCaller(task.getAssignee(), caller))
-                .toList();
-        return new PageResult<>(mine, (long) mine.size());
-    }
-
-    /**
-     * 审批通过：模块自己也比对 `assignee`，这里把同一个答案提前成运行时的拒绝形状——并且比模块**更严**：模块在
-     * `assignee` 为空时放行（自动通过那条路），工具路径上空值同样拒绝。
-     *
-     * Approval: the module already compares the assignee; this raises the same answer early, as the runtime's refusal
-     * shape — and is **stricter** than the module, which lets a blank assignee through for its auto-approve path.
-     */
-    @Around("execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.approveTask(..))")
-    public Object requireAssigneeForApproval(ProceedingJoinPoint call) throws Throwable {
-        return requireAssignee(call, "approveTask");
-    }
-
-    /** Rejection: the same door as approval. / 驳回：与审批同一扇门。 */
-    @Around("execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.rejectTask(..))")
-    public Object requireAssigneeForRejection(ProceedingJoinPoint call) throws Throwable {
-        return requireAssignee(call, "rejectTask");
-    }
-
-    /**
-     * 那八个不该由 AI 执行的动作：工具路径上拒绝，请求路径原样放行。
-     *
-     * The eight actions the AI does not perform: refused on the tool path, untouched on the request path.
-     */
-    @Around("execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.transferTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.delegateTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.createSignTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.deleteSignTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.returnTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.moveTaskToEnd(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.copyTask(..))"
-            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.withdrawTask(..))")
-    public Object refuseOutOfScopeActions(ProceedingJoinPoint call) throws Throwable {
-        if (toolCallerToEnforce() == null) {
+            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.getTaskDonePage(..))"
+            + " || execution(* cn.iocoder.yudao.module.bpm.service.task.BpmTaskService.getTaskPage(..))")
+    public Object requireReadPermission(ProceedingJoinPoint call) throws Throwable {
+        String caller = ActingCaller.current();
+        if (caller == null) {
+            // The host's own request path: @PreAuthorize on the controller has already asked this.
+            // 宿主自己的请求路径：controller 上的 @PreAuthorize 已经问过这一句。
             return call.proceed();
         }
         String action = call.getSignature().getName();
-        throw new RuleDeniedException(null, "这个动作不由 AI 执行", "BpmTask", action, nextStepFor(action));
-    }
-
-    /**
-     * The refusal, per action: what it changes for someone else, and where a person does it instead. The eight share
-     * one shape but not one sentence — an executable error names the next step, and "not allowed" alone is not one.
-     *
-     * 逐个动作的拒绝理由：它给别人或整个流程改了什么，以及人该去哪里做。八个动作同一种形状、不同一句话——可执行的
-     * 错误要说出下一步，光一句「不允许」不算。
-     */
-    private static String nextStepFor(String action) {
-        return switch (action) {
-            case "transferTask", "delegateTask" ->
-                    "转办与委派会把任务送进别人的待办；请在审批界面上由本人操作";
-            case "createSignTask", "deleteSignTask" ->
-                    "加签与减签会为别人增删任务；请在审批界面上由本人操作";
-            case "returnTask", "withdrawTask" ->
-                    "回退与撤回会把流程往回挪，影响发起人与已经批过的人；请在审批界面上由本人操作";
-            case "moveTaskToEnd" ->
-                    "它直接结束整个流程实例、且不区分是谁；请由流程管理员在流程详情里处理";
-            case "copyTask" ->
-                    "抄送会给别人新增抄送记录；请在审批界面上由本人操作";
-            default ->
-                    "这个动作会改动别人的待办或整个流程；请在模块自己的审批界面上由本人操作";
-        };
-    }
-
-    /** The shared door: the caller must be the task's `assignee`, exactly. / 同一扇门：调用方必须**恰好**是该任务的分派人。 */
-    private Object requireAssignee(ProceedingJoinPoint call, String action) throws Throwable {
-        Long caller = toolCallerToEnforce();
-        if (caller == null) {
-            return call.proceed();
+        String permission = permissionFor(action);
+        String refusal = permissions.refusal(caller, permission);
+        if (refusal != null) {
+            throw new RuleDeniedException(null, refusal, "BpmTask", action,
+                    "该工具调用要求 '" + permission + "' 权限；请改用持有该权限的身份，或让管理员补齐授权");
         }
-        String taskId = taskIdOf(call.getArgs());
-        if (taskId == null) {
-            // 模块自己的校验会点名缺 id，这里不抢它的话。/ The module's own validation names a missing id; not taken here.
-            return call.proceed();
-        }
-        Task task = engineTasks.createTaskQuery().taskId(taskId).singleResult();
-        if (task != null && !scope.belongsToCaller(task.getAssignee(), caller)) {
-            throw new RuleDeniedException(null, "该行不在你的数据范围内", "BpmTask", action,
-                    "只能办理分派给自己的任务；别人的待办请由分派人改派，或在审批界面上由本人处理");
-        }
-        // 查不到任务时交回模块：它已有 TASK_NOT_EXISTS 这个码。/ A missing task goes back to the module, which owns that code.
         return call.proceed();
     }
 
-    /** The task id sits at argument 1 behind the user id, in a request VO that both writes share by name only. */
-    private static String taskIdOf(Object[] args) {
-        if (args.length < 2) {
-            return null;
-        }
-        if (args[1] instanceof BpmTaskApproveReqVO approve) {
-            return approve.getId();
-        }
-        if (args[1] instanceof BpmTaskRejectReqVO reject) {
-            return reject.getId();
-        }
-        return null;
-    }
-
     /**
-     * The caller a **tool** published, or {@code null} when this call did not come from one. On the request path the
-     * module's own controllers and {@code @PreAuthorize} have already answered, so there is nothing to add there.
+     * 这个方法在模块自己的 controller 上对应哪一条权限码 —— 同一套词表，不是两套。管理页是「全部任务」，故它自己的那一句是
+     * `manager-query`；待办与已办是 `query`。
      *
-     * 工具发布的调用方；不是工具发起的调用则为 {@code null}。请求路径上模块自己的控制器与 {@code @PreAuthorize} 已经回答
-     * 过，那里没有本切面要补的东西。
+     * The permission code this method's endpoint names in the module's own controller — one vocabulary, not two. The
+     * manager page is "all tasks", so it names `manager-query`; the todo and done pages name `query`.
      */
-    private Long toolCallerToEnforce() {
-        return ActingCaller.current() == null ? null : scope.callerToEnforce();
+    static String permissionFor(String method) {
+        return switch (method) {
+            case "getTaskPage" -> "bpm:task:manager-query";
+            default -> "bpm:task:query";
+        };
     }
 }

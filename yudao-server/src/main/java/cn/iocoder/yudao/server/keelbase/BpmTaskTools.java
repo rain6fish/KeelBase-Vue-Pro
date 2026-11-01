@@ -9,68 +9,55 @@ import cn.com.keelbase.runtime.tool.ToolResult;
 import cn.iocoder.yudao.framework.common.pojo.PageResult;
 import cn.iocoder.yudao.framework.tenant.core.util.TenantUtils;
 import cn.iocoder.yudao.module.bpm.controller.admin.task.vo.task.BpmTaskPageReqVO;
-import cn.iocoder.yudao.module.bpm.service.definition.BpmProcessDefinitionService;
 import cn.iocoder.yudao.module.bpm.service.task.BpmTaskService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import org.flowable.engine.repository.ProcessDefinition;
 import org.flowable.task.api.Task;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 流程任务的工具面：**只有一读，没有写**。BPM 的第三个工具面，属主是**分派人 `assignee`**——不是发起人、不是行上的列。
+ * BPM 任务的工具面：**只有一条读** —— 调用方自己的待办。
  *
- * <p><b>为什么不开写。</b>分派给我的任务，**办它**是我的职责，但它的**效果**落在**别人发起的那个流程实例**上：一次审批
- * 推进（或终止）的是发起人的业务记录，还会把下一个节点推到别人手里。D5 甲的判据是「**只影响自己**」才开写——流程实例
- * 那条面能开撤回，正是因为那里的调用方**就是发起人本身**；任务这条面不满足它，分派是**职责**，不是**归属**。另外还有
- * 一条机械的：审批的 VO 带着 `variables`（动态表单）与 `nextAssignees`（下一个节点的人选）两个槽，最小工具填不了它们，
- * 声明一个会把表单数据**静默丢掉**、或在「审批人自选」节点上必然失败的写，比不声明更糟。故读写面的决定就在这里：**读**。
- * 要办任务，走模块自己的审批界面——那里引擎照样扣人、照样留痕。
+ * <p><b>为什么不开写。</b>审批是人的责任。一次「通过 / 不通过」要看这一节点在流程模型里定的表单、按钮和理由要求，而工具面
+ * **刻意不投影**那些内容（见下）；转办、委派、加签则是把一件事交到另一个人手上，同样是人的判断。故这里没有一条写：
+ * 不是没做完，是**不该由 AI 按下去**。也正因为如此，本面不需要 `resultType` 与补偿器 —— 没有效果可记。
  *
- * <p><b>读为什么只投影五个字段。</b>待办分页的查询本身带 `includeProcessVariables`，返回的任务对象上就挂着**整张流程
- * 变量表**；旁边还有表单与审批意见（评论）。工具面不投影它们——出去的是「我有哪几件待办」这条业务事实：任务编号、
- * 流程实例编号、流程名、当前节点名、创建时间。变量、表单与意见原文是**业务数据**，要不要给 AI 看是另一个决定。
+ * <p><b>为什么这个读没有参数。</b>它问的是「**我**手上有什么待办」：受理人就是调用方自己，再没有第二个可筛的维度。
+ * 这同时避开了另一条老坑 —— 引擎会在人批准**之前**以 `invalid_arguments` 拒掉一份缺了必填实参的提议；没有实参，就没有
+ * 这一半的失败面。
  *
- * <p><b>流程名借的是流程**定义**的读，不是流程实例的读。</b>取名字本可以问 `BpmProcessInstanceService.getProcessInstance`
- * 拿 `getProcessDefinitionName()`，但那条读被 {@link BpmProcessInstanceGovernance} 在工具路径上按 `startUserId` 收窄过，
- * 而**分派给我的任务恰好常常是别人发起的流程**——那样取到的会是 `null`。所以这里问的是**定义**（`BpmProcessDefinitionService`，
- * 按 `processDefinitionId` 取名），它与哪个人发起、哪个人审批都无关，也就不跨到另一条面的收窄里去。
+ * <p><b>投影四个字段，不含任务上的局部变量。</b>`BpmTaskService.getTask(String)` 的查询带
+ * `includeTaskLocalVariables`，任务上挂着审批状态、理由与签字图片地址。出去的是「有哪几件事等着我」这条业务事实：
+ * 任务编号、名称、创建时间、所属流程实例；审批意见与附件留在模块自己的界面里。
  *
- * <p>The task tool face: **one read, no write**. BPM's third face; its owner is the **assignee** — not a starter, not a
- * column.
+ * BPM's task face: **one read only** — the caller's own todo list.
  *
- * <p><b>Why no write.</b> For a task assigned to me, deciding it is my **duty**, but the **effect** lands on a process
- * instance **someone else started**: one approval advances (or ends) the starter's business record and hands the next
- * node to another person. D5's test is "it only affects me" — the instance face could open its withdrawal precisely
- * because there the caller **is the starter**; this face does not pass that test, because assignment is a **duty**, not
- * **ownership**. There is a mechanical reason too: the approve VO carries `variables` (the dynamic form) and
- * `nextAssignees` (who decides next), which a minimal tool cannot fill; declaring a write that would silently drop form
- * data, or necessarily fail on a select-the-next-approver node, is worse than declaring none. So the decision is made
- * here once: **read only**. To decide a task, use the module's own approval screen — the engine still holds it for a
- * human there, and still records it.
+ * <p><b>Why no write.</b> Approving is a human's job. An approve or reject depends on the form, buttons and reason
+ * requirement the process model declares for that node, and this face **deliberately does not project** any of that (see
+ * below); transferring, delegating or adding a signer hands the work to another person — also a human's call. So there is
+ * no write here: not unfinished work, but work the AI should not press. That is also why this face needs no `resultType`
+ * and no compensator — there is no effect to record.
  *
- * <p><b>Why the read projects five fields only.</b> The todo query runs with `includeProcessVariables`, so the returned
- * task carries the whole variable map; the form and the approval comments are one call away too. This face does not
- * project them — what leaves is the business fact "these are my open tasks": task id, process instance id, process name,
- * current node name, created time. Variables, forms and comment text are **business data**, and handing them to the AI
- * is a separate decision.
+ * <p><b>Why the read takes no arguments.</b> It asks what **I** have waiting: the assignee is the caller, and there is no
+ * second dimension to filter on. That also sidesteps an older trap — the engine refuses a proposal missing a required
+ * argument with `invalid_arguments` **before** a person is asked; with no arguments there is no such failure half.
  *
- * <p><b>The process name borrows the process **definition** read, not the instance read.</b> The name could come from
- * `BpmProcessInstanceService.getProcessInstance(...).getProcessDefinitionName()`, but that read is narrowed by
- * {@link BpmProcessInstanceGovernance} to the starter on the tool path — and a task assigned to me usually belongs to a
- * process **someone else started**, so it would come back `null`. This asks the **definition** instead (by
- * `processDefinitionId`), which has nothing to do with who started or who approves, and so stays out of the other
- * face's narrowing.
+ * <p><b>Four projected fields, without the task's local variables.</b> `BpmTaskService.getTask(String)` queries with
+ * `includeTaskLocalVariables`, so approval status, reason and the signature image URL hang off the task. What leaves is the
+ * business fact "which items are waiting for me": task id, name, create time and the process instance it belongs to. The
+ * approval text and attachments stay in the module's own screens.
  */
 @Configuration
 public class BpmTaskTools {
 
+    /** Enough that a todo list stays a list. / 小到「待办列表」仍是一眼能看完的东西。 */
+    private static final int PAGE_SIZE = 20;
+
     @Bean
-    AiTool listMyBpmTodos(BpmTaskService tasks, BpmProcessDefinitionService definitions) {
-        return new ListTool(tasks, definitions);
+    AiTool listMyBpmTasks(BpmTaskService tasks) {
+        return new ListTool(tasks);
     }
 
     @Bean
@@ -78,27 +65,34 @@ public class BpmTaskTools {
         return new ListRoute();
     }
 
+    /** The fields that leave this face. / 离开本面的那些字段。 */
+    private static Map<String, Object> project(Task task) {
+        Map<String, Object> safe = new LinkedHashMap<>();
+        safe.put("id", task.getId());
+        safe.put("name", task.getName());
+        safe.put("createTime", task.getCreateTime() == null ? null : task.getCreateTime().toInstant().toString());
+        safe.put("processInstanceId", task.getProcessInstanceId());
+        return safe;
+    }
+
     /** R1 — a read: no confirmation, nothing to revoke. / R1——读：无需确认、无可撤销。 */
     static final class ListTool implements AiTool {
 
         private final BpmTaskService tasks;
-        private final BpmProcessDefinitionService definitions;
 
-        ListTool(BpmTaskService tasks, BpmProcessDefinitionService definitions) {
+        ListTool(BpmTaskService tasks) {
             this.tasks = tasks;
-            this.definitions = definitions;
         }
 
         @Override
         public String name() {
-            return "list_my_bpm_todos";
+            return "list_my_bpm_tasks";
         }
 
         @Override
         public String description() {
-            return "List the BPM tasks assigned to the caller (read-only). Returns id, process instance id, process"
-                    + " name, current node name and created time — never task variables, form content or approval"
-                    + " comments.";
+            return "List the BPM approval tasks waiting for the caller, newest first (read-only). Returns task id, name,"
+                    + " create time and process instance id — never the task's approval text, attachments or form.";
         }
 
         @Override
@@ -109,37 +103,17 @@ public class BpmTaskTools {
         @Override
         public ToolResult execute(Map<String, Object> args, Principal principal) {
             BpmTaskPageReqVO query = new BpmTaskPageReqVO();
-            query.setPageSize(50);
+            query.setPageSize(PAGE_SIZE);
             Long caller = asId(principal.userId());
-            // 调用方以**上游自己分页所取的那个入参**传递，于是分页由模块自己按 assignee 收束；租户与 acting caller
-            // 一并带着走。
+            // 调用方以**上游分页所取的那个入参**传递：模块自己就按受理人收窄，切面再按同一句权限码把关。
+            // 租户与 acting caller 一并带着走。
             //
-            // The caller travels as the argument upstream's own page takes, so the module scopes by assignee itself —
-            // and the tenant and acting caller travel with it.
+            // The caller travels as the argument upstream's own page takes: the module narrows by assignee itself, and the
+            // advice holds it to the same permission code. Tenant and acting caller travel with it.
             PageResult<Task> page = ActingCaller.as(principal.userId(),
                     () -> TenantUtils.execute(YudaoCallerTenant.current(),
                             () -> tasks.getTaskTodoPage(caller, query)));
-            return ToolResult.ok(project(page.getList(), definitions));
-        }
-
-        /** A task as a business fact: five fields, no variables, no form, no comment. / 任务作为业务事实：五个字段，无变量、无表单、无意见。 */
-        private static List<Map<String, Object>> project(List<Task> rows, BpmProcessDefinitionService definitions) {
-            if (rows.isEmpty()) {
-                return List.of();
-            }
-            Map<String, ProcessDefinition> byDefinitionId = definitions.getProcessDefinitionMap(
-                    Set.copyOf(rows.stream().map(Task::getProcessDefinitionId).toList()));
-            return rows.stream().map(task -> project(task, byDefinitionId.get(task.getProcessDefinitionId()))).toList();
-        }
-
-        private static Map<String, Object> project(Task task, ProcessDefinition definition) {
-            Map<String, Object> safe = new LinkedHashMap<>();
-            safe.put("id", task.getId());
-            safe.put("processInstanceId", task.getProcessInstanceId());
-            safe.put("processName", definition == null ? null : definition.getName());
-            safe.put("taskName", task.getName());
-            safe.put("createTime", task.getCreateTime() == null ? null : task.getCreateTime().toInstant().toString());
-            return safe;
+            return ToolResult.ok(page.getList().stream().map(BpmTaskTools::project).toList());
         }
     }
 
@@ -148,12 +122,12 @@ public class BpmTaskTools {
 
         @Override
         public String toolName() {
-            return "list_my_bpm_todos";
+            return "list_my_bpm_tasks";
         }
 
         @Override
         public List<String> triggers() {
-            return List.of("我的待办", "待办任务", "待我审批", "我的审批", "待办列表", "看我的待办");
+            return List.of("我的待办", "我的待办任务", "待我审批", "待我审批的任务", "我的审批任务");
         }
 
         @Override
