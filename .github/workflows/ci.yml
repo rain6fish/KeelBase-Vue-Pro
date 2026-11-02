@@ -26,6 +26,9 @@
 #                        defect reddens CI rather than only a local build;
 #   governance-registry  every module this host governs declares itself, and the name it declares is
 #                        the one its own pointcuts point at — the set `YD-13` made countable;
+#   coverage-ledger      *a step inside `governance-registry`* — every business service in the deployed
+#                        scope carries a posture in `conformance/governance-coverage.tsv`, and a `seam`
+#                        posture is falsified against the sources when no aspect names that service (M0);
 #   console-pages        *a step inside `governance-registry`* — every page the assistant offers is a
 #                        route the menus we ship compose, so a curated list cannot quietly point at a
 #                        page that moved;
@@ -81,6 +84,9 @@
 #                        rain6fish/KeelBase-YuDao#3 那一类缺陷在 CI 上就红，而不是只在本地构建里；
 #   governance-registry  本宿主治理的每个模块都**自报**，而它报的名字**就是**它自己 pointcut 所指的那一个
 #                        —— `YD-13` 让它**数得出来**的那个集合；
+#   coverage-ledger      *`governance-registry` 里的一个 step* —— 部署范围里每个业务 service 都在
+#                        `conformance/governance-coverage.tsv` 里有一个姿态；标 `seam` 的若没有切面点名它，
+#                        源码当场证伪（M0）；
 #   console-pages        *`governance-registry` 里的一个 step* —— 助手提供的每一页，都是**我们发布的菜单**
 #                        解得出来的一条路径，策展清单因而不会悄悄指向一个已经挪走的页面；
 #   identity-matrix      *`governance-registry` 里的一个 step* —— 九页身份矩阵（哪个角色能开哪一页治理页）
@@ -501,6 +507,18 @@ jobs:
       - name: A governed module must declare itself, and under its own name
         run: node scripts/check-governance-registry.mjs
 
+      # 治理覆盖账本（M0）：部署范围里每个业务 service 都必须在账本里有一个姿态，而账本说的姿态要能被源码证伪
+      # —— `seam` 行的切面必须真的点得到它。默认放行 `gap`（账本本就是拿来暴露缺口的）；会红的是四类：未分类的
+      # service、假 seam、豁免/排期过期、账本与部署范围互不包含。纯 Node，不起任何栈。
+      #
+      # The onboarding ledger (M0): every business service in the deployed scope must carry a posture, and
+      # that posture must be falsifiable against the sources — a `seam` row needs an aspect that really names
+      # it. `gap` passes by default (the ledger exists to show gaps); four things are red: an unclassified
+      # service, a fake seam, an overdue exempt/scheduled row, and a ledger and scope that do not contain
+      # each other. Pure Node, no stack.
+      - name: Every business service has a posture in the coverage ledger
+        run: node scripts/check-governance-coverage.mjs
+
       # The assistant's page list is curated, and a curated list is a second place to forget: each
       # route it names is looked up in the menu tree the SQL we ship defines, composed the way the
       # console's router composes it — and then against the branches `module-scope.sql` keeps, because
@@ -721,11 +739,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 宿主钉的是**已发布**的运行时 `0.1.15`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
+      # 宿主钉的是**已发布**的运行时 `0.1.16`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
       # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。抬运行时版本时，
       # 宿主 pom 的坐标与这里一起改。
       #
-      # The host pins the **released** runtime `0.1.15` (available on Central), so CI resolves it
+      # The host pins the **released** runtime `0.1.16` (available on Central), so CI resolves it
       # directly instead of building the public repository at a SHA: a SNAPSHOT lives only in a
       # developer's `~/.m2`, which left this job missing artifacts on the runner. When the runtime
       # version is bumped, the host pom's coordinate moves with it.

@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,534 @@
+@@ -1,4 +1,569 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -279,6 +279,20 @@ index 96269a8..2611a9b 100644
 +      none: 'none',
 +      missing: 'This build carries no boundary record — the UI was laid down without it',
 +      loadFailed: 'The boundary could not be read',
++      ledgerTitle: 'Onboarding coverage',
++      ledgerWhat:
++        'One row per business service in the deployed scope, carried from the coverage ledger this build was made from. Onboarded at the seam means a governance aspect narrows the REST path and the tool face together; tool face only means the engine sees the tool call while the REST write is not narrowed; scheduled means the gap is known and dated; out of scope means deliberately not governed, with a reason on file.',
++      ledgerTotals:
++        '{services} services: {seam} onboarded at the seam, {toolOnly} tool face only, {gap} scheduled, {exempt} out of scope.',
++      ledgerColModule: 'Module',
++      ledgerColObject: 'Object',
++      ledgerColPosture: 'Posture',
++      ledgerPosture: {
++        seam: 'Onboarded at the seam',
++        'tool-only': 'Tool face only',
++        gap: 'Scheduled',
++        exempt: 'Out of scope',
++      },
 +    },
 +    // 每个审计页顶部的一句覆盖声明：只说**这张面读到哪、哪些 AI 路径它到不了**。
 +    // One coverage statement per audit page: what that face reads, and which AI paths it cannot reach.
@@ -347,6 +361,27 @@ index 96269a8..2611a9b 100644
 +      colSource: 'Source',
 +      ok: 'Succeeded',
 +      failed: 'Failed',
++    },
++    // 上游 REST 写的旁路台账：只记不改，且**不是**受治理路径。这个词条块属于审计链页的独立区块。
++    // The bypass ledger of upstream REST writes: record-only, and **not** a governed path. This block
++    // belongs to the standalone section on the audit-chain page.
++    bypass: {
++      title: 'Upstream REST writes — record only',
++      notGoverned:
++        'This is not a governed path: nothing here was confirmed, there is no side-effect ledger, and these rows are not on the hash chain above. They only record what upstream wrote through its own admin API.',
++      noBody:
++        'No request bodies are kept — a row carries the caller, method, path, business object, result and duration, and nothing else.',
++      total: '{n} rows',
++      pageOf: 'page {page} · {total} rows · {limit} per page',
++      colTime: 'Time',
++      colCaller: 'Caller',
++      colMethod: 'Method',
++      colPath: 'Path',
++      colObject: 'Business object',
++      colResult: 'Result (HTTP · code)',
++      colDuration: 'Duration',
++      empty: 'No upstream writes recorded yet',
++      loadFailed: 'The bypass trail could not be read',
 +    },
 +    policy: {
 +      title: 'Policy center',
@@ -541,7 +576,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,529 @@
+@@ -1,4 +1,563 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -818,6 +853,19 @@ index 35f1e1a..856d201 100644
 +      none: '无',
 +      missing: '本构建没有带边界记录 —— 界面是没带它铺下去的',
 +      loadFailed: '读不到这条边界',
++      ledgerTitle: '治理覆盖账本',
++      ledgerWhat:
++        '部署范围里每个业务 service 一行，取自本次构建所用的覆盖账本。「接缝受治理」指治理切面同时收窄 REST 路径与工具面；「只有工具面」指引擎看得见工具调用、而 REST 写入没有收窄；「已排期」指缺口已知并有日期；「明确不接」指有意不治理、理由在案。',
++      ledgerTotals: '共 {services} 个 service：{seam} 个接缝受治理、{toolOnly} 个只有工具面、{gap} 个已排期、{exempt} 个明确不接。',
++      ledgerColModule: '模块',
++      ledgerColObject: '对象',
++      ledgerColPosture: '姿态',
++      ledgerPosture: {
++        seam: '接缝受治理',
++        'tool-only': '只有工具面',
++        gap: '已排期',
++        exempt: '明确不接',
++      },
 +    },
 +    // 每个审计页顶部的一句覆盖声明：只说**这张面读到哪、哪些 AI 路径它到不了**。
 +    login: {
@@ -883,6 +931,27 @@ index 35f1e1a..856d201 100644
 +      colSource: '来源',
 +      ok: '成功',
 +      failed: '失败',
++    },
++    // 上游 REST 写的旁路台账：只记不改，且**不是**受治理路径。这个词条块属于审计链页的独立区块。
++    // The bypass ledger of upstream REST writes: record-only, and **not** a governed path. This block
++    // belongs to the standalone section on the audit-chain page.
++    bypass: {
++      title: '上游 REST 写（只记不改）',
++      notGoverned:
++        '这不是受治理路径：这里没有确认、没有副作用台账，这些行也不在上面那条哈希链上。它们只记录上游经自己的管理接口写了什么。',
++      noBody:
++        '不保留请求体原文 —— 一行只有调用方、方法、路径、业务对象、结果与耗时，别的都没有。',
++      total: '{n} 行',
++      pageOf: '第 {page} 页 · 共 {total} 行 · 每页 {limit} 条',
++      colTime: '时间',
++      colCaller: '调用方',
++      colMethod: '方法',
++      colPath: '路径',
++      colObject: '业务对象',
++      colResult: '结果（HTTP · 码）',
++      colDuration: '耗时',
++      empty: '还没有记录到上游写',
++      loadFailed: '旁路台账读不出来',
 +    },
 +    policy: {
 +      title: '策略中心',

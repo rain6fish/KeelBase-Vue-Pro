@@ -219,12 +219,13 @@ public class FmsVoucherGovernance implements GovernedModule {
                         + " locally: only a review of a voucher can be taken back here");
             }
             YudaoLocalCompensators.as(effect, () -> {
-                FmsVoucherDO voucher = mapper.selectById(effect.getResultId());
+                FmsVoucherDO voucher = mapper.selectById(YudaoLocalCompensators.asId(effect.getResultId()));
                 if (voucher == null) {
                     throw new IllegalStateException("cannot compensate " + effect.getToolName()
                             + ": no voucher " + effect.getResultId());
                 }
-                service.updateVoucherReviewStatus(voucher.getAccountSetId(), List.of(effect.getResultId()),
+                service.updateVoucherReviewStatus(voucher.getAccountSetId(),
+                        List.of(YudaoLocalCompensators.asId(effect.getResultId())),
                         FMS_PENDING_REVIEW, YudaoLocalCompensators.asId(effect.getUserId()));
             });
         }
