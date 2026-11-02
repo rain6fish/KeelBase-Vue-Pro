@@ -257,14 +257,14 @@ let createdId = null;
   const held = pendingCount(secondId);
   // The name travels in the message: the chat request declares no free-form argument map, and the
   // route's placeholder uses what the caller typed. / 名字走消息：聊天请求没有自由参数 map，路由的占位用调用方所写。
-  await chat(second, `新建联系人 ${marker}-created`);
+  await chat(second, `新建示例联系人 ${marker}-created`);
   check('写被扣下', held + 1, pendingCount(secondId));
   const proposedToken = pendingToken(secondId);
   checkNot('扣下时给出 token', 'undefined', proposedToken);
 
   const outcome = await confirm(second, proposedToken, 'approve');
   check('批准后执行', 'executed', outcome.status);
-  createdId = psql(`select id from ${TABLE} where name = '新建联系人 ${marker}-created' and deleted = 0`);
+  createdId = psql(`select id from ${TABLE} where name = '新建示例联系人 ${marker}-created' and deleted = 0`);
   check('行已落库', true, createdId !== '');
   // 工具路径的 create 不走安全上下文，框架的审计字段处理器盖不上 `creator`；模块 service 必须在 insert
   // 之后按 `ActingCaller` 补盖。这里断言的是**补盖的结果**，不是「行存在」。

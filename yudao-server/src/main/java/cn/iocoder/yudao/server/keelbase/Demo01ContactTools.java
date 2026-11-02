@@ -154,7 +154,10 @@ public class Demo01ContactTools implements GovernedPath {
 
         @Override
         public List<String> triggers() {
-            return List.of("看我的联系人", "我的联系人", "联系人列表", "列联系人");
+            // 「我的联系人」独占：手写的 `CrmContactTools` 也认「联系人列表」，路由按 bean 顺序先命中它。
+            // "我的联系人" is exclusive: the hand-written `CrmContactTools` also claims 联系人列表,
+            // and routing takes the first matching bean.
+            return List.of("看我的联系人", "我的联系人", "我的联系人清单", "列联系人");
         }
 
         @Override
@@ -226,7 +229,9 @@ public class Demo01ContactTools implements GovernedPath {
 
         @Override
         public List<String> triggers() {
-            return List.of("新建联系人", "创建联系人", "新增联系人");
+            // 「示例」是独占标记：`CrmContactTools` 的同名写触发词会按 bean 顺序先命中。
+            // "示例" is the marker that keeps these phrases out of `CrmContactTools`' same-named triggers.
+            return List.of("新建示例联系人", "创建示例联系人", "新增示例联系人");
         }
 
         @Override

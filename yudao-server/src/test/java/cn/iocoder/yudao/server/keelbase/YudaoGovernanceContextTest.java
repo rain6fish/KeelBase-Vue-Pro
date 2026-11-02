@@ -148,6 +148,39 @@ class YudaoGovernanceContextTest {
         }
     }
 
+    /**
+     * 示例模块的路由不得与其它工具面抢同一个短语。
+     *
+     * <p>`Demo01ContactTools` 是手写样例，它的写触发词曾与 `CrmContactTools` 完全同名，路由按 bean 顺序
+     * 先命中 CRM；2026-11-02 的真栈门因此红在「写被扣下」四条。（生成模块的同类约束见上一条测试。）
+     *
+     * The sample module's routes must not claim a phrase another tool face owns. Its write triggers used
+     * to be identical to `CrmContactTools`', and routing hit CRM first; the real-stack gate went red on
+     * the four write assertions on 2026-11-02. (The generated module has its own check above.)
+     */
+    @Test
+    void aDemoRouteDoesNotClaimAnotherToolFacePhrase() {
+        List<ModuleRoute> demo = new ArrayList<>();
+        List<ModuleRoute> others = new ArrayList<>();
+        for (ModuleRoute route : context.getBeansOfType(ModuleRoute.class).values()) {
+            boolean fromDemoTools = route.getClass().getName().contains("Demo01ContactTools");
+            (fromDemoTools ? demo : others).add(route);
+        }
+        assertFalse(demo.isEmpty(), "the demo module's routes are not registered");
+        for (ModuleRoute demoRoute : demo) {
+            for (ModuleRoute otherRoute : others) {
+                for (String claimed : demoRoute.triggers()) {
+                    for (String taken : otherRoute.triggers()) {
+                        assertFalse(claimed.contains(taken) || taken.contains(claimed),
+                                "demo route " + demoRoute.toolName() + " claims \"" + claimed
+                                        + "\", which overlaps " + otherRoute.toolName()
+                                        + "'s \"" + taken + "\"");
+                    }
+                }
+            }
+        }
+    }
+
     private static List<Class<?>> governanceDeclarations() {
         var scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(Component.class));
