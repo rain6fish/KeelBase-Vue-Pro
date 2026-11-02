@@ -348,10 +348,17 @@ putBack = () => psql([
   // 被**拒绝**的创建会留下一个没有效应的认领，而「按效应收」够不到它；已执行那次的认领则指向一条效应。
   // A refused create leaves a claim with no effect; an executed one has a claim pointing at an effect.
   `delete from write_claims where user_id in ('${second.id}', '${writer.id}') and tool_name = 'create_crm_product' and effect_id is null`,
+  // `side_effects.result_id` 自 0.1.16 起是文本（效果 id 可能是 UUID），而产品表的 `id` 是 bigint ——
+  // 不转就 `character varying = bigint`、整句失败，收尾一条也删不掉。与 `run-bypass-audit-scenarios.mjs`
+  // 同一处修法。
+  //
+  // `side_effects.result_id` is text as of 0.1.16 (an effect id can be a UUID) while the product table's
+  // `id` is bigint; without the cast this is `character varying = bigint`, the statement fails, and the
+  // cleanup removes nothing. The same fix as `run-bypass-audit-scenarios.mjs`.
   `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_product'`
-    + ` and result_id in (select id from ${PRODUCT} where name like '${marker}%'))`,
+    + ` and result_id in (select id::text from ${PRODUCT} where name like '${marker}%'))`,
   `delete from side_effects where result_type = 'crm_product' and result_id in`
-    + ` (select id from ${PRODUCT} where name like '${marker}%')`,
+    + ` (select id::text from ${PRODUCT} where name like '${marker}%')`,
   `delete from confirmation_requests where tool_name = 'create_crm_product' and args_json like '%${marker}%'`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_PRODUCT} and biz_id in`
     + ` (select id from ${PRODUCT} where name like '${marker}%')`,
