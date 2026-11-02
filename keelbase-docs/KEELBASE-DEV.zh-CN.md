@@ -138,6 +138,41 @@ RESET=1 bash scripts/bootstrap-datastore.sh  # 删库重灌
 **⚠ 未覆盖：** pgvector 在位，是运行时知识层走**语义路径**的前提；但那条路还要一个嵌入模型，而这里没配
 ——故**语义路径本身没有跑过**，只验了扩展在位。
 
+## 一次跑完全部真栈场景门
+
+`scripts/run-all-scenarios.sh` 把每一道 `scripts/run-*-scenarios.mjs` 都对着**同一套**跑着的栈、按固定顺序跑
+一遍并汇总。每道门仍是各自独立的程序、各有自己的断言；本脚本只省掉「为每一道门手动起停一次栈」。
+
+```bash
+bash scripts/run-all-scenarios.sh --list        # 只列出会跑哪些、会跳过哪些
+
+PG_CONTAINER=sg-pg PG_DB=sg_1102 HOST_URL=http://127.0.0.1:18093 \
+  bash scripts/run-all-scenarios.sh
+```
+
+它保证的几件事：
+
+| | |
+|---|---|
+| **真实退出码** | 每道门的状态**直接从 `node` 取**、绝不经过管道，故红的那道报的是它真正退出的码 |
+| **不提前收工** | 第一道红不会中止其余门 —— 一次跑就能看全所有读数 |
+| **一份汇总** | 末尾 `N passed / M failed`，并逐条给出那道门自己的 `ok / failed` 数与耗时 |
+| **一份读数文件** | 各门的 `READING …` 行收进日志目录下的 `readings.txt`（目录由 `SCENARIO_LOG_DIR` 指定，默认是新建的临时目录），故两轮之间 `diff` 即可比 |
+| **一个退出状态** | 任一道门失败 ⇒ 本脚本 exit 1 |
+
+发现规则与顺序写在脚本自己的头部。一句话：`ORDER` 表钉下一个刻意的次序（便宜的可见面在前、要真模型的在最后），
+而**后加的门不必改脚本**也会被跑到 —— 接在表上那些之后、按字母序。
+
+**它会跳过的门，以及为什么。** 前置不由本脚本安排的那道门会打印 `SKIP` 并写明理由，既不算通过、也不算失败。
+今天只有一道：`run-model-loop-scenarios.mjs` 要一个带 `KEELBASE_MODEL_API_KEY` 起的宿主（见上面
+`run-server.sh` 那一段的说明），故只有当你确认宿主是那样起的、并带上 `SCENARIOS_MODEL_HOST=1` 时它才跑。
+另外三道真要模型的（`run-ai1-crm-scenarios` / `run-assistant-drawer-scenarios` /
+`run-mcp-governance-scenarios`）**不跳过**：它们自己从 `KEY_FILE` 指的文件里读 key，文件不在或没有 key 就**大声失败**。
+
+**一份绿的汇总不意味着什么。** 每道门都在自己的头部写明**声明的限度** —— 其中最要紧的一条是线缆上不带工具结果，
+故工具投影是对着**模块那一行**断、并由单元测试钉住，而不是从应答里读出来的。汇总全绿说的是**每道门自己的断言都
+成立了**，它不多主张一分。
+
 ## 从 Spec 生成一个受治理的模块
 
 ```bash

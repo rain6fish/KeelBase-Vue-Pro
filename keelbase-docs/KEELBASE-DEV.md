@@ -153,6 +153,46 @@ install needs the file too, for the same reason.
 path, but that path also needs an embedding model, and none is configured here — so the **semantic path
 itself has not been exercised**, only the extension's presence.
 
+## Running every real-stack scenario gate at once
+
+`scripts/run-all-scenarios.sh` runs every `scripts/run-*-scenarios.mjs` gate against **one** running
+stack, in a fixed order, and prints a summary. Each gate stays a separate program with its own
+assertions; this only stops you from starting and stopping the stack by hand for each one.
+
+```bash
+bash scripts/run-all-scenarios.sh --list        # what it would run, and what it would skip
+
+PG_CONTAINER=sg-pg PG_DB=sg_1102 HOST_URL=http://127.0.0.1:18093 \
+  bash scripts/run-all-scenarios.sh
+```
+
+What it guarantees:
+
+| | |
+|---|---|
+| **Real exit codes** | Each gate's status is taken straight from `node`, never from a pipe, so a red gate is reported with the code it really exited with |
+| **No early stop** | The first red gate does not abort the rest — one run shows every reading |
+| **One summary** | `N passed / M failed` at the end, plus each gate's own `ok / failed` count and duration |
+| **A readings file** | Every gate's `READING …` lines are collected into `readings.txt` under the log directory (`SCENARIO_LOG_DIR`, default a fresh temp dir), so two runs compare with `diff` |
+| **An exit status** | Any gate failing ⇒ the script exits 1 |
+
+Discovery and order are documented in the script's own header. In short: the `ORDER` list fixes a
+deliberate sequence (cheap faces first, anything needing a real model last), and a gate added later is
+picked up automatically and run after the listed ones, alphabetically.
+
+**Gates it skips, and why.** A gate whose prerequisite this script cannot arrange is printed as `SKIP`
+with its reason and is counted as neither a pass nor a failure. There is one today:
+`run-model-loop-scenarios.mjs` needs a host started with `KEELBASE_MODEL_API_KEY` (see the note on that
+in the `run-server.sh` section above), so it runs only when you say the host is that way —
+`SCENARIOS_MODEL_HOST=1`. The three gates that call a real model (`run-ai1-crm-scenarios`,
+`run-assistant-drawer-scenarios`, `run-mcp-governance-scenarios`) are **not** skipped: they read the key
+from the file named by `KEY_FILE` themselves and fail loudly when it is missing or holds no key.
+
+**What a green summary does not mean.** Each gate states its own declared limits in its header — the
+one that matters most is that the wire carries no tool result, so a tool's projection is asserted
+against the module's row and pinned by a unit test rather than read off the response. A green summary
+says every gate's own assertions held; it claims nothing beyond them.
+
 ## Generating a governed module from a spec
 
 ```bash
