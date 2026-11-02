@@ -27,8 +27,9 @@
 #   governance-registry  every module this host governs declares itself, and the name it declares is
 #                        the one its own pointcuts point at — the set `YD-13` made countable;
 #   coverage-ledger      *a step inside `governance-registry`* — every business service in the deployed
-#                        scope carries a posture in `conformance/governance-coverage.tsv`, and a `seam`
-#                        posture is falsified against the sources when no aspect names that service (M0);
+#                        scope carries a posture in `conformance/governance-coverage.tsv`, a `seam`
+#                        posture is falsified against the sources when no aspect names that service, and
+#                        the ledger must hold **zero gaps** — one service falling back to `gap` is red (M0);
 #   console-pages        *a step inside `governance-registry`* — every page the assistant offers is a
 #                        route the menus we ship compose, so a curated list cannot quietly point at a
 #                        page that moved;
@@ -508,16 +509,20 @@ jobs:
         run: node scripts/check-governance-registry.mjs
 
       # 治理覆盖账本（M0）：部署范围里每个业务 service 都必须在账本里有一个姿态，而账本说的姿态要能被源码证伪
-      # —— `seam` 行的切面必须真的点得到它。默认放行 `gap`（账本本就是拿来暴露缺口的）；会红的是四类：未分类的
-      # service、假 seam、豁免/排期过期、账本与部署范围互不包含。纯 Node，不起任何栈。
+      # —— `seam` 行的切面必须真的点得到它。账本已到**零 gap**（137 个 service：seam 25 / tool-only 1 / exempt 111），
+      # 故这里按「完全接入」跑：任何一个 service 掉回 `gap` 都变红，而不是像默认模式那样放行——默认模式会让
+      # 「掉回 gap」这件事在 CI 上无声无息。四类红照旧：未分类的 service、假 seam、豁免/排期过期、账本与部署范围
+      # 互不包含。纯 Node，不起任何栈。
       #
       # The onboarding ledger (M0): every business service in the deployed scope must carry a posture, and
       # that posture must be falsifiable against the sources — a `seam` row needs an aspect that really names
-      # it. `gap` passes by default (the ledger exists to show gaps); four things are red: an unclassified
-      # service, a fake seam, an overdue exempt/scheduled row, and a ledger and scope that do not contain
-      # each other. Pure Node, no stack.
-      - name: Every business service has a posture in the coverage ledger
-        run: node scripts/check-governance-coverage.mjs
+      # it. The ledger stands at **zero gaps** (137 services: 25 seam, 1 tool-only, 111 exempt), so this runs
+      # the fully-onboarded reading: a service that falls back to `gap` turns CI red, where the default mode
+      # would let it through and a lost seam would go unnoticed here. The other four refusals hold unchanged —
+      # an unclassified service, a fake seam, an overdue exempt/scheduled row, and a ledger and scope that do
+      # not contain each other. Pure Node, no stack.
+      - name: Every business service is onboarded — no gaps
+        run: node scripts/check-governance-coverage.mjs --require-full
 
       # The assistant's page list is curated, and a curated list is a second place to forget: each
       # route it names is looked up in the menu tree the SQL we ship defines, composed the way the
