@@ -739,11 +739,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 宿主钉的是**已发布**的运行时 `0.1.15`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
+      # 宿主钉的是**已发布**的运行时 `0.1.16`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
       # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。抬运行时版本时，
       # 宿主 pom 的坐标与这里一起改。
       #
-      # The host pins the **released** runtime `0.1.15` (available on Central), so CI resolves it
+      # The host pins the **released** runtime `0.1.16` (available on Central), so CI resolves it
       # directly instead of building the public repository at a SHA: a SNAPSHOT lives only in a
       # developer's `~/.m2`, which left this job missing artifacts on the runner. When the runtime
       # version is bumped, the host pom's coordinate moves with it.
