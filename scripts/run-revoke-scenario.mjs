@@ -223,8 +223,15 @@ const marker = `revoke-${Date.now()}`;
 putBack = () =>
   psql(
     [
-      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%'))`,
-      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%')`,
+      // `side_effects.result_id` 自 0.1.16 起是文本（效果 id 可能是 UUID），而客户表的 `id` 是 bigint ——
+      // 不转就 `character varying = bigint`、整句失败，收尾一条也删不掉。与 `run-bypass-audit-scenarios.mjs`
+      // 同一处修法。
+      //
+      // `side_effects.result_id` is text as of 0.1.16 (an effect id can be a UUID) while the customer table's
+      // `id` is bigint; without the cast this is `character varying = bigint`, the statement fails, and the
+      // cleanup removes nothing. The same fix as `run-bypass-audit-scenarios.mjs`.
+      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%'))`,
+      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%')`,
       // 一次性栈（CI）保留确认行，好让 RY-19 的确认率有分母；共用库上照旧收干净。
       // An ephemeral stack (CI) keeps the confirmation rows so RY-19's confirmation rate has a
       // denominator; a shared database still cleans them up.
@@ -267,7 +274,9 @@ let effectId = '';
   // own by construction.
   // `side_effects.args_hash` 是**哈希** —— 参数搜不了，而那是设计使然。这一行改用**本轮刚建的那一行的 id**
   // 来找，而那个 id 按构造就属于本轮。
-  effectId = psql(`select id from side_effects where tool_name = 'create_crm_customer' and result_id = ${customerId} order by id desc limit 1`);
+  // `result_id` 自 0.1.16 起是文本（见收尾那处注记），故与 id 按文本比。
+  // `result_id` is text as of 0.1.16 (see the cleanup note), so it is compared to the id as text.
+  effectId = psql(`select id from side_effects where tool_name = 'create_crm_customer' and result_id = '${customerId}' order by id desc limit 1`);
   check('找到本轮自己的 effect', true, effectId !== '');
   check('它的档是本地补偿', 'local_compensate', psql(`select revoke_class from side_effects where id = ${effectId}`));
   check('撤销前账本读 executed', 'executed', psql(`select revoke_status from side_effects where id = ${effectId}`));

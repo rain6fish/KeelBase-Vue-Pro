@@ -204,8 +204,15 @@ putBack = () => {
     .filter(Boolean);
   psql(
     [
-      `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_customer' and result_id in (select id from crm_customer where ${byName}))`,
-      `delete from side_effects where result_type = 'crm_customer' and result_id in (select id from crm_customer where ${byName})`,
+      // `side_effects.result_id` 自 0.1.16 起是文本（效果 id 可能是 UUID），而客户表的 `id` 是 bigint ——
+      // 不转就 `character varying = bigint`、整句失败，收尾一条也删不掉。与 `run-bypass-audit-scenarios.mjs`
+      // 同一处修法。
+      //
+      // `side_effects.result_id` is text as of 0.1.16 (an effect id can be a UUID) while the customer table's
+      // `id` is bigint; without the cast this is `character varying = bigint`, the statement fails, and the
+      // cleanup removes nothing. The same fix as `run-bypass-audit-scenarios.mjs`.
+      `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_customer' and result_id in (select id::text from crm_customer where ${byName}))`,
+      `delete from side_effects where result_type = 'crm_customer' and result_id in (select id::text from crm_customer where ${byName})`,
       // 一次性栈（CI）保留确认行，好让 RY-19 的确认率有分母；共用库上照旧收干净。
       // An ephemeral stack (CI) keeps the confirmation rows so RY-19's confirmation rate has a
       // denominator; a shared database still cleans them up.

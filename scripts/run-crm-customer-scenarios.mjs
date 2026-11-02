@@ -460,8 +460,15 @@ putBack = () =>
       // 有码调用方的越权写同样可能留下一条没有效应的认领（见上一条的同一条理由）。
       // The granted caller's cross-row write can leave a claim with no effect behind, for the same reason.
       `delete from write_claims where user_id = '${writer.id}' and tool_name = 'update_crm_customer' and effect_id is null`,
-      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%'))`,
-      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%')`,
+      // `side_effects.result_id` 自 0.1.16 起是文本（效果 id 可能是 UUID），而客户表的 `id` 是 bigint ——
+      // 不转就 `character varying = bigint`、整句失败，收尾一条也删不掉。与 `run-bypass-audit-scenarios.mjs`
+      // 同一处修法。
+      //
+      // `side_effects.result_id` is text as of 0.1.16 (an effect id can be a UUID) while the customer table's
+      // `id` is bigint; without the cast this is `character varying = bigint`, the statement fails, and the
+      // cleanup removes nothing. The same fix as `run-bypass-audit-scenarios.mjs`.
+      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%'))`,
+      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%')`,
       // 一次性栈（CI）保留确认行，好让 RY-19 的确认率有分母；共用库上照旧收干净。
       // An ephemeral stack (CI) keeps the confirmation rows so RY-19's confirmation rate has a
       // denominator; a shared database still cleans them up.
@@ -611,8 +618,10 @@ const updateDeniedMarker = `${marker}-update-denied`;
   // YD-31: the ledger keeps the row as it was, so a trace answers "what did this change" and not only
   // "what is it now". Both halves are asserted because either alone passes vacuously: `before` must
   // name the OLD value and must not name the new one — a "non-empty" check would not tell them apart.
+  // `result_id` 是文本（见收尾那处注记），故与 id 按文本比。
+  // `result_id` is text (see the cleanup note), so it is compared to the id as text.
   const beforeSnap = psql(`select coalesce(before_snapshot, '') from side_effects`
-    + ` where tool_name = 'update_crm_customer' and result_id = ${writerRowId} order by id desc limit 1`);
+    + ` where tool_name = 'update_crm_customer' and result_id = '${writerRowId}' order by id desc limit 1`);
   check('改动前的那一行被记下（含旧值）', true, beforeSnap.includes(writerMarker));
   check('且记的是改之前、不是改之后', true, !beforeSnap.includes(ownMarker));
 
