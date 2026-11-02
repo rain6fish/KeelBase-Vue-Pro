@@ -206,12 +206,15 @@ putBack = () => {
   // reach another run's rows.
   const ids = (psql(`select string_agg(id::text, ',') from ${TABLE} where name like '%${marker}%'`) || '').trim() || '0';
   const idAlt = ids.split(',').join('|');
+  // `side_effects.result_id` is text since runtime 0.1.16 (migration V18); the list must be quoted text.
+  // `side_effects.result_id` 自运行时 0.1.16（迁移 V18）起是文本，故这串 id 要以带引号的文本出现。
+  const idList = ids.split(',').map((id) => `'${id}'`).join(',');
   psql(
     [
       `delete from confirmation_requests where status in ('pending', 'approved', 'rejected') and (args_json ~ '${marker}' or args_json ~ '"id"[[:space:]]*:[[:space:]]*(${idAlt})([^0-9]|$)')`,
       `delete from write_claims where user_id = '${secondId}' and tool_name in ('create_demo01_contact', 'rename_demo01_contact') and effect_id is null`,
-      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${ids}))`,
-      `delete from side_effects where result_id in (${ids})`,
+      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${idList}))`,
+      `delete from side_effects where result_id in (${idList})`,
       `delete from ${TABLE} where id in (${ids})`,
       // 兜底：正常收尾走 API 释放临时角色；退出路径上若还没释放，这里按行删掉（缓存要等宿主重启才清）。
       // Fallback: the normal exit releases the temporary role through the API; if the process dies first,
@@ -349,7 +352,7 @@ console.log('== 场景 5 · 审计链与被记下的拒绝 ==');
 
 console.log('== 场景 6 · 撤销那条腿：创建能被收回去 ==');
 {
-  const effectId = psql(`select id from side_effects where tool_name = 'create_demo01_contact' and result_id = ${createdId} order by id desc limit 1`);
+  const effectId = psql(`select id from side_effects where tool_name = 'create_demo01_contact' and result_id = '${createdId}' order by id desc limit 1`);
   check('那一笔写在副作用台账上', true, effectId !== '');
   const r = await revokeEffect(Number(effectId), second);
   note('撤销端点应答', `HTTP ${r.status} ${String(r.body).replace(/\s+/g, ' ').slice(0, 140)}`);

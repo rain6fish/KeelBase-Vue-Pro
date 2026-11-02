@@ -139,8 +139,8 @@ const marker = `modelgate-${Date.now()}`;
 putBack = () =>
   psql(
     [
-      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%'))`,
-      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id from ${CUSTOMER} where name like '%${marker}%')`,
+      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%'))`,
+      `delete from side_effects where result_type = '${CUSTOMER}' and result_id in (select id::text from ${CUSTOMER} where name like '%${marker}%')`,
       `delete from confirmation_requests where args_json like '%${marker}%'`,
       `delete from ${CUSTOMER} where name like '%${marker}%'`,
     ].join('; '),

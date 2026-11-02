@@ -289,11 +289,14 @@ const salesMarker = `${marker}-sales`;
 putBack = () => {
   const runIds = (psql(`select string_agg(id::text, ',') from ${MESSAGE} where template_content like '%${marker}%'`) || '').trim() || '0';
   const idAlt = runIds.split(',').join('|');
+  // `side_effects.result_id` is text since runtime 0.1.16 (migration V18); the list must be quoted text.
+  // `side_effects.result_id` 自运行时 0.1.16（迁移 V18）起是文本，故这串 id 要以带引号的文本出现。
+  const runIdList = runIds.split(',').map((id) => `'${id}'`).join(',');
   psql(
     [
       `delete from confirmation_requests where args_json ~ '"id"[[:space:]]*:[[:space:]]*(${idAlt})([^0-9]|$)'`,
-      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${runIds}))`,
-      `delete from side_effects where result_id in (${runIds})`,
+      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${runIdList}))`,
+      `delete from side_effects where result_id in (${runIdList})`,
       `delete from ${MESSAGE} where template_content like '%${marker}%'`,
     ].join('; '),
   );

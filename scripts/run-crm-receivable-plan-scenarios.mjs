@@ -345,10 +345,10 @@ putBack = () => psql([
   // A refused create leaves a claim with no effect; an executed one has a claim pointing at an effect.
   `delete from write_claims where user_id in ('${second.id}', '${writer.id}') and tool_name = 'create_crm_receivable_plan' and effect_id is null`,
   `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_receivable_plan'`
-    + ` and result_id in (select id from ${PLAN} where contract_id in`
+    + ` and result_id in (select id::text from ${PLAN} where contract_id in`
     + ` (select id from ${CONTRACT} where name like '${marker}%')))`,
   `delete from side_effects where result_type = 'crm_receivable_plan' and result_id in`
-    + ` (select id from ${PLAN} where contract_id in (select id from ${CONTRACT} where name like '${marker}%'))`,
+    + ` (select id::text from ${PLAN} where contract_id in (select id from ${CONTRACT} where name like '${marker}%'))`,
   // 计划的 args 两个形状（数字或字符串）都要够到；合同编号本轮唯一，故这就是本轮的范围。
   // Catch both argument shapes (number or string); the contract id is unique to this run, so that is
   // this run's scope.

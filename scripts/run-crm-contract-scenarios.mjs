@@ -300,7 +300,7 @@ putBack = () => psql([
   // gate's own tool plus the caller plus no effect: the call was refused, so there is no write to duplicate.
   `delete from write_claims where user_id = '${second.id}' and tool_name = 'create_crm_contract' and effect_id is null`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_CONTRACT} and biz_id in (select id from ${CONTRACT} where name like '%${marker}%')`,
-  `delete from side_effects where result_type = 'crm_contract' and result_id in (select id from ${CONTRACT} where name like '%${marker}%')`,
+  `delete from side_effects where result_type = 'crm_contract' and result_id in (select id::text from ${CONTRACT} where name like '%${marker}%')`,
   `delete from confirmation_requests where args_json like '%${marker}%'`,
   `delete from ${CONTRACT} where name like '%${marker}%'`,
   `delete from crm_customer where name like '%${marker}%'`,

@@ -342,9 +342,9 @@ putBack = () => psql([
   // A refused create leaves a claim with no effect; an executed one has a claim pointing at an effect.
   `delete from write_claims where user_id in ('${second.id}', '${writer.id}') and tool_name = 'create_crm_business' and effect_id is null`,
   `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_business'`
-    + ` and result_id in (select id from ${BUSINESS} where name like '${marker}%'))`,
+    + ` and result_id in (select id::text from ${BUSINESS} where name like '${marker}%'))`,
   `delete from side_effects where result_type = 'crm_business' and result_id in`
-    + ` (select id from ${BUSINESS} where name like '${marker}%')`,
+    + ` (select id::text from ${BUSINESS} where name like '${marker}%')`,
   `delete from confirmation_requests where args_json like '%${marker}%'`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_BUSINESS} and biz_id in`
     + ` (select id from ${BUSINESS} where name like '${marker}%')`,

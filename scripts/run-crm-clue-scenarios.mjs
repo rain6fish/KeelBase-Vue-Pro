@@ -333,9 +333,9 @@ const secondClueName = `${marker}-second`;
 putBack = () => psql([
   `delete from write_claims where user_id in ('${second.id}', '${writer.id}') and tool_name = 'create_crm_clue' and effect_id is null`,
   `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_clue'`
-    + ` and result_id in (select id from ${CLUE} where name like '%${marker}%'))`,
+    + ` and result_id in (select id::text from ${CLUE} where name like '%${marker}%'))`,
   `delete from side_effects where result_type = 'crm_clue' and result_id in`
-    + ` (select id from ${CLUE} where name like '%${marker}%')`,
+    + ` (select id::text from ${CLUE} where name like '%${marker}%')`,
   `delete from confirmation_requests where args_json like '%${marker}%'`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_CLUE} and biz_id in`
     + ` (select id from ${CLUE} where name like '%${marker}%')`,

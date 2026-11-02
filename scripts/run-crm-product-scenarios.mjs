@@ -33,9 +33,10 @@
 //
 // **第 3 条的消息形状与触发词。** 五个必填项由路由从用户**明确写出的文字**里读：`名称= 编码= 价格= 状态= 分类=`；
 // 缺一个，引擎就会在**人批准之前**以 `invalid_arguments` 拒掉提议（回款门、合同门各红过一次）。触发词用
-// `加产品` —— 本仓还有一个**生成的样例模块** `generated/ProductsTools`，它也吃 `新建产品`/`创建产品`/`列出产品`/
-// `产品列表`（那是另一个对象，落在另一张表上），而路由按声明次序取第一个命中；用共用词会把这一笔导到样例模块。
-// 读工具同理用 `有哪些产品`。**这不是样式偏好，是让门禁量到本对象的那条路由。**
+// `加产品` —— 本仓还有一个**生成的样例模块** `generated/ProductsTools`（另一个对象、另一张表），它
+// **曾经**也吃 `新建产品`/`创建产品`/`列出产品`/`产品列表`；现在样例模块只用自己的说法（`新建生成产品` 等），
+// 但路由按声明次序取第一个命中，故本门禁仍只用本对象自己的词。读工具同理用 `有哪些产品`。
+// **这是让门禁量到本对象的那条路由，不是样式偏好。**
 //
 // 每条断言都用**本次唯一**的标记收束，不按整表计数；它造的东西（分类、产品、权限行、副作用、确认单、写占位）都按
 // 该标记收回。**审计行刻意不动**：那是一条哈希链，剪断一环比凌乱更坏。
@@ -69,10 +70,10 @@
 // permission aspect (no row) or from this governance advice (WRITE is not OWNER).
 //
 // **Why the triggers are what they are.** This repo also ships a **generated sample module**
-// (`generated/ProductsTools`) that eats `新建产品`/`创建产品`/`列出产品`/`产品列表` — a different object on a
-// different table — and routes are taken in declaration order, so the shared words would send this call to
-// the sample module. The gate therefore uses `加产品` and `有哪些产品`. That is not style: it is what makes
-// the readings come from this object's route.
+// (`generated/ProductsTools`) — a different object on a different table — which **used to** eat the same
+// generic phrases (`新建产品` / `创建产品` / `列出产品` / `产品列表`); the sample now carries only phrases of its
+// own (`新建生成产品`, and so on). Routes are still taken in declaration order, so this gate uses this
+// object's own words (`加产品`, `有哪些产品`) — that is what makes the readings come from this route.
 //
 // Every assertion is scoped by a **name unique to this run**, never by a whole-table count; everything it
 // creates (category, products, permission rows, effects, confirmations, write claims) is removed again by

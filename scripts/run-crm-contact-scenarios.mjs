@@ -361,9 +361,9 @@ putBack = () => psql([
   // to duplicate.
   `delete from write_claims where user_id in ('${second.id}', '${writer.id}') and tool_name = 'create_crm_contact' and effect_id is null`,
   `delete from write_claims where effect_id in (select id from side_effects where result_type = 'crm_contact'`
-    + ` and result_id in (select id from ${CONTACT} where name like '%${marker}%'))`,
+    + ` and result_id in (select id::text from ${CONTACT} where name like '%${marker}%'))`,
   `delete from side_effects where result_type = 'crm_contact' and result_id in`
-    + ` (select id from ${CONTACT} where name like '%${marker}%')`,
+    + ` (select id::text from ${CONTACT} where name like '%${marker}%')`,
   `delete from confirmation_requests where args_json like '%${marker}%'`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_CONTACT} and biz_id in (select id from ${CONTACT} where name like '%${marker}%')`,
   `delete from ${PERMISSION} where biz_type = ${BIZ_TYPE_CUSTOMER} and biz_id in (select id from ${CUSTOMER} where name like '%${marker}%')`,

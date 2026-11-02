@@ -304,6 +304,9 @@ putBack = () => {
   if (!setId) return;
   const vouchers = (psql(`select string_agg(id::text, ',') from ${VOUCHER} where account_set_id = ${setId}`) || '').trim() || '0';
   const idAlt = vouchers.split(',').join('|');
+  // `side_effects.result_id` is text since runtime 0.1.16 (migration V18); the list must be quoted text.
+  // `side_effects.result_id` 自运行时 0.1.16（迁移 V18）起是文本，故这串 id 要以带引号的文本出现。
+  const voucherIdList = vouchers.split(',').map((id) => `'${id}'`).join(',');
   psql(
     [
       `delete from confirmation_requests where args_json ~ '"id"[[:space:]]*:[[:space:]]*(${idAlt})([^0-9]|$)' and status = 'pending'`,
@@ -316,8 +319,8 @@ putBack = () => {
       // the claim" does not recognise it (measured by the cold reader). Collected separately, scoped to **this gate's
       // own tool** plus the caller plus **no effect**: the call was refused, so there is no write to duplicate.
       `delete from write_claims where user_id = '${secondId}' and tool_name = 'review_fms_voucher' and effect_id is null`,
-      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${vouchers}))`,
-      `delete from side_effects where result_id in (${vouchers})`,
+      `delete from write_claims where effect_id in (select id from side_effects where result_id in (${voucherIdList}))`,
+      `delete from side_effects where result_id in (${voucherIdList})`,
       `delete from fms_voucher_entry where voucher_id in (${vouchers})`,
       `delete from ${VOUCHER} where account_set_id = ${setId}`,
       `delete from ${ACCOUNT_USER} where account_set_id = ${setId}`,
@@ -462,7 +465,7 @@ console.log('== 场景 6 · 撤销那条腿：审核能被收回去 ==');
   // of the module's own — the compensator (host-level, in `YudaoLocalCompensators`) puts the voucher back to pending
   // review rather than editing the row behind the module. It has to be provable **within one run**, so it follows
   // scenario 3, which is the turn that reviewed this voucher.
-  const effectId = psql(`select id from side_effects where tool_name = 'review_fms_voucher' and result_id = ${salesVoucherId} order by id desc limit 1`);
+  const effectId = psql(`select id from side_effects where tool_name = 'review_fms_voucher' and result_id = '${salesVoucherId}' order by id desc limit 1`);
   check('那一笔写在副作用台账上', true, effectId !== '');
   const r = await revokeEffect(Number(effectId), second);
   note('撤销端点应答', `HTTP ${r.status} ${String(r.body).replace(/\s+/g, ' ').slice(0, 140)}`);

@@ -199,8 +199,8 @@ putBack = () => psql([
   // were measured for `record_crm_followup`). Scoped to **this gate's own tool** plus **no effect**: the call was
   // refused, so there is no write to duplicate.
   `delete from write_claims where tool_name = 'record_crm_followup' and effect_id is null`,
-  `delete from write_claims where effect_id in (select id from side_effects where tool_name = 'record_crm_followup' and result_id in (select id from ${FOLLOWUP} where content like '%${marker}%'))`,
-  `delete from side_effects where tool_name = 'record_crm_followup' and result_id in (select id from ${FOLLOWUP} where content like '%${marker}%')`,
+  `delete from write_claims where effect_id in (select id from side_effects where tool_name = 'record_crm_followup' and result_id in (select id::text from ${FOLLOWUP} where content like '%${marker}%'))`,
+  `delete from side_effects where tool_name = 'record_crm_followup' and result_id in (select id::text from ${FOLLOWUP} where content like '%${marker}%')`,
   `delete from confirmation_requests where args_json like '%${marker}%'`,
   `delete from ${FOLLOWUP} where content like '%${marker}%'`,
   `delete from crm_permission where biz_type = 2 and biz_id in (select id from ${CUSTOMER} where name like '%${marker}%')`,
