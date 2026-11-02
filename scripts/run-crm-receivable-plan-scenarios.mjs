@@ -30,10 +30,10 @@
 // 当作合同编号（那个槽讲的是「目标」，硬填是猜）。所以这条路由从用户**明确写出的文字**里读三个必填项：
 // `合同=<id> 金额=<金额> 日期=<yyyy-MM-dd>`。这不是猜——是用户写下的值；而三个值缺一个，这笔计划就登记不了。
 //
-// **触发词的撞车（跑前已知）。** `CrmReceivableTools` 的触发词是 `登记回款`/`列出回款` 等**短词**，而本对象的
-// 是 `登记回款计划`/`列出回款计划`——后者**包含**前者，而路由按声明次序取第一个命中、用 `contains` 判。故门禁
-// 断言**工具名**（`create_crm_receivable_plan` / `list_crm_receivable_plans`）：若某一轮的装配次序把回款那条
-// 排在了前面，这里会当场读成红，而不是悄悄量到另一个对象。
+// **触发词不再撞车（2026-11-02 起）。** `CrmReceivableTools` 的触发词是 `登记回款`/`列出回款` 等短词，本对象的
+// 短语已改成不包含它们的写法（`列出所有回款计划` / `录入回款计划` 等）。门禁仍断言**工具名**
+// （`create_crm_receivable_plan` / `list_crm_receivable_plans`）：若以后有谁的词表把另一条路由排到前面，
+// 这里会当场读成红，而不是悄悄量到另一个对象。
 //
 // 每条断言都用**本次唯一**的标记收束，不按整表计数；它造的东西（客户、合同、计划、权限行、副作用、确认单、
 // 写占位）都按该标记收回。**审计行刻意不动**：那是一条哈希链，剪断一环比凌乱更坏。
@@ -421,15 +421,15 @@ check('五条权限行已种（计划 A/B 各一行负责人、A 一行参与方
 // ── 2) 场景 1 · 显式身份下可达 ─────────────────────────────────────────────────────────────────────
 console.log('== 场景 1 · 显式身份下可达 ==');
 {
-  const a = await chat(admin, '列出回款计划');
-  // 触发词撞车：`列出回款计划` 含 `列出回款`。断工具名，才量得到本对象这条路由。
+  const a = await chat(admin, '列出所有回款计划');
+  // 短语不再包含回款面的 `列出回款`；仍断工具名，确认读到的是本对象这条路由。
   // Trigger collision: the long phrase contains the short one. Asserting the tool name is what makes this
   // reading come from this object's route.
   check('管理员触发计划读工具', 'list_crm_receivable_plans', (a.toolCalls || [])[0]);
   check('管理员那次以本人身份在案', '1', psql(`select user_id from ai_audit_logs`
     + ` where tool = 'list_crm_receivable_plans' and outcome = 'executed' order by id desc limit 1`));
 
-  const s = await chat(secondToken, '列出回款计划');
+  const s = await chat(secondToken, '列出所有回款计划');
   check('第二个调用方触发同一个工具', 'list_crm_receivable_plans', (s.toolCalls || [])[0]);
   // 「身份」不是听答案说的：审计行的 `user_id` 必须是他本人。工具路径跑在请求的安全过滤器链之外，
   // 这个值只能来自运行时发布的调用方。
@@ -499,7 +499,7 @@ console.log('== 场景 3 · 高危写被扣下、批准后落库 ==');
 // 三个必填项都用**明确写出来的值**：路由从文字里读它们，而不是从 `targetId` 猜合同。
 // The three required values are written **explicitly**: the route reads them from the text rather than
 // guessing a contract out of `targetId`.
-const asked = (price, date) => `登记回款计划 合同=${contractId} 金额=${price} 日期=${date}`;
+const asked = (price, date) => `录入回款计划 合同=${contractId} 金额=${price} 日期=${date}`;
 let createdPlanId = '';
 let createdPeriod = '';
 {

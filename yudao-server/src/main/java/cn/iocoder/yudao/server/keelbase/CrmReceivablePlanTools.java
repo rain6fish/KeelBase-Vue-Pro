@@ -150,7 +150,9 @@ public class CrmReceivablePlanTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("列出回款计划", "回款计划列表", "CRM 回款计划", "看回款计划", "有哪些回款计划");
+            // 不能包含回款面的短词（列出回款 / 看回款 / CRM 回款 / 有哪些回款）：路由按 bean 顺序取第一个命中。
+            // These must not contain the receivable face's shorter phrases; routing takes the first matching bean.
+            return List.of("列出所有回款计划", "回款计划列表", "CRM 里的回款计划", "回款计划详情", "回款计划有哪些");
         }
 
         @Override
@@ -261,7 +263,9 @@ public class CrmReceivablePlanTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("新建回款计划", "创建回款计划", "登记回款计划", "记录回款计划");
+            // 同上：新建回款 / 创建回款 / 登记回款 / 记录回款 是回款面的写触发词。
+            // Same rule: the receivable face owns 新建回款 / 创建回款 / 登记回款 / 记录回款.
+            return List.of("新增回款计划", "建一个回款计划", "录入回款计划", "记一笔回款计划");
         }
 
         @Override

@@ -114,71 +114,45 @@ class YudaoGovernanceContextTest {
     }
 
     /**
-     * 生成模块的路由不得与手写的路由抢同一个短语。
+     * 两个**不同工具面**不得认同一个短语。
      *
-     * <p>路由按 bean 顺序取第一个匹配，且匹配是子串包含 —— 生成模块的 `添加产品` 会被手写
-     * `CrmProductTools` 的 `加产品` 抢走（2026-11-02 的真栈门抓到）。生成器的六条短语因此都带「生成」标记；
-     * 这条测试把「互不包含」固定下来，任何一侧以后改词都会在这里红。
+     * <p>路由按 bean 顺序取第一个命中、且匹配是子串包含：跨配置文件时顺序由扫描决定，不是作者的本意。
+     * 2026-11-02 的真栈门先后抓到三组——生成模块 `添加产品` 被手写 `加产品` 抢走、示例模块的写词与
+     * `CrmContactTools` 完全同名、回款计划各短语包含回款面的短词。这三组已改成互不包含；本断言把规则固定下来。
+     * 同一配置类内的重叠不在此列：那由类里的声明次序回答（如 BPM 的撤回/列出、infra 的删除/列出）。
      *
-     * A generated route must not claim a phrase a hand-written route also claims. Routing takes the first
-     * matching bean and matches by substring, so `添加产品` lost to the hand-written `加产品` (found by the
-     * real-stack gate on 2026-11-02). The generator's six phrases carry the "生成" marker now; this test
-     * pins the disjointness, so either side changing its words fails here.
+     * Two **different tool faces** must not claim the same phrase. Routing takes the first matching bean and
+     * matches by substring; across configuration classes the order comes from scanning, not intent. The
+     * real-stack gates found three such groups on 2026-11-02 — the generated module's `添加产品` losing to
+     * the hand-written `加产品`, the demo module's write triggers identical to `CrmContactTools`, and the
+     * receivable-plan phrases containing the receivable face's short ones. All three are disjoint now, and
+     * this assertion pins the rule. Overlaps **within one configuration class** are out of scope: there the
+     * declaration order answers (BPM's cancel/list, infra's delete/list).
      */
     @Test
-    void aGeneratedRouteDoesNotClaimAHandwrittenPhrase() {
-        List<ModuleRoute> generated = new ArrayList<>();
-        List<ModuleRoute> handwritten = new ArrayList<>();
-        for (ModuleRoute route : context.getBeansOfType(ModuleRoute.class).values()) {
-            boolean fromGeneratedPackage = route.getClass().getName().contains(".generated.");
-            (fromGeneratedPackage ? generated : handwritten).add(route);
-        }
-        assertFalse(generated.isEmpty(), "the generated module's routes are not registered");
-        for (ModuleRoute generatedRoute : generated) {
-            for (ModuleRoute handwrittenRoute : handwritten) {
-                for (String claimed : generatedRoute.triggers()) {
-                    for (String taken : handwrittenRoute.triggers()) {
+    void noTwoToolFacesClaimTheSamePhrase() {
+        List<ModuleRoute> routes = new ArrayList<>(context.getBeansOfType(ModuleRoute.class).values());
+        assertFalse(routes.isEmpty(), "no ModuleRoute bean was produced");
+        for (ModuleRoute left : routes) {
+            for (ModuleRoute right : routes) {
+                if (left == right || left.toolName().equals(right.toolName())
+                        || toolFaceOf(left) == toolFaceOf(right)) {
+                    continue;
+                }
+                for (String claimed : left.triggers()) {
+                    for (String taken : right.triggers()) {
                         assertFalse(claimed.contains(taken) || taken.contains(claimed),
-                                "generated route " + generatedRoute.toolName() + " claims \"" + claimed
-                                        + "\", which overlaps hand-written " + handwrittenRoute.toolName()
-                                        + "'s \"" + taken + "\"");
+                                left.toolName() + " claims \"" + claimed + "\", which overlaps "
+                                        + right.toolName() + "'s \"" + taken + "\"");
                     }
                 }
             }
         }
     }
 
-    /**
-     * 示例模块的路由不得与其它工具面抢同一个短语。
-     *
-     * <p>`Demo01ContactTools` 是手写样例，它的写触发词曾与 `CrmContactTools` 完全同名，路由按 bean 顺序
-     * 先命中 CRM；2026-11-02 的真栈门因此红在「写被扣下」四条。（生成模块的同类约束见上一条测试。）
-     *
-     * The sample module's routes must not claim a phrase another tool face owns. Its write triggers used
-     * to be identical to `CrmContactTools`', and routing hit CRM first; the real-stack gate went red on
-     * the four write assertions on 2026-11-02. (The generated module has its own check above.)
-     */
-    @Test
-    void aDemoRouteDoesNotClaimAnotherToolFacePhrase() {
-        List<ModuleRoute> demo = new ArrayList<>();
-        List<ModuleRoute> others = new ArrayList<>();
-        for (ModuleRoute route : context.getBeansOfType(ModuleRoute.class).values()) {
-            boolean fromDemoTools = route.getClass().getName().contains("Demo01ContactTools");
-            (fromDemoTools ? demo : others).add(route);
-        }
-        assertFalse(demo.isEmpty(), "the demo module's routes are not registered");
-        for (ModuleRoute demoRoute : demo) {
-            for (ModuleRoute otherRoute : others) {
-                for (String claimed : demoRoute.triggers()) {
-                    for (String taken : otherRoute.triggers()) {
-                        assertFalse(claimed.contains(taken) || taken.contains(claimed),
-                                "demo route " + demoRoute.toolName() + " claims \"" + claimed
-                                        + "\", which overlaps " + otherRoute.toolName()
-                                        + "'s \"" + taken + "\"");
-                    }
-                }
-            }
-        }
+    private static Class<?> toolFaceOf(ModuleRoute route) {
+        Class<?> enclosing = route.getClass().getEnclosingClass();
+        return enclosing != null ? enclosing : route.getClass();
     }
 
     private static List<Class<?>> governanceDeclarations() {

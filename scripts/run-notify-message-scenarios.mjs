@@ -443,11 +443,11 @@ console.log('== 场景 6 · 按 id 读：自己的读得到，别人的读不到
     Number(psql("select count(*) from ai_audit_logs where tool = 'get_notify_message' and outcome = 'failed'"));
 
   const okBefore = okCount();
-  await chat(second, '打开消息', { customerId: Number(salesRowId) });
+  await chat(second, '打开这条消息', { customerId: Number(salesRowId) });
   check('读自己的那一行 -> ok', okBefore + 1, okCount());
 
   const failedBefore = failedCount();
-  await chat(second, '打开消息', { customerId: Number(adminRowId) });
+  await chat(second, '打开这条消息', { customerId: Number(adminRowId) });
   check('读别人的那一行读不到（记录在案）', failedBefore + 1, failedCount());
   check('读别人的那一次没有记成 ok', okBefore + 1, okCount());
 }

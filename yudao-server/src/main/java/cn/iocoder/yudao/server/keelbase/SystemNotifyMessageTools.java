@@ -256,7 +256,7 @@ public class SystemNotifyMessageTools {
             // Disjoint from the other three routes' phrases on purpose: the planner matches a substring,
             // so an overlapping phrase would make which tool runs a matter of order.
             // **刻意**与另外三条路由的短语不相交：planner 是**按子串**匹配的，故短语重叠会让「跑哪个工具」变成顺序问题。
-            return List.of("打开消息", "读这条消息", "查看这条消息");
+            return List.of("打开这条消息", "读这条消息", "查看这条消息");
         }
 
         @Override

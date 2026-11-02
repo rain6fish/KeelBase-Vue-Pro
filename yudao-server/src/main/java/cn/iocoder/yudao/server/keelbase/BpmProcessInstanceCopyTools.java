@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p><b>它回答的是哪条业务事实。</b>「有哪些流程被抄送到我这儿」。抄送**不是待办**：清单里的人既不需要办、也办不了，
  * 系统把他们挂上来只是让他们知道。故它与 {@link BpmTaskTools} 的 `list_my_bpm_todos` 是两条不同的事实，不是同一条的
- * 重复投影；两者也不互相包含——待办里的流程多半没抄送我，抄送我的流程也不等我批。
+ * 重复投影；两者也不互相包含——待办里的流程多半没抄送我，抄送流程也不等我批。
  *
  * <p><b>为什么不开写。</b>抄送这条路上人能做的那件事是 `copyTask`——给**别人**加抄送。它落在别人的收件箱里，不是
  * 「只影响自己」；而且它已经由 {@link BpmTaskGovernance} 在工具路径上整条拒绝。另一条写是引擎的抄送节点自己在流程
@@ -144,7 +144,7 @@ public class BpmProcessInstanceCopyTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("我的抄送", "抄送我的流程", "抄送给我的", "我收到的抄送", "抄送列表");
+            return List.of("我的抄送", "抄送流程", "抄送给我的", "我收到的抄送", "抄送列表");
         }
 
         @Override

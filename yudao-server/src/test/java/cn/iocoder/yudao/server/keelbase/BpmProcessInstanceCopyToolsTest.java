@@ -90,7 +90,7 @@ class BpmProcessInstanceCopyToolsTest {
 
     @Test
     void theRouteCarriesNoArgumentsAndTheFaceDeclaresItsContract() {
-        assertTrue(new BpmProcessInstanceCopyTools.ListRoute().args(Map.of("message", "抄送我的流程有哪些")).isEmpty(),
+        assertTrue(new BpmProcessInstanceCopyTools.ListRoute().args(Map.of("message", "抄送流程有哪些")).isEmpty(),
                 "there is no argument for someone else's id to be put into");
         assertTrue(new BpmProcessInstanceCopyTools.ListRoute().triggers().contains("我的抄送"));
         assertEquals("list_my_bpm_process_copies", tool.name());
