@@ -205,12 +205,29 @@ export function toolDescriptionKey(name: string | null | undefined): string | nu
 // The result types this host's tools declare, and the runtime's **revoke classes**. Both sets are closed
 // for the same reason as the tool table above: the console names only what it knows and leaves an unknown
 // value as itself — it never guesses a meaning from the spelling.
+// 每个**写**工具的 `resultType()` 都在这张表里 —— 2026-11-02 按宿主源码逐个补全：此前只收了八种，
+// 后来接上的面（`infra_file` / `system_notice` / `bpm_process_instance` 与 CRM 其余六个写）不在表内，
+// 台账那一列于是对它们只剩裸码。`tools-page.test.mjs` 现在拿这张表与源码对账，缺一个就红。
+// Every **write** tool's `resultType()` is in this set — completed 2026-11-02 against the host's own sources:
+// it used to carry eight, and the faces opened since (`infra_file` / `system_notice` /
+// `bpm_process_instance` and CRM's other six writes) were absent, leaving the ledger column as a bare code
+// for them. `tools-page.test.mjs` now holds this set against the sources, so a missing one turns red.
 const RESULT_TYPES = [
   'bpm_oa_leave',
+  'bpm_process_instance',
+  'crm_business',
+  'crm_clue',
+  'crm_contact',
+  'crm_contract',
   'crm_customer',
   'crm_follow_up_record',
-  'infra_demo01_contact',
+  'crm_product',
+  'crm_receivable',
+  'crm_receivable_plan',
   'fms_voucher',
+  'infra_demo01_contact',
+  'infra_file',
+  'system_notice',
   'system_notify_message',
   'notify_mailbox',
   'products',

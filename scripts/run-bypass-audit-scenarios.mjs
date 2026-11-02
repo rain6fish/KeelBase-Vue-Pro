@@ -164,7 +164,12 @@ function writeOnOffHost(host, marker, token) {
 // that table only appends.
 function rememberCustomer(marker) {
   cleanup.push(`delete from crm_permission where biz_type = 2 and biz_id in (select id from crm_customer where name like '%${marker}%')`);
-  cleanup.push(`delete from side_effects where result_type = 'crm_customer' and result_id in (select id from crm_customer where name like '%${marker}%')`);
+  // `side_effects.result_id` 自 0.1.16 起是**文本**（为 UUID 型副作用改的），故这里的子查询要转文本 ——
+  // 否则收尾在类型上失败、`;` 之后的语句一条都不再执行，业务行全留在库里（2026-11-02 实测）。
+  // `side_effects.result_id` has been **text** since 0.1.16 (changed for UUID-shaped effects), so the
+  // subquery is cast — otherwise the cleanup fails on the type, psql runs none of the statements after the
+  // `;`, and the business rows all stay behind (measured 2026-11-02).
+  cleanup.push(`delete from side_effects where result_type = 'crm_customer' and result_id in (select id::text from crm_customer where name like '%${marker}%')`);
   cleanup.push(`delete from crm_customer where name like '%${marker}%'`);
 }
 
@@ -367,6 +372,69 @@ console.log('== 断言 4 · 开关关闭 ⇒ 零行且行为不变 ==');
     check('开关关：零旁路行', 0, bypassRowsFor(offMarker));
   }
   stopOffServer(offServer);
+}
+
+// ── 5) 读端点：可见、按租户分页、不投影请求体 / the read face: visible, tenant-paged, no digest ─
+//
+// 前面四条量的都是**写**；这条量的是控制台读它的那半边。三件事：端点答得出这一租户的页、`page`/`limit` 被
+// 夹到有效范围且**回报的是生效值**、以及**别的租户的行不出现**（那一问只能靠往表里种一行来问）。
+// 第四件是一条否定：只读面**不投影** `request_digest` —— 台账里留着它，但这条面承诺的是「记录了什么」。
+//
+// The four above measure the **write**; this one measures the half the console reads. Three things: the
+// endpoint answers a page for this tenant, `page`/`limit` are clamped and **the effective values are
+// reported**, and **another tenant's rows do not appear** (that question can only be asked by seeding a
+// row). A fourth is a negative: the read face does **not** project `request_digest` — the ledger keeps it,
+// but this face promises "what was recorded".
+console.log('== 断言 5 · 读端点：可见、按租户分页、不投影请求体 ==');
+{
+  const pageOf = async (qs) => (await apiAt(HOST, `/keelbase/bypass-audit/page?${qs}`, { token: admin })).json;
+  const first = await pageOf('page=1&limit=2');
+  check('读端点答成功', 0, first.code);
+  const data = first.data || {};
+  check('回来的是分页对象', true, typeof data.total === 'number' && Array.isArray(data.items));
+  check('limit 按请求生效', 2, data.limit);
+  check('新的在前（id 递减）', true,
+    data.items.every((row, index, rows) => index === 0 || rows[index - 1].id > row.id));
+  check('total 与库里本租户的行数一致', Number(psql(
+    "select count(*) from keelbase_bypass_audit where tenant_id = 1")), data.total);
+
+  const clamped = (await pageOf('page=0&limit=5000')).data || {};
+  check('page 夹到 1', 1, clamped.page);
+  check('limit 夹到 100', 100, clamped.limit);
+
+  const wide = ((await pageOf('page=1&limit=100')).data || {}).items || [];
+  const ourWrite = wide.find((row) => row.requestUrl === '/admin-api/crm/customer/create'
+    && row.resultStatus === 200);
+  check('读端点看得见本轮那次 REST 写', true, Boolean(ourWrite));
+  check('那一行带着业务对象与动作', 'crm.customer|create',
+    `${ourWrite ? ourWrite.businessObject : '<none>'}|${ourWrite ? ourWrite.action : '<none>'}`);
+  check('不投影请求体摘要（台账里有，这条面不读）', false,
+    Boolean(ourWrite) && Object.prototype.hasOwnProperty.call(ourWrite, 'requestDigest'));
+
+  // 种一行别的租户，问同一个端点：它不该出现，总数也不该动。种进去的这行是本门禁**自己造的**，
+  // 故跑完按 id 删掉 —— 与「真实旁路行不回收」不冲突：那条规矩管的是写路径留下的行。
+  // Seed one row for another tenant and ask the same endpoint: it must not appear and the total must not
+  // move. The row is **this gate's own fixture**, deleted by id afterwards — which does not conflict with
+  // "real bypass rows are never removed": that rule is about rows the write path leaves.
+  // `id` 由写入方那条 `nextval('keelbase_bypass_audit_seq')` 取，故夹具也走同一个序列 —— 该列没有默认值。
+  // 序列**单独取一次**：`-tAc` 会把 `RETURNING` 的结果与命令标签（`INSERT 0 1`）一起打出来，那样拿到的 id 不是
+  // 一个数（2026-11-02 实测）。
+  // The id comes from the writer's own `nextval('keelbase_bypass_audit_seq')`, so the fixture takes the same
+  // sequence — the column has no default. The sequence is read **on its own**: `-tAc` prints `RETURNING`'s row
+  // together with the command tag (`INSERT 0 1`), so the id would not be a number (measured 2026-11-02).
+  const foreignId = psql("select nextval('keelbase_bypass_audit_seq')");
+  psql(`insert into keelbase_bypass_audit`
+    + `(id, tenant_id, user_id, request_method, request_url, business_object, action, result_status, created_at)`
+    + ` values (${foreignId}, 999, 1, 'POST', '/admin-api/gate/foreign-tenant',`
+    + ` 'gate.foreign', 'create', 200, now())`);
+  try {
+    const after = (await pageOf('page=1&limit=100')).data || {};
+    check('别的租户不会让这一页多出一行', data.total, after.total);
+    check('别的租户的那一行不在这一页里', false,
+      (after.items || []).some((row) => String(row.id) === String(foreignId)));
+  } finally {
+    psql(`delete from keelbase_bypass_audit where id = ${foreignId}`);
+  }
 }
 
 // ── 收尾 / teardown ───────────────────────────────────────────────────────────────────────────
