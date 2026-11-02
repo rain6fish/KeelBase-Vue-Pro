@@ -1,0 +1,161 @@
+# KeelBase-YuDao 治理覆盖账本 —— 「完全接入」的唯一账本（M0）。
+#
+# 部署范围里每个业务 service 恰好一行，四态之一：
+#   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄
+#   tool-only  只有工具面经引擎，REST 写入没有切面收窄（理由必填）
+#   gap        未接入、已排期（负责人 + 目标日期必填；过期即红）
+#   exempt     明确不接（理由 + 负责人 + 复核日期必填；过期即红）
+#
+# 校验：node scripts/check-governance-coverage.mjs          # 默认放行 gap（账本就是拿来暴露缺口的）
+#       node scripts/check-governance-coverage.mjs --require-full   # 零 gap 才算「完全接入」
+# 列：module  object  service  posture  evidence  reason  owner  recheck
+#
+# KeelBase-YuDao governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
+#
+# One row per business service in the deployed scope, in exactly one of four postures:
+#   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing
+#   tool-only  only the tool face goes through the engine; the REST write is not narrowed (reason required)
+#   gap        not onboarded, scheduled (owner + target date required; overdue is red)
+#   exempt     deliberately out of scope (reason + owner + recheck date required; overdue is red)
+#
+# Check: node scripts/check-governance-coverage.mjs                # gaps pass by default (the ledger exists to show them)
+#        node scripts/check-governance-coverage.mjs --require-full # zero gaps means "fully onboarded"
+# Columns: module  object  service  posture  evidence  reason  owner  recheck
+# module	object	service	posture	evidence	reason	owner	recheck
+ai	api-key	cn.iocoder.yudao.module.ai.service.model.AiApiKeyService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	chat-conversation	cn.iocoder.yudao.module.ai.service.chat.AiChatConversationService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	chat-message	cn.iocoder.yudao.module.ai.service.chat.AiChatMessageService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	chat-role	cn.iocoder.yudao.module.ai.service.model.AiChatRoleService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	image	cn.iocoder.yudao.module.ai.service.image.AiImageService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	knowledge	cn.iocoder.yudao.module.ai.service.knowledge.AiKnowledgeService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	knowledge-document	cn.iocoder.yudao.module.ai.service.knowledge.AiKnowledgeDocumentService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	knowledge-segment	cn.iocoder.yudao.module.ai.service.knowledge.AiKnowledgeSegmentService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	mind-map	cn.iocoder.yudao.module.ai.service.mindmap.AiMindMapService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	model	cn.iocoder.yudao.module.ai.service.model.AiModelService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	music	cn.iocoder.yudao.module.ai.service.music.AiMusicService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	tool	cn.iocoder.yudao.module.ai.service.model.AiToolService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	workflow	cn.iocoder.yudao.module.ai.service.workflow.AiWorkflowService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai	write	cn.iocoder.yudao.module.ai.service.write.AiWriteService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
+ai1-springai	agent	cn.iocoder.yudao.module.ai1.service.agent.Ai1AgentService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	home	cn.iocoder.yudao.module.ai1.service.home.Ai1HomeService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	knowledge-base	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeBaseService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	knowledge-document	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeDocumentService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	mcp	cn.iocoder.yudao.module.ai1.service.mcp.Ai1McpService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	model	cn.iocoder.yudao.module.ai1.service.model.Ai1ModelService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	provider	cn.iocoder.yudao.module.ai1.service.model.Ai1ProviderService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	session	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionService	gap		M2（与 F-2 同族）	@rain	2027-06-30
+ai1-springai	session-message	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionMessageService	gap		M2（与 F-2 同族）	@rain	2027-06-30
+ai1-springai	skill	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	skill-file	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillFileService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+bpm	category	cn.iocoder.yudao.module.bpm.service.definition.BpmCategoryService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	comment	cn.iocoder.yudao.module.bpm.service.comment.BpmCommentService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	form	cn.iocoder.yudao.module.bpm.service.definition.BpmFormService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	message	cn.iocoder.yudao.module.bpm.service.message.BpmMessageService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	model	cn.iocoder.yudao.module.bpm.service.definition.BpmModelService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	oa-leave	cn.iocoder.yudao.module.bpm.service.oa.BpmOALeaveService	seam	BpmOALeaveGovernance			
+bpm	process-definition	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessDefinitionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	process-expression	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessExpressionService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	process-instance	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceService	seam	BpmProcessInstanceGovernance			
+bpm	process-instance-copy	cn.iocoder.yudao.module.bpm.service.task.BpmProcessInstanceCopyService	gap		M2 流程面（非属主行范围，D5 甲）	@rain	2027-06-30
+bpm	process-listener	cn.iocoder.yudao.module.bpm.service.definition.BpmProcessListenerService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+bpm	task	cn.iocoder.yudao.module.bpm.service.task.BpmTaskService	seam	BpmTaskGovernance			
+bpm	user-group	cn.iocoder.yudao.module.bpm.service.definition.BpmUserGroupService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
+crm	business	cn.iocoder.yudao.module.crm.service.business.CrmBusinessService	seam	CrmBusinessGovernance			
+crm	business-status	cn.iocoder.yudao.module.crm.service.business.CrmBusinessStatusService	exempt		商机阶段配置面（管理面，D4 甲）：CrmBusinessStatusTypeDO 仅 {id,name,deptIds}、无属主字段；服务与接口无 @CrmPermission，写端点由 crm:business-status:create|update|delete 管理权限把关（CrmBusinessStatusController:51/58/67）；商机行只读它（CrmBusinessServiceImpl:100 取默认状态、:193 校验状态组、:243 校验状态）	@rain	2027-09-30
+crm	clue	cn.iocoder.yudao.module.crm.service.clue.CrmClueService	seam	CrmClueGovernance			
+crm	contact	cn.iocoder.yudao.module.crm.service.contact.CrmContactService	seam	CrmContactGovernance			
+crm	contact-business	cn.iocoder.yudao.module.crm.service.contact.CrmContactBusinessService	exempt		联系人↔商机关联表：CrmContactBusinessDO 仅 {id,contactId,businessId}、无属主字段；写方法虽带宽窄 @CrmPermission 但权限取自父行（Impl:46/72/98/110/122），direct REST 端点亦经同一父行判权（CrmContactController:204-235）；且 createContactBusinessList 由 CrmContactServiceImpl.createContact:92 与 CrmBusinessServiceImpl.createBusiness:116 带出，两个父对象均已是 seam	@rain	2027-09-30
+crm	contract	cn.iocoder.yudao.module.crm.service.contract.CrmContractService	seam	CrmContractGovernance			
+crm	contract-config	cn.iocoder.yudao.module.crm.service.contract.CrmContractConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	customer	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerService	seam	CrmCustomerGovernance			
+crm	customer-limit-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerLimitConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	customer-pool-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerPoolConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService	tool-only	CrmFollowUpTools#record_crm_followup	只有工具面经引擎；REST 写入没有切面收窄	@rain	2027-06-30
+crm	owner-record	cn.iocoder.yudao.module.crm.service.permission.CrmOwnerRecordService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	performance-config	cn.iocoder.yudao.module.crm.service.performance.CrmPerformanceConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	permission	cn.iocoder.yudao.module.crm.service.permission.CrmPermissionService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
+crm	product	cn.iocoder.yudao.module.crm.service.product.CrmProductService	seam	CrmProductGovernance			
+crm	product-category	cn.iocoder.yudao.module.crm.service.product.CrmProductCategoryService	exempt		产品分类是目录/配置面（管理面，D4 甲）而非业务行：CrmProductCategoryDO 仅 {id,name,parentId}（CrmProductCategoryDO:33-47；DDL sql/keelbase-crm.sql:375-386 无 owner 列，只有审计 creator），两级共享目录（CATEGORY_LEVEL=2、PARENT_ID_NULL 为根）；服务与接口无 @CrmPermission（CrmProductCategoryServiceImpl:31-138），写端点由 crm:product-category:create|update|delete 管理权限把关（CrmProductCategoryController:34/41/50）、读由 :query（:59/67）；它只作产品行的引用与保存校验（crm_product.category_id、CrmProductServiceImpl:126-127），产品工具要求调用方给出既有 categoryId（CrmProductTools:225），AI 不需要独立的建/改分类动作，分类由管理员在控制台维护	@rain	2027-09-30
+crm	receivable	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivableService	seam	CrmReceivableGovernance			
+crm	receivable-plan	cn.iocoder.yudao.module.crm.service.receivable.CrmReceivablePlanService	seam	CrmReceivablePlanGovernance			
+crm	statistics-customer	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsCustomerService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-funnel	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsFunnelService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-performance	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsPerformanceService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-performance-target	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsPerformanceTargetService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-portrait	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsPortraitService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-product	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsProductService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+crm	statistics-rank	cn.iocoder.yudao.module.crm.service.statistics.CrmStatisticsRankService	exempt		读聚合面，不持有业务行（计划 §5 建议）	@rain	2027-09-30
+fms	account-set	cn.iocoder.yudao.module.fms.service.config.FmsAccountSetService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	account-user	cn.iocoder.yudao.module.fms.service.config.FmsAccountUserService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	auxiliary-combination	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryCombinationService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	auxiliary-item	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryItemService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	auxiliary-type	cn.iocoder.yudao.module.fms.service.config.FmsAuxiliaryTypeService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	balance-sheet	cn.iocoder.yudao.module.fms.service.report.FmsBalanceSheetService	gap		M2 账务面	@rain	2027-06-30
+fms	cash-flow-statement	cn.iocoder.yudao.module.fms.service.report.FmsCashFlowStatementService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-period	cn.iocoder.yudao.module.fms.service.closing.FmsClosingPeriodService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-scheme	cn.iocoder.yudao.module.fms.service.closing.FmsClosingSchemeService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-template	cn.iocoder.yudao.module.fms.service.closing.FmsClosingTemplateService	gap		M2 账务面	@rain	2027-06-30
+fms	closing-voucher	cn.iocoder.yudao.module.fms.service.closing.FmsClosingVoucherService	gap		M2 账务面	@rain	2027-06-30
+fms	currency	cn.iocoder.yudao.module.fms.service.config.FmsCurrencyService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	digest	cn.iocoder.yudao.module.fms.service.config.FmsDigestService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	finance-indicator	cn.iocoder.yudao.module.fms.service.config.FmsFinanceIndicatorService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	finance-parameter	cn.iocoder.yudao.module.fms.service.config.FmsFinanceParameterService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+fms	home	cn.iocoder.yudao.module.fms.service.home.FmsHomeService	gap		M2 账务面	@rain	2027-06-30
+fms	income-statement	cn.iocoder.yudao.module.fms.service.report.FmsIncomeStatementService	gap		M2 账务面	@rain	2027-06-30
+fms	initial-balance	cn.iocoder.yudao.module.fms.service.config.FmsInitialBalanceService	gap		M2 账务面	@rain	2027-06-30
+fms	ledger	cn.iocoder.yudao.module.fms.service.ledger.FmsLedgerService	gap		M2 账务面	@rain	2027-06-30
+fms	report-common	cn.iocoder.yudao.module.fms.service.report.FmsReportCommonService	gap		M2 账务面	@rain	2027-06-30
+fms	subject	cn.iocoder.yudao.module.fms.service.config.FmsSubjectService	gap		M2 账务面	@rain	2027-06-30
+fms	voucher	cn.iocoder.yudao.module.fms.service.voucher.FmsVoucherService	seam	FmsVoucherGovernance			
+fms	voucher-template	cn.iocoder.yudao.module.fms.service.config.FmsVoucherTemplateService	gap		M2 账务面	@rain	2027-06-30
+fms	voucher-word	cn.iocoder.yudao.module.fms.service.config.FmsVoucherWordService	exempt		账套/科目配置面（管理面，D4 甲）	@rain	2027-09-30
+infra	api-access-log	cn.iocoder.yudao.module.infra.service.logger.ApiAccessLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	api-error-log	cn.iocoder.yudao.module.infra.service.logger.ApiErrorLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	category	cn.iocoder.yudao.module.infra.service.demo.demo02.Demo02CategoryService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+infra	codegen	cn.iocoder.yudao.module.infra.service.codegen.CodegenService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	config	cn.iocoder.yudao.module.infra.service.config.ConfigService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	contact	cn.iocoder.yudao.module.infra.service.demo.demo01.Demo01ContactService	seam	Demo01ContactGovernance			
+infra	data-source-config	cn.iocoder.yudao.module.infra.service.db.DataSourceConfigService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	database-table	cn.iocoder.yudao.module.infra.service.db.DatabaseTableService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	file	cn.iocoder.yudao.module.infra.service.file.FileService	seam	InfraFileGovernance			
+infra	file-config	cn.iocoder.yudao.module.infra.service.file.FileConfigService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	job	cn.iocoder.yudao.module.infra.service.job.JobService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	job-log	cn.iocoder.yudao.module.infra.service.job.JobLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+infra	student-erp	cn.iocoder.yudao.module.infra.service.demo.demo03.erp.Demo03StudentErpService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+infra	student-inner	cn.iocoder.yudao.module.infra.service.demo.demo03.inner.Demo03StudentInnerService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+infra	student-normal	cn.iocoder.yudao.module.infra.service.demo.demo03.normal.Demo03StudentNormalService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
+system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	dept	cn.iocoder.yudao.module.system.service.dept.DeptService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	dict-data	cn.iocoder.yudao.module.system.service.dict.DictDataService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	dict-type	cn.iocoder.yudao.module.system.service.dict.DictTypeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	login-log	cn.iocoder.yudao.module.system.service.logger.LoginLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	mail-account	cn.iocoder.yudao.module.system.service.mail.MailAccountService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	mail-log	cn.iocoder.yudao.module.system.service.mail.MailLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	mail-send	cn.iocoder.yudao.module.system.service.mail.MailSendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	mail-template	cn.iocoder.yudao.module.system.service.mail.MailTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	member	cn.iocoder.yudao.module.system.service.member.MemberService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	menu	cn.iocoder.yudao.module.system.service.permission.MenuService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	notice	cn.iocoder.yudao.module.system.service.notice.NoticeService	seam	SystemNoticeGovernance			
+system	notify-message	cn.iocoder.yudao.module.system.service.notify.NotifyMessageService	seam	SystemNotifyMessageGovernance			
+system	notify-send	cn.iocoder.yudao.module.system.service.notify.NotifySendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	notify-template	cn.iocoder.yudao.module.system.service.notify.NotifyTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-approve	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ApproveService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-client	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-code	cn.iocoder.yudao.module.system.service.oauth2.OAuth2CodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-grant	cn.iocoder.yudao.module.system.service.oauth2.OAuth2GrantService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-token	cn.iocoder.yudao.module.system.service.oauth2.OAuth2TokenService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	operate-log	cn.iocoder.yudao.module.system.service.logger.OperateLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	permission	cn.iocoder.yudao.module.system.service.permission.PermissionService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	post	cn.iocoder.yudao.module.system.service.dept.PostService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	role	cn.iocoder.yudao.module.system.service.permission.RoleService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-channel	cn.iocoder.yudao.module.system.service.sms.SmsChannelService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-code	cn.iocoder.yudao.module.system.service.sms.SmsCodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-log	cn.iocoder.yudao.module.system.service.sms.SmsLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-send	cn.iocoder.yudao.module.system.service.sms.SmsSendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-template	cn.iocoder.yudao.module.system.service.sms.SmsTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	social-client	cn.iocoder.yudao.module.system.service.social.SocialClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	social-user	cn.iocoder.yudao.module.system.service.social.SocialUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	tenant	cn.iocoder.yudao.module.system.service.tenant.TenantService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	tenant-package	cn.iocoder.yudao.module.system.service.tenant.TenantPackageService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

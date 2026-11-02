@@ -648,6 +648,57 @@ export interface GovernancePolicy {
   updatedAt?: string
 }
 
+/**
+ * 上游 REST 写的一条**旁路**记录：一次没有经过治理引擎的写。它**不是**受治理行——没有确认、没有副作用
+ * 台账，也不在上面那条 AI 哈希链上；它只回答「谁、何时、用哪个方法、写了哪个路径、结果如何」。
+ *
+ * 形状与运行时自己的审计面一致地窄：只有页面画得出的那几项。**请求体摘要不在其中**——服务端没把那一列
+ * 选出来，故这里也没有可声明的东西。
+ *
+ * One **bypass** row: an upstream REST write that did not pass through the governance engine. It is
+ * **not** a governed row — no confirmation, no side-effect ledger, not on the AI hash chain above; it
+ * answers only "who, when, which method, which path, what result".
+ *
+ * The shape is as narrow as the page draws. **The request-body digest is not here**: the server does not
+ * select that column, so there is nothing to declare for it.
+ */
+export interface BypassAuditRow {
+  id: number
+  /** Epoch milliseconds, as the host's own API answers dates; the page renders it locally. */
+  /** 毫秒数，宿主的接口就是这么答日期的；页面按本地时区渲染。 */
+  createdAt: number
+  userId: number | null
+  requestMethod: string
+  requestUrl: string
+  businessObject: string | null
+  action: string | null
+  resultStatus: number
+  resultCode: number | null
+  durationMs: number | null
+}
+
+export interface BypassAuditPage {
+  total: number
+  page: number
+  limit: number
+  items: BypassAuditRow[]
+}
+
+/**
+ * 旁路台账的只读面。闸是 `read OperationAudit` —— 审计读者与管理员读得到，普通角色读不到；这不是页面
+ * 要遮的事，是服务端会答 403 的事。只读：这里没有写方法。
+ *
+ * The bypass trail's read-only face. Its gate is `read OperationAudit` — audit readers and
+ * administrators reach it, ordinary roles do not; nothing for this page to hide, the server answers 403
+ * by itself. Read-only: there is no write method here.
+ */
+export const bypassAuditApi = {
+  page: (page: number, limit: number) =>
+    runtime
+      .get<BypassAuditPage>('/admin-api/keelbase/bypass-audit/page', { params: { page, limit } })
+      .then((r) => r.data),
+}
+
 export const policyApi = {
   read: () => runtime.get<GovernancePolicy>('/ai/governance/policy').then((r) => r.data),
   /**

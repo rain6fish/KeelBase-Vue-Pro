@@ -92,7 +92,7 @@ public class YudaoLocalCompensators {
         @Override
         public void compensate(SideEffect effect) {
             requireCreate(effect);
-            as(effect, () -> service.deleteCustomer(effect.getResultId()));
+            as(effect, () -> service.deleteCustomer(asId(effect.getResultId())));
         }
     }
 
@@ -117,7 +117,7 @@ public class YudaoLocalCompensators {
         @Override
         public void compensate(SideEffect effect) {
             requireCreate(effect);
-            as(effect, () -> service.deleteProducts(effect.getResultId()));
+            as(effect, () -> service.deleteProducts(asId(effect.getResultId())));
         }
     }
 
@@ -152,7 +152,7 @@ public class YudaoLocalCompensators {
                 throw new IllegalStateException("cannot compensate " + effect.getToolName()
                         + " locally: only a recorded follow-up can be taken back here");
             }
-            as(effect, () -> service.deleteFollowUpRecord(effect.getResultId(), asId(effect.getUserId())));
+            as(effect, () -> service.deleteFollowUpRecord(asId(effect.getResultId()), asId(effect.getUserId())));
         }
     }
 
