@@ -121,7 +121,9 @@ final class ToolsGenerator {
 
         @Override
         public List<String> triggers() {
-            return List.of("列出%s", "生成的%s", "%s列表");
+            // 「生成」是独占标记：手写路由也认「新建产品」这类短语，且按 bean 顺序先命中。
+            // "生成" keeps these phrases disjoint from the hand-written routes, which win by bean order.
+            return List.of("列出生成%s", "生成的%s", "查看生成%s");
         }
 
         @Override
@@ -200,7 +202,7 @@ final class ToolsGenerator {
 
         @Override
         public List<String> triggers() {
-            return List.of("新建%s", "创建%s", "添加%s");
+            return List.of("新建生成%s", "创建生成%s", "添加生成%s");
         }
 
         @Override

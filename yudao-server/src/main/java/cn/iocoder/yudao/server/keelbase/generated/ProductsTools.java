@@ -118,7 +118,9 @@ public class ProductsTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("列出产品", "生成的产品", "产品列表");
+            // 「生成」是独占标记：手写路由也认「新建产品」这类短语，且按 bean 顺序先命中。
+            // "生成" keeps these phrases disjoint from the hand-written routes, which win by bean order.
+            return List.of("列出生成产品", "生成的产品", "查看生成产品");
         }
 
         @Override
@@ -189,7 +191,7 @@ public class ProductsTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("新建产品", "创建产品", "添加产品");
+            return List.of("新建生成产品", "创建生成产品", "添加生成产品");
         }
 
         @Override

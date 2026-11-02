@@ -113,6 +113,41 @@ class YudaoGovernanceContextTest {
         }
     }
 
+    /**
+     * 生成模块的路由不得与手写的路由抢同一个短语。
+     *
+     * <p>路由按 bean 顺序取第一个匹配，且匹配是子串包含 —— 生成模块的 `添加产品` 会被手写
+     * `CrmProductTools` 的 `加产品` 抢走（2026-11-02 的真栈门抓到）。生成器的六条短语因此都带「生成」标记；
+     * 这条测试把「互不包含」固定下来，任何一侧以后改词都会在这里红。
+     *
+     * A generated route must not claim a phrase a hand-written route also claims. Routing takes the first
+     * matching bean and matches by substring, so `添加产品` lost to the hand-written `加产品` (found by the
+     * real-stack gate on 2026-11-02). The generator's six phrases carry the "生成" marker now; this test
+     * pins the disjointness, so either side changing its words fails here.
+     */
+    @Test
+    void aGeneratedRouteDoesNotClaimAHandwrittenPhrase() {
+        List<ModuleRoute> generated = new ArrayList<>();
+        List<ModuleRoute> handwritten = new ArrayList<>();
+        for (ModuleRoute route : context.getBeansOfType(ModuleRoute.class).values()) {
+            boolean fromGeneratedPackage = route.getClass().getName().contains(".generated.");
+            (fromGeneratedPackage ? generated : handwritten).add(route);
+        }
+        assertFalse(generated.isEmpty(), "the generated module's routes are not registered");
+        for (ModuleRoute generatedRoute : generated) {
+            for (ModuleRoute handwrittenRoute : handwritten) {
+                for (String claimed : generatedRoute.triggers()) {
+                    for (String taken : handwrittenRoute.triggers()) {
+                        assertFalse(claimed.contains(taken) || taken.contains(claimed),
+                                "generated route " + generatedRoute.toolName() + " claims \"" + claimed
+                                        + "\", which overlaps hand-written " + handwrittenRoute.toolName()
+                                        + "'s \"" + taken + "\"");
+                    }
+                }
+            }
+        }
+    }
+
     private static List<Class<?>> governanceDeclarations() {
         var scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(Component.class));
