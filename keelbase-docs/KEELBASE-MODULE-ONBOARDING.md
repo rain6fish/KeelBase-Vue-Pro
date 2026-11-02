@@ -106,6 +106,20 @@ with the same filter) in **its own** query; the advice cannot invent one. The ga
 semantics with a pair: an exempt caller sees the module total, a narrowed caller sees the page-local
 total (`run-demo01-contact-scenarios.mjs`, scenario 3.5).
 
+**When the page has no owner slot but there is a single-row read by id or business number, do not filter the page —
+read that row instead.** This is the **third form**, settled on pay on 2026-11-02 (payment orders, refunds,
+transfers). Three tests: (1) the module has a read that takes one row by an identifier the caller already knows, with
+no page semantics (no `total`, no page boundary); (2) the row carries decidable owner columns (one, or a pair);
+(3) a real tool-face question needs it. When all three hold, the tool face **does not offer the page** (it refuses it
+on the tool path rather than deleting rows after the fact) and reads by identifier with the owner decided afterwards:
+another's row and a missing row come back as **the same answer**. **It is falsifiable**: with one row each for A and B
+plus a missing identifier, A asking for B's row and for the missing one must be observably identical, while A asking
+for its own row must return its own business fact; without the seam the first read returns B's row. An object with
+only a page and no single-row read falls back to the paragraph above (filter the page and declare the total); an
+object with no owner column at all stays `exempt`. Ask the same question of the write half: does the module have an
+owner-scoped, side-effect-free write port? If not — as with pay's three — the face is read-only; **do not invent a
+write to make the seam look complete**.
+
 **Declare a narrowing *as* a narrowing.** CRM's advice asks only the owner question, while upstream's
 `crm_permission` grants READ and WRITE to participants as well as the owner. The advice is therefore
 **stricter than the module, not equal to it** — its file says so, and widening it is a decision about

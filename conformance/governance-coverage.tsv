@@ -1,7 +1,9 @@
 # KeelBase-YuDao 治理覆盖账本 —— 「完全接入」的唯一账本（M0）。
 #
 # 部署范围里每个业务 service 恰好一行，四态之一：
-#   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄
+#   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄；
+#              收窄可以是「分页过滤」（分页有属主位）或「按标识符读 + 事后判属主」（分页没有属主位、但有单行读），
+#              后者在工具路径上**拒绝分页**；见 keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  只有工具面经引擎，REST 写入没有切面收窄（理由必填）
 #   gap        未接入、已排期（负责人 + 目标日期必填；过期即红）
 #   exempt     明确不接（理由 + 负责人 + 复核日期必填；过期即红）
@@ -13,7 +15,10 @@
 # KeelBase-YuDao governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
 #
 # One row per business service in the deployed scope, in exactly one of four postures:
-#   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing
+#   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing;
+#              the narrowing is either a page filter (the page has an owner slot) or a read by identifier with an
+#              owner check (it has none, but a single-row read exists); the latter **refuses the page** on the tool
+#              path — see keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  only the tool face goes through the engine; the REST write is not narrowed (reason required)
 #   gap        not onboarded, scheduled (owner + target date required; overdue is red)
 #   exempt     deliberately out of scope (reason + owner + recheck date required; overdue is red)
