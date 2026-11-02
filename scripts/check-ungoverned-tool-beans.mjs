@@ -350,11 +350,14 @@ const boundary = {
     // four paths are named by `D57`: `D42`'s upstream resolver, `D44`-B (ai1 MCP), SKILL and ai1 RAG
     // (plus this deployment's governed runtime seam as the baseline). Each entry carries identifiers and
     // enums only: `posture`, `holds` / `doesNotHold` (the same vocabulary as `held.holds`), one `gap`
-    // enum, and `sources` — the code coordinates (`file:line`). The console supplies the prose through
+    // enum, `actions` (ids of the business actions callable on that path), and `sources` — the code
+    // coordinates (`file:line`). The console supplies the prose through
     // its i18n, in the reader's language. Coordinates were checked on 2026-10-26.
     //   · ai1-mcp / ai1-skill now go through the engine (`YudaoAi1ToolGovernor` → `Ai1ExternalToolAdapter`);
     //     they hold authorization, identity and audit. An external tool has no result id, so there is no
     //     confirmation and no side-effect ledger row — the declared `external-effect-no-ledger` gap.
+    //     `actions` names business actions, not controls: the M7 reader answered with controls because the
+    //     page only offered control names.
     //   · ai1 RAG's retrieval is a governed R1 read: every search writes an audit row.
     paths: [
       {
@@ -363,6 +366,7 @@ const boundary = {
         holds: ['authorization', 'identity', 'confirmation', 'audit', 'side-effect-ledger'],
         doesNotHold: [],
         gap: 'none',
+        actions: ['write-records', 'approve-records'],
         sources: [
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoGovernedAgentTools.java:81',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/GovernedToolFaces.java:30',
@@ -374,6 +378,7 @@ const boundary = {
         holds: [],
         doesNotHold: ['authorization', 'identity', 'confirmation', 'audit', 'refusal', 'side-effect-ledger'],
         gap: 'one-bean-away',
+        actions: ['model-tool-call'],
         sources: [
           'scripts/check-ungoverned-tool-beans.mjs:16',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/GovernedToolFaces.java:30',
@@ -385,6 +390,7 @@ const boundary = {
         holds: ['authorization', 'identity', 'audit'],
         doesNotHold: ['confirmation', 'side-effect-ledger'],
         gap: 'external-effect-no-ledger',
+        actions: ['mcp-read', 'mcp-write'],
         sources: [
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:69',
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/mcp/Ai1McpToolFactory.java:99',
@@ -397,6 +403,7 @@ const boundary = {
         holds: ['authorization', 'identity', 'audit'],
         doesNotHold: ['confirmation', 'side-effect-ledger'],
         gap: 'external-effect-no-ledger',
+        actions: ['shell', 'file-read', 'file-write'],
         sources: [
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/skill/Ai1SkillToolFactory.java:122',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:69',
@@ -409,6 +416,7 @@ const boundary = {
         holds: ['authorization', 'identity', 'audit'],
         doesNotHold: [],
         gap: 'none',
+        actions: ['knowledge-search'],
         sources: [
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/rag/Ai1RagTool.java:227',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:93',

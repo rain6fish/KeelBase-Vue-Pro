@@ -67,6 +67,24 @@ keelbase:
     host: yudao
     host-owns-business-write: true
     host-own-ai-path: false
+  # 上游 REST 写的**旁路留痕**：控制台直接点「保存」走的是 `/admin-api/**`，绕过治理且此前不留痕。
+  # `true` = 每次写留一行（只记不改：不给策略、不扣人、不阻断，库写不进去也只少一条记录）。
+  # `false` = 过滤器**根本不装**，请求路径上少一个件 —— 故「关掉之后行为不变」不需要被相信。
+  #
+  # 这不是治理：旁路行没有确认、没有策略裁决、没有副作用台账，故它落在**另一张表**
+  # （`keelbase_bypass_log`），不与审计链混。页面与文案必须分开说这一点。
+  #
+  # The **bypass trail** for upstream REST writes: pressing "save" in the console goes through
+  # `/admin-api/**`, bypassing governance and leaving no trace until this layer. `true` records one row
+  # per write, altering nothing (no policy, no holding anyone up, no blocking — a row that cannot be
+  # written is one missing record). `false` **does not install the filter at all**, so "behaviour is
+  # unchanged when off" needs no trust.
+  #
+  # It is not governance: a bypass row has no confirmation, no policy decision and no side-effect
+  # ledger, which is why it lands in **another table** (`keelbase_bypass_log`) rather than on the audit
+  # chain. Pages and copy must say so apart from the chain.
+  bypass-audit:
+    enabled: true
   app:
     # `preset` 是 EASY-3 的**特性预设**（full / small / lite），不是模块清单；模块清单由下面的
     # `businessModules` 回答。显式写出的 `features` 覆盖预设默认值。

@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,566 @@
+@@ -1,4 +1,579 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -213,8 +213,8 @@ index 96269a8..2611a9b 100644
 +    },
 +    boundary: {
 +      title: 'Governance boundary',
-+      verdictOk: 'Nothing of ours is outside governance',
-+      verdictViolated: '{n} path(s) would escape governance',
++      verdictOk: 'This scan found no bean of ours that bypasses governance',
++      verdictViolated: 'This scan found {n} bean(s) of ours that bypass governance',
 +      scope: 'Read {files} file(s) over {roots} root(s)',
 +      reads: 'What is read: a {\'@\'}Bean method whose declared return type hands out {types}',
 +      excluded: 'Deliberately not read: {paths} — upstream keeps its own model-to-tool path there, and its sample bean is the very fact this boundary rests on',
@@ -229,10 +229,11 @@ index 96269a8..2611a9b 100644
 +        'side-effect-ledger': 'side-effect ledger',
 +      },
 +      pathsTitle: 'Every AI path and its posture',
-+      pathsWhat: 'The runtime seam is the governed baseline; the four paths below it are the ones D57 names. Each row states which checks it applies, what it misses, and the known gap.',
++      pathsWhat: 'The runtime seam is the governed baseline; the four paths below it are the ones D57 names. Each row states which business actions are callable on it, which checks they must pass, what it misses, and the known gap.',
 +      colPath: 'Path',
 +      colPosture: 'Posture',
-+      colHolds: 'Checks it applies',
++      colActions: 'AI actions on this path',
++      colHolds: 'Checks the action must pass',
 +      colGap: 'Known gap',
 +      colSource: 'Source (file:line)',
 +      path: {
@@ -247,6 +248,17 @@ index 96269a8..2611a9b 100644
 +        'partially-governed': 'Partially governed',
 +        'not-governed': 'Not governed',
 +      },
++      actions: {
++        'write-records': 'Write business records (create or update a customer, add a follow-up)',
++        'approve-records': 'Approve a business document (a leave request)',
++        'model-tool-call': 'The model calling a registered tool directly',
++        'mcp-read': 'Call an external MCP read tool',
++        'mcp-write': 'Call an external MCP write tool',
++        shell: 'Run a shell command on the server',
++        'file-read': 'Read a server file',
++        'file-write': 'Write a server file',
++        'knowledge-search': 'Search the knowledge base',
++      },
 +      gap: {
 +        none: 'No known gap',
 +        'one-bean-away': 'Harmless today only because no tool callback bean of ours exists; one such bean would put this path beyond every check.',
@@ -255,12 +267,13 @@ index 96269a8..2611a9b 100644
 +        'retrieval-unlogged': 'Retrieval writes no audit row, including the advisor’s own search.',
 +        'external-effect-no-ledger': 'An external write is authorized and audited by the engine, but has no result id: no confirmation, no side-effect ledger row.',
 +      },
-+      summaryTitle: 'Summary',
++      summaryTitle: 'Which AI actions are held',
 +      legend:
-+        'How to read this page: each row is one AI path. Checks it applies are the gates every call on that path meets; Known gap is what that path cannot do today, not a to-do number. Upstream model-to-tool resolver means the host (Spring AI) handing tools to the model on its own path, outside the governance of this line.',
-+      summaryHeld: 'Governed (held):',
-+      summaryNotHeld: 'Not governed (not held):',
-+      summaryNote: '{total} AI paths: {held} governed (fully or partly), {none} ungoverned.',
++        'How to read this page: each row is one AI path. The “AI actions on this path” column names the business actions callable on it; under “Checks the action must pass”, ✓ means every call on that path passes that check and — means it does not; Known gap is what that path cannot do today, not a to-do number. Upstream model-to-tool resolver means the host (Spring AI) handing tools to the model on its own path, outside the governance of this line.',
++      summaryHeld: 'Pass the governance layer (a write is held until confirmed):',
++      summaryAudited: 'Authorized and audited, but never held for confirmation:',
++      summaryNotHeld: 'Not governed at all (the model reaches them directly):',
++      summaryNote: '{held} actions pass the governance layer, {audited} are only authorized and audited, and {none} are ungoverned.',
 +      sourceTitle: 'Source (for developers)',
 +      notHeldWho: 'Path',
 +      notHeldHow: 'How it bypasses',
@@ -573,7 +586,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,560 @@
+@@ -1,4 +1,573 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -784,8 +797,8 @@ index 35f1e1a..856d201 100644
 +    },
 +    boundary: {
 +      title: '治理边界',
-+      verdictOk: '我们的东西没有一样在治理之外',
-+      verdictViolated: '有 {n} 条路径会绕过治理',
++      verdictOk: '本次扫描没发现我们自己的 bean 绕开治理',
++      verdictViolated: '本次扫描发现 {n} 个我们自己的 bean 绕开治理',
 +      scope: '读了 {roots} 个根下的 {files} 个文件',
 +      reads: '读的是 {\'@\'}Bean 的声明返回类型是否交出 {types}',
 +      excluded: '有意不读：{paths} —— 上游在那里留着自己的模型→工具路，而它那个示例 bean 正是本边界所倚的事实',
@@ -800,10 +813,11 @@ index 35f1e1a..856d201 100644
 +        'side-effect-ledger': '副作用账本',
 +      },
 +      pathsTitle: '每条 AI 路径及其治理姿态',
-+      pathsWhat: '运行时那条缝是受治理的基线；它下面四条是 D57 点名的路径 —— 每一行写明它会做哪些检查、漏掉什么、以及已知缺口。',
++      pathsWhat: '运行时那条缝是受治理的基线；它下面四条是 D57 点名的路径 —— 每一行写明这条路上可被调用哪些业务动作、要过哪些关、漏掉什么、以及已知缺口。',
 +      colPath: '路径',
 +      colPosture: '治理姿态',
-+      colHolds: '它会做的检查',
++      colActions: '这条路上的 AI 动作',
++      colHolds: '动作要过的关卡',
 +      colGap: '已知缺口',
 +      colSource: '代码出处（文件:行）',
 +      path: {
@@ -818,6 +832,17 @@ index 35f1e1a..856d201 100644
 +        'partially-governed': '部分受治理',
 +        'not-governed': '未纳入治理',
 +      },
++      actions: {
++        'write-records': '写业务记录（建客户 / 改客户 / 建跟进记录）',
++        'approve-records': '审批业务单据（请假单）',
++        'model-tool-call': '模型直接调用已注册的工具',
++        'mcp-read': '调用外部 MCP 读工具',
++        'mcp-write': '调用外部 MCP 写工具',
++        shell: '在服务器上执行 shell',
++        'file-read': '读服务器文件',
++        'file-write': '写服务器文件',
++        'knowledge-search': '查知识库',
++      },
 +      gap: {
 +        none: '无已知缺口',
 +        'one-bean-away': '今天无害只因没有我们自己的工具回调 bean；只消一个这样的 bean，这条路就绕过一切检查。',
@@ -826,12 +851,13 @@ index 35f1e1a..856d201 100644
 +        'retrieval-unlogged': '检索不写审计行，包括 Advisor 自己发起的那次检索。',
 +        'external-effect-no-ledger': '外部写由引擎授权并留下审计，但没有可登记的结果 id：没有确认，也没有副作用台账行。',
 +      },
-+      summaryTitle: '边界摘要',
++      summaryTitle: '哪些 AI 动作会被扣住',
 +      legend:
-+        '怎么读这一页：每一行是一条 AI 路径。「它会做的检查」是这条路每次调用都会遇到的门；「已知缺口」是这条路今天做不到的事，不是待办编号。「上游模型→工具解析器」指宿主（Spring AI）自己把工具交给模型的那条路，不经本线治理。',
-+      summaryHeld: '受治理（会被扣住的）：',
-+      summaryNotHeld: '未纳入治理（扣不住的）：',
-+      summaryNote: '共 {total} 条 AI 路径：{held} 条受治理（含部分受治理），{none} 条未纳入治理。',
++        '怎么读这一页：每一行是一条 AI 路径。「这条路上的 AI 动作」那一列写的是这条路上可被调用的业务动作；「动作要过的关卡」里，✓ 表示这条路每次调用都要过这道关，— 表示不过；「已知缺口」是这条路今天做不到的事，不是待办编号。「上游模型→工具解析器」指宿主（Spring AI）自己把工具交给模型的那条路，不经本线治理。',
++      summaryHeld: '会过治理层（写会被扣下等确认）：',
++      summaryAudited: '只经授权与审计，不会被确认扣住：',
++      summaryNotHeld: '完全不设防（模型可直接调用）：',
++      summaryNote: '{held} 个动作过治理层，{audited} 个只经授权与审计，{none} 个完全不设防。',
 +      sourceTitle: '代码出处（供开发者核对）',
 +      notHeldWho: '路径',
 +      notHeldHow: '绕过方式',

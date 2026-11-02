@@ -196,6 +196,80 @@ test('the gate record pins the SKILL path as partially governed, and names where
   assert.match(row, /Ai1SkillToolFactory\.java:\d+/, 'the row cites the assembly point it describes');
 });
 
+test('every path declares business actions, and both languages label each action', () => {
+  const gate = read(GATE);
+  const { en, zh } = boundaryMessages();
+
+  // M7：读者答不出「哪些动作被扣」，因为页面此前只给检查项。动作 id 与两种语言的词条必须同时存在；
+  // 少一个词条就是页面上一条 `keelbase.boundary.actions.x` 原样漏出来。
+  // The M7 reader could not name actions because the page only offered controls. Each action id needs a
+  // label in both languages; a missing one leaks the raw key onto the page.
+  const ids = ['write-records', 'approve-records', 'model-tool-call', 'mcp-read', 'mcp-write',
+    'shell', 'file-read', 'file-write', 'knowledge-search'];
+  for (const id of ids) {
+    assert.match(gate, new RegExp(`'${id}'`), `the gate declares the action ${id}`);
+    assert.ok(en.actions?.[id], `English labels the action ${id}`);
+    assert.ok(zh.actions?.[id], `Chinese labels the action ${id}`);
+  }
+
+  const rows = gate.match(/id: '[^']+',[\s\S]*?actions: \[[^\]]*\]/g) ?? [];
+  assert.equal(rows.length, 5, 'all five paths declare at least one action');
+});
+
+test('the summary and the table speak in actions, not only controls', () => {
+  const vue = read(PAGE);
+  const tpl = templateOf(vue);
+  for (const set of ['heldActionIds', 'auditedActionIds', 'ungovernedActionIds']) {
+    assert.match(tpl, new RegExp(`v-for="a in ${set}"`), `the summary lists ${set}`);
+  }
+  assert.match(tpl, /v-for="a in row\.actions"/, 'the table has an action column');
+  assert.match(tpl, /keelbase\.boundary\.colActions/, 'the action column has its own heading');
+});
+
+test('the reading legend points at the action column by name, not by position', () => {
+  const { en, zh } = boundaryMessages();
+
+  // M7 的那一问是「哪些**动作**被扣」。图例若按**位置**指列（「第一列」），页面上真正的第一列是路径，
+  // 读者会被指到错的那一列 —— 2026-10-31 复核时撞上的就是这句。图例必须按**列名**指，且那个列名就是
+  // `colActions`，于是列名一改，图例跟着说，两者不会各说各的。
+  // The M7 question is "which **actions** are held". A legend that points at a **position** ("the first
+  // column") points at Path instead — measured 2026-10-31. It must name the column, and that name is
+  // `colActions`, so a rename cannot leave the legend pointing somewhere else.
+  for (const [lang, m] of [['zh', zh], ['en', en]]) {
+    assert.ok(m.legend.includes(m.colActions), `${lang} legend names the action column by its label`);
+    assert.doesNotMatch(m.legend, /第一列|the first column/, `${lang} legend points at a column position`);
+    // 关卡的两种记号也要说明：勾 = 过这道关，破折号 = 不过。只列名字、不说记号，读者仍要自己猜。
+    // The two marks the checks column uses have to be explained too: a tick means the gate applies, a
+    // dash means it does not. Names alone leave the reader guessing what the marks mean.
+    assert.ok(m.legend.includes('✓'), `${lang} legend explains the tick`);
+    assert.ok(m.legend.includes('—'), `${lang} legend explains the dash`);
+  }
+});
+
+test('the summary groups actions by what they meet, not by the path\'s posture', () => {
+  const vue = read(PAGE);
+
+  // M7 那一问是「哪些**动作**会被扣」。RAG 检索是一条 `posture='governed'` 的**读**：授权、身份、
+  // 审计行都有，但从不等人确认。按 posture 归组会把它摆进「写会被扣下等确认」（2026-10-31 复核实测）
+  // —— 那正是读者会照抄的一个错答案。分组必须读这一行自己的 `holds`。
+  // The M7 question is which **actions** are held. The RAG read is `posture: 'governed'` and never waits
+  // for confirmation; grouping by posture put it under "a write waits for confirmation" (measured
+  // 2026-10-31) — an answer a reader would repeat. The grouping must read the row's own `holds`.
+  assert.match(
+    vue,
+    /const heldActionIds = computed\(\(\) =>\s*actionsWhere\(\(p\) => p\.holds\.includes\('confirmation'\)\)\)/,
+    'the held bucket is read from the row\'s own holds',
+  );
+  assert.doesNotMatch(vue, /actionsOf\('governed'\)/, 'the held bucket is no longer the governed posture alone');
+
+  const gate = read(GATE);
+  const at = gate.indexOf("id: 'ai1-rag'");
+  assert.ok(at >= 0, 'the record carries the RAG path');
+  const row = objectAt(gate, gate.lastIndexOf('{', at));
+  assert.match(row, /posture:\s*'governed'/, 'the RAG path is governed');
+  assert.doesNotMatch(row, /holds:\s*\[[^\]]*'confirmation'/, 'the RAG path does not hold confirmation');
+});
+
 test('the page draws the onboarding ledger from the gate record, in both languages', () => {
   const vue = read(PAGE);
   const tpl = templateOf(vue);

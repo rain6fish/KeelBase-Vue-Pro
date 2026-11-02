@@ -46,6 +46,11 @@
 <template>
   <ContentWrap :title="t('keelbase.boundary.title')">
     <template #header>
+      <!-- 标签只报**本次扫描**的结论：我们自己的声明有没有绕开治理。不说「全都管住了」——
+           那与下面第三档「完全不设防」自相矛盾。 -->
+      <!-- The tag reports **this scan's** result only: whether any of our own declarations bypasses
+           governance. It does not say "everything is governed", which would contradict the third
+           summary tier below. -->
       <el-tag
         v-if="boundary"
         :type="boundary.computed.verdict === 'ok' ? 'success' : 'danger'"
@@ -78,40 +83,53 @@
 
       <!-- 一页结论：先给读者一句能复述的答案，再展开下面那张表。
            M7 F-9：此前只有五条路径铺开，读者读完整页仍说不出「哪些扣」，只能反推「扣不住之外的」。
-           这两行把同一份记录归并成两个集合 —— 仍不重算任何东西，只按 `posture` 分组。
-           / In one line: the restatable answer first, the table second. Same record, grouped by `posture`. -->
+           这三行把同一份记录归并成三个集合 —— 仍不重算任何东西，只按每一行自己的 `holds` 分组。
+           / In one line: the restatable answer first, the table second. Same record, grouped by each row's own `holds`. -->
       <div class="font-medium mt-16px mb-4px">{{ t('keelbase.boundary.summaryTitle') }}</div>
       <div class="mb-2px">
         <span class="text-12px mr-6px">{{ t('keelbase.boundary.summaryHeld') }}</span>
         <el-tag
-          v-for="id in heldPathIds"
-          :key="id"
+          v-for="a in heldActionIds"
+          :key="a"
           size="small"
-          :type="postureTagType(postureOf(id))"
+          type="success"
           class="mr-4px mb-4px"
         >
-          {{ t(`keelbase.boundary.path.${id}`) }}
+          {{ t(`keelbase.boundary.actions.${a}`) }}
+        </el-tag>
+      </div>
+      <div class="mb-2px">
+        <span class="text-12px mr-6px">{{ t('keelbase.boundary.summaryAudited') }}</span>
+        <el-tag
+          v-for="a in auditedActionIds"
+          :key="a"
+          size="small"
+          type="warning"
+          effect="plain"
+          class="mr-4px mb-4px"
+        >
+          {{ t(`keelbase.boundary.actions.${a}`) }}
         </el-tag>
       </div>
       <div class="mb-2px">
         <span class="text-12px mr-6px">{{ t('keelbase.boundary.summaryNotHeld') }}</span>
         <el-tag
-          v-for="id in notHeldPathIds"
-          :key="id"
+          v-for="a in ungovernedActionIds"
+          :key="a"
           size="small"
           type="danger"
           effect="plain"
           class="mr-4px mb-4px"
         >
-          {{ t(`keelbase.boundary.path.${id}`) }}
+          {{ t(`keelbase.boundary.actions.${a}`) }}
         </el-tag>
       </div>
       <div class="text-12px text-[var(--el-text-color-secondary)] mb-10px">
         {{
           t('keelbase.boundary.summaryNote', {
-            total: boundary.stated.paths.length,
-            held: heldPathIds.length,
-            none: notHeldPathIds.length
+            held: heldActionIds.length,
+            audited: auditedActionIds.length,
+            none: ungovernedActionIds.length
           })
         }}
       </div>
@@ -148,6 +166,19 @@
              (`holds.includes(control)`). The tags used to read as a run-on string, so seeing which path
              misses which control meant comparing rows; as a matrix the answer is one horizontal read.
              Nothing is derived here — a control absent from `stated.paths` simply never ticks. -->
+        <el-table-column :label="t('keelbase.boundary.colActions')" min-width="260">
+          <template #default="{ row }">
+            <el-tag
+              v-for="a in row.actions"
+              :key="a"
+              size="small"
+              effect="plain"
+              class="mr-4px mb-4px"
+            >
+              {{ t(`keelbase.boundary.actions.${a}`) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column :label="t('keelbase.boundary.colHolds')" align="center">
           <el-table-column
             v-for="c in CONTROLS"
@@ -253,6 +284,8 @@ type PathRow = {
   posture: 'governed' | 'partially-governed' | 'not-governed'
   holds: string[]
   doesNotHold: string[]
+  /** 这条路上可被模型调用的业务动作（id，词由这一页给）。 / Business actions callable on this path (ids). */
+  actions: string[]
   gap: 'none' | 'one-bean-away' | 'declaration-quality' | 'shell-on-host' | 'retrieval-unlogged'
   /** 代码出处（`文件:行`）—— 与产物同源，读者可核对。 / code coordinates (`file:line`), from the same record. */
   sources: string[]
@@ -325,19 +358,25 @@ const boundary = ref<Boundary | null>(null)
 const error = ref('')
 const missing = ref(false)
 
-/** 按 `posture` 把五条路径归成两个集合：受治理的（含部分）与完全不设防的。
- *  只是分组，不重算 —— 与表格同一份记录。 / Grouped by `posture`; nothing is recomputed. */
-const heldPathIds = computed(() =>
-  (boundary.value?.stated.paths ?? [])
-    .filter((p) => p.posture === 'governed' || p.posture === 'partially-governed')
-    .map((p) => p.id)
+/**
+ * 按**这一行自己声明的关卡**分组，而不是按 `posture` 分：姿态说的是**路径**被治理到什么程度，
+ * 而读者那一问「哪些动作会被扣住」问的是**动作**会不会停下来等人确认。两者不是同一件事 ——
+ * RAG 检索是受治理的读（授权、身份、审计行），从不等人确认；按姿态分组会把它摆进
+ * 「写会被扣下等确认」那一行。2026-10-31 复核实测。
+ *
+ * Grouped by the row's own `holds`, not by `posture`: posture describes a **path**, while the M7
+ * question — which actions are held — is about an **action** stopping for confirmation. The RAG read is
+ * governed (authorization, identity, an audit row) and never waits for confirmation; grouping by posture
+ * put it under "a write waits for confirmation". Measured 2026-10-31. Nothing is recomputed: `holds` is
+ * the record's own field, read the same way the matrix reads it.
+ */
+const actionsWhere = (test: (p: PathRow) => boolean) =>
+  (boundary.value?.stated.paths ?? []).filter(test).flatMap((p) => p.actions)
+const heldActionIds = computed(() => actionsWhere((p) => p.holds.includes('confirmation')))
+const auditedActionIds = computed(() =>
+  actionsWhere((p) => p.posture !== 'not-governed' && !p.holds.includes('confirmation'))
 )
-const notHeldPathIds = computed(() =>
-  (boundary.value?.stated.paths ?? []).filter((p) => p.posture === 'not-governed').map((p) => p.id)
-)
-function postureOf(id: string): PathRow['posture'] {
-  return (boundary.value?.stated.paths ?? []).find((p) => p.id === id)?.posture ?? 'not-governed'
-}
+const ungovernedActionIds = computed(() => actionsWhere((p) => p.posture === 'not-governed'))
 
 // The UI build lays this file in from the gate's own `--emit`; nothing here recomputes it. `no-store`
 // because a console that showed a remembered boundary would be showing a build that is no longer the one

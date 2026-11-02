@@ -261,7 +261,14 @@ public final class SpecCodegen {
             // `v-hasPermi` button on them had no code to check. Hand-written, produced by no Spec; it was not
             // declared here when it landed, so the boundary check has called it UNDECLARED ever since.
             // Declaring it lets the declaration catch up with fact; no judgement is relaxed.
-            "sql/keelbase-ai1-permissions.sql");
+            "sql/keelbase-ai1-permissions.sql",
+            // 旁路留痕表（`sql/keelbase-bypass-audit.sql`）：上游 REST 的写**只记不改**的那张表。手写、任何 Spec
+            // 都不产出 —— 它不是某个业务模块的表，故没有任何 `specs/*.json` 会生成它；不在此声明就会被判成 UNDECLARED。
+            //
+            // The bypass trail table (`sql/keelbase-bypass-audit.sql`): the table behind "record, never
+            // alter" for upstream REST writes. Hand-written and produced by no Spec — it is no business
+            // module's table, so no `specs/*.json` could generate it; undeclared, the check calls it UNDECLARED.
+            "sql/keelbase-bypass-audit.sql");
 
     private SpecCodegen() {
     }

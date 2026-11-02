@@ -139,6 +139,18 @@ jobs:
   script-tests:
     name: Every script test this repository ships runs
     runs-on: ubuntu-latest
+    env:
+      # 两个**数渲染**的测试要一份铺好的界面检出（`target/yudao-ui-admin-vue3`，或 `KEELBASE_YUDAO_UI`
+      # 指过去）：闸门要用那个检出的 Vue 工具链，而干净 clone 里没有 `node_modules`。它们没有检出时**按
+      # 设计红**（不悄悄跳过），所以不能在这个 job 里跑 —— 它们由 `rendered-copy` job 跑，那里正是铺检出
+      # 的那一步。名字只在这里写一次，排除与守卫读同一份。
+      #
+      # The two **render-measuring** tests need a UI checkout laid down (`target/yudao-ui-admin-vue3`, or
+      # `KEELBASE_YUDAO_UI` pointing at one): the gate resolves the Vue toolchain from that checkout, and a
+      # clean clone has no `node_modules`. With no checkout they go **red by design** (never a quiet skip),
+      # so they cannot run in this job — they run in `rendered-copy`, which is the job that lays the
+      # checkout down. The names are written once, here, and both the exclusion and the guard read them.
+      UI_DEPENDENT_TESTS: 'scripts/rendered-copy-expressions.test.mjs scripts/rendered-copy-components.test.mjs'
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -150,8 +162,28 @@ jobs:
       # 一条 glob 而不是一份清单 —— 正是清单让这几个文件留在了 CI 之外（7 个早于这道 job 的页面/助手
       # 测试，加上本周两笔修复带来的两个）。没有任何 step 点名的测试文件 = 永远不跑的测试，而它表面上
       # 看不出任何不对。
+      #
+      # 上面那两个要检出的文件按名排除 —— 但**排除不等于没人跑**：下一条 step 对每个名字断言「本流水线里
+      # 另有一步用 `node --test` 点名它」。少一个、或那一句被删掉，这里就红，于是「没人跑」仍然是一条能
+      # 读到的红，而不是一条看不见的遗漏。
+      #
+      # The two files that need the checkout are excluded **by name** — but **exclusion is not "nobody runs
+      # it"**: the next step asserts, for each name, that another step in this pipeline runs `node --test`
+      # on it. Lose one, or lose that line, and this job goes red — so "nobody runs it" stays a red somebody
+      # can read rather than an omission nobody can see.
       - name: Run every script test
-        run: node --test scripts/*.test.mjs
+        run: |
+          pattern=$(echo "$UI_DEPENDENT_TESTS" | tr ' ' '|')
+          node --test $(ls scripts/*.test.mjs | grep -Ev "^($pattern)$")
+      - name: Every excluded test is run by another step
+        run: |
+          for f in $UI_DEPENDENT_TESTS; do
+            if ! grep -q "node --test $f" .github/workflows/ci.yml; then
+              echo "::error::$f is excluded from script-tests, and no step runs it — exclusion must not become 'never runs'"
+              exit 1
+            fi
+            echo "ok    $f runs elsewhere in this pipeline"
+          done
 
   governance-boundary:
     name: No bean of ours hands a tool to Spring AI
@@ -707,11 +739,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 宿主钉的是**已发布**的运行时 `0.1.14`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
+      # 宿主钉的是**已发布**的运行时 `0.1.16`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
       # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。抬运行时版本时，
       # 宿主 pom 的坐标与这里一起改。
       #
-      # The host pins the **released** runtime `0.1.14` (available on Central), so CI resolves it
+      # The host pins the **released** runtime `0.1.16` (available on Central), so CI resolves it
       # directly instead of building the public repository at a SHA: a SNAPSHOT lives only in a
       # developer's `~/.m2`, which left this job missing artifacts on the runner. When the runtime
       # version is bumped, the host pom's coordinate moves with it.
@@ -858,6 +890,29 @@ jobs:
           # `[01].[0-9]{3}` (`-` / `0/0` are not readings), and the SKIP set must be exactly the two
           # model-path columns — one extra or one missing is red. The rules live in the script's header.
           node scripts/ci/run-governance-gate.mjs | tee conformance.out
+
+      # F-2 的运行时那一半：`0.1.15` 起 `/ai/conversations` 带 `title` / `messageCount`，并多了
+      # `PUT /ai/conversations/{id}/title`。脚本读的就是这三样在不在，判词在它自己的文件头；
+      # 0.1.14 形状上它是红的（自证：`scripts/conversation-titles-check.test.mjs`），0.1.15 上必须绿。
+      # 口令**不写死**：`F2_PASS` 没给时从 `admin` 那一行解析（`scripts/admin-credential.mjs`），CI 即如此。
+      # 这套栈是一次性的，故允许脚本经 `POST /ai/chat` 把一个会话补到三条回合 —— 只有超过两条回合，
+      # `messageCount` 与 `messages.length` 才分得开，那一格要真 PASS 而不是 SKIP。
+      #
+      # The runtime half of F-2: since `0.1.15` the list carries `title` / `messageCount` and the rename
+      # endpoint answers. The script reads whether those three are live; its verdicts live in its own
+      # header. It is red on the 0.1.14 shape (self-test: `scripts/conversation-titles-check.test.mjs`) and
+      # must be green on 0.1.15. The password is **never hardcoded**: without `F2_PASS` it is resolved from
+      # the `admin` row (`scripts/admin-credential.mjs`), which is how CI runs. This stack is ephemeral, so
+      # the script may add turns through `POST /ai/chat` until one conversation has three — only past two
+      # turns can `messageCount` be told apart from `messages.length`, and that cell must really PASS, not
+      # SKIP.
+      - name: Conversation titles answer over HTTP (F-2)
+        env:
+          HOST_URL: http://127.0.0.1:48085
+          PG_DB: ruoyi-vue-pro
+          PG_USER: root
+          PG_PASSWORD: password
+        run: node scripts/check-conversation-titles.mjs --full
 
       - name: Report the host's tail when the run went red
         if: failure()

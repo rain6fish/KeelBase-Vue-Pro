@@ -38,13 +38,6 @@
 load keelbase-crm.sql
 load keelbase-products.sql
 
-# 旁路审计：上游 `/admin-api` 写的只记不改台账。它不引用任何业务表，故位置无关；放在业务表旁边是因为
-# 它是与「治理覆盖」同一层的部署事实。缺这份种子只会丢旁路行（写入失败只记日志），不会挡住任何请求。
-# Bypass audit: the record-only ledger for upstream `/admin-api` writes. It references no business table, so
-# its position does not matter; it sits beside the business tables because it is a deployment fact of the same
-# governance layer. Missing this seed only loses bypass rows (a failed write is logged), never a request.
-load keelbase-bypass-audit.sql
-
 # AI 助手管理台：先 ai1 自己的表，再常驻 agent（agent 行引用 provider/model），再抽屉的父级与权限，
 # 最后管理台的菜单行。
 # Assistant console: ai1's own tables first, then the resident agent (its rows reference provider/model),
@@ -114,6 +107,15 @@ load keelbase-m7-reader.sql
 # refuses upstream's NOT NULL).
 load keelbase-brand-names.sql
 load keelbase-operate-log-nullable.sql
+
+# 上游 REST 写的**旁路留痕**表（`keelbase_bypass_log`）：宿主的 `YudaoBypassAuditJdbcSink` 每次写往里插一行。
+# 必须 `load` —— 表不在时宿主照常跑（这一层 best-effort），但**一条痕迹也留不下**，只每小时刷一条「写不进去」
+# 的警告；而「留痕」正是这一层存在的理由。它不落任何菜单行，故与 `module-scope.sql` 的保留清单无关。
+# The upstream-REST **bypass trail** table (`keelbase_bypass_log`): the host's `YudaoBypassAuditJdbcSink`
+# inserts one row per write. It has to be on `load` — without the table the host still runs (this layer is
+# best-effort), but **no trace lands at all**, only a "could not write" warning; and leaving a trace is the
+# whole reason this layer exists. It lays no menu row, so the `module-scope.sql` keep list does not apply.
+load keelbase-bypass-audit.sql
 
 # ---------------------------------------------------------------------------
 # separate — run by their own step / 由各自的步骤跑
