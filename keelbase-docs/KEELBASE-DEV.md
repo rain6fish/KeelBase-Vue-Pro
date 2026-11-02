@@ -60,6 +60,58 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 that are not wired into the server. The artifact is a fat jar under `yudao-server/target/`. This
 assumes `mvn` is on `PATH`; the datastore below additionally needs Docker.
 
+### A prepared Maven repository, for building with no network — 离线构建：备好一份 Maven 本地库
+
+**中文块在前、英文块在后 —— 本仓的块顺序与其它仓相反。**
+
+钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉
+0.1.16）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
+**完全离线**的机器上，同一个构建会以「找不到 0.1.16」失败。先把这一层补进本地库：
+
+```bash
+# 1) 复制基线库（源库只读），缺的版本按根 pom 的镜像解析进目标库
+bash scripts/prepare-m2-repo.sh <source-m2> <target-m2> --fetch
+
+# 2) 断网等价地验证：-o 下不允许任何远程解析
+bash scripts/jdk25.sh mvn -o -Dmaven.repo.local=<target-m2> -pl yudao-server -am test-compile
+```
+
+脚本只做三件事：整份复制源库（**不写源库**）、从仓内所有 `pom.xml` 读出钉住的 `cn.com.keelbase`
+坐标（**版本不写死**，抬 pin 后重跑即可）、核对目标库里有没有对应的 `pom` 与 `jar`。缺的坐标在给
+`--fetch` 时用 `maven-dependency-plugin:get` 解析（仓库取根 `pom.xml` 声明的那两个，不是
+`settings.xml`）；不给则退出码 **2**，并打印下一条该跑的命令。其它退出码：0 齐全 · 1 失败或解析后仍缺 ·
+64 用法错误。目标库已存在时要加 `--force`（往里覆盖，**不删**已有内容）。
+
+**这个脚本只解决 Maven 这一层。** `-o` 证明的是「Maven 不做远程解析」，不是「整台机器没有网络」：
+后台 UI 构建（`scripts/build-host-ui.sh`）仍要从 Gitee 克隆前端仓、由 pnpm 取包。要一台机器**完全**离线
+跑完整条验证，那两层也得预先备好——本脚本没有覆盖它们。
+
+The pinned `keelbase4j` version can be newer than any prepared baseline (the 2026-11-02 baseline had only
+0.1.14 while the poms pin 0.1.16). Online that is fine — the root `pom.xml` declares the huaweicloud and
+aliyun repositories itself, so Maven downloads it. **Fully offline**, the same build fails on "0.1.16 not
+found". Put that layer into a local repository first:
+
+```bash
+# 1) copy the baseline (the source is read-only), resolve what is missing through the root pom's mirrors
+bash scripts/prepare-m2-repo.sh <source-m2> <target-m2> --fetch
+
+# 2) check offline-equivalently: -o forbids every remote resolution
+bash scripts/jdk25.sh mvn -o -Dmaven.repo.local=<target-m2> -pl yudao-server -am test-compile
+```
+
+The script does three things: copies the source repository whole (**the source is never written**), reads
+the pinned `cn.com.keelbase` coordinates out of every `pom.xml` (**no version is hard-coded**; re-run it
+after a pin bump), and checks that the target holds the matching `pom` and `jar`. With `--fetch` the
+missing coordinates are resolved through the repositories the root `pom.xml` declares (not `settings.xml`);
+without it the script exits **2** and prints the command to run next. Other exit codes: 0 complete · 1
+failure, or still missing after resolution · 64 bad usage. Pass `--force` when the target already exists
+(it copies over; it deletes nothing).
+
+**This covers the Maven layer only.** `-o` proves Maven makes no remote resolution; it is not "the machine
+has no network": the admin UI build (`scripts/build-host-ui.sh`) still clones the front end from Gitee and
+fetches packages through pnpm. A machine that is offline end to end needs those two layers prepared as
+well — this script does not cover them.
+
 ## Run
 
 `scripts/run-server.sh` is the whole thing in one command, and it is what the verification above was run
