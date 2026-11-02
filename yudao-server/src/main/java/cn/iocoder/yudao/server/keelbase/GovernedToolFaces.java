@@ -116,6 +116,7 @@ public final class GovernedToolFaces {
                 new ToolFace("SystemNotifyMessageTools"),
                 new ToolFace("SystemNoticeTools"),
                 new ToolFace("PayWalletTools"),
+                new ToolFace("PayOrderTools"),
                 new ToolFace("ProductsTools"), // 生成的 / generated
                 new ToolFace("ConsolePages"),
                 new ToolFace("ListYudaoUsersTool"),
