@@ -129,8 +129,8 @@ pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTrans
 pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	exempt		充值单的属主是前两个实参（userId + userType），分页口自带这两个过滤位；写口是到账/退款两条内部流程，是本批之外的第二个候选	@rain	2027-06-30
 pay	wallet-recharge-package	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargePackageService	exempt		充值套餐是管理面配置（pay:wallet-recharge-package:*，D4 甲）	@rain	2027-06-30
 pay	order	cn.iocoder.yudao.module.pay.service.order.PayOrderService	seam	PayOrderGovernance	支付单属主是用户对（user_id + user_type），分页没有属主过滤位（PayOrderPageReqVO 只有 appId/channelCode/status/时间）⇒ 工具面不开分页（工具路径上分页与批量读被拒绝），改接「按支付单号/编号读 + 事后判属主」：别人的行与不存在的行同一个答案；本面只读，无写（模块的写全是内部流程或调外部渠道）	@rain	2027-06-30
-pay	refund	cn.iocoder.yudao.module.pay.service.refund.PayRefundService	exempt		与支付单同形：分页 VO 没有属主过滤位，已定接法是「按退款单号/编号读 + 事后判属主」（不用分页、不开写）；本批只落支付单一件，退款单排下一件，不是接不起。recheck 前若仍未接，按对象重判	@rain	2027-06-30
-pay	transfer	cn.iocoder.yudao.module.pay.service.transfer.PayTransferService	exempt		与支付单同形：分页 VO 没有属主过滤位（userName/userAccount 是收款人，不是属主），已定接法是「按转账单号/编号读 + 事后判属主」；本批只落支付单一件，转账单排下一件，不是接不起	@rain	2027-06-30
+pay	refund	cn.iocoder.yudao.module.pay.service.refund.PayRefundService	seam	PayRefundGovernance	与支付单同形：分页 VO 没有属主过滤位，接「按退款单号/编号读 + 事后判属主」；工具路径上分页与导出列表被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
+pay	transfer	cn.iocoder.yudao.module.pay.service.transfer.PayTransferService	seam	PayTransferGovernance	与支付单同形：分页 VO 没有属主过滤位（userName/userAccount 是收款人，不是属主），接「按转账单号/编号读 + 事后判属主」；分页在工具路径上被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
 pay	app	cn.iocoder.yudao.module.pay.service.app.PayAppService	exempt		支付应用是租户级配置面（pay:app:*，D4 甲）	@rain	2027-06-30
 pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt		支付渠道是应用级配置面（pay:channel:*，D4 甲）	@rain	2027-06-30
 pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		通知任务是模块内部的投递机器（pay_notify_task/log，无属主人列、无 controller），由 PayNotifyJob 重试	@rain	2027-06-30
