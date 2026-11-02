@@ -119,12 +119,16 @@
             <artifactId>yudao-module-bpm</artifactId>
             <version>${revision}</version>
         </dependency>
-        <!-- 支付服务。默认注释，保证编译速度 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-pay</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- 支付服务。M3 首件把它放进 jar：覆盖账本只数**已部署**的模块，切面也只点得到在类路径上的 service。
+             首批只接钱包一个读对象，其余对象的姿态逐行写在 `conformance/governance-coverage.tsv`。
+             Pay is in the jar from M3's first item on: the coverage ledger counts **deployed** modules only, and a
+             pointcut can name only a service that is on the classpath. This first batch governs the wallet read
+             alone; every other object's posture is a row in `conformance/governance-coverage.tsv`. -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-pay</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
         <!-- 微信公众号模块。默认注释，保证编译速度 -->
 <!--        <dependency>-->

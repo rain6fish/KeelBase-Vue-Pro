@@ -124,6 +124,18 @@ infra	job-log	cn.iocoder.yudao.module.infra.service.job.JobLogService	exempt		�
 infra	student-erp	cn.iocoder.yudao.module.infra.service.demo.demo03.erp.Demo03StudentErpService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
 infra	student-inner	cn.iocoder.yudao.module.infra.service.demo.demo03.inner.Demo03StudentInnerService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
 infra	student-normal	cn.iocoder.yudao.module.infra.service.demo.demo03.normal.Demo03StudentNormalService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+pay	wallet	cn.iocoder.yudao.module.pay.service.wallet.PayWalletService	seam	PayWalletGovernance			
+pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTransactionService	exempt		钱包流水的属主是前两个实参（userId + userType），两个分页口都自带这两个过滤位；M3 首批只接钱包一个对象，它是下一个接缝候选 · recheck 前重判	@rain	2027-06-30
+pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	exempt		充值单的属主是前两个实参（userId + userType），分页口自带这两个过滤位；写口是到账/退款两条内部流程，是本批之外的第二个候选	@rain	2027-06-30
+pay	wallet-recharge-package	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargePackageService	exempt		充值套餐是管理面配置（pay:wallet-recharge-package:*，D4 甲）	@rain	2027-06-30
+pay	order	cn.iocoder.yudao.module.pay.service.order.PayOrderService	exempt		支付单属主是用户对（user_id + user_type），但模块的分页查询没有属主过滤位（PayOrderPageReqVO 只有 appId/channelCode/status/时间）⇒ 切面只能事后过滤、会破坏 total 与页语义；本批不接，recheck 前按对象重判	@rain	2027-06-30
+pay	refund	cn.iocoder.yudao.module.pay.service.refund.PayRefundService	exempt		同支付单：属主是用户对，分页 VO 没有属主过滤位，事后过滤会破坏 total 与页语义；本批不接	@rain	2027-06-30
+pay	transfer	cn.iocoder.yudao.module.pay.service.transfer.PayTransferService	exempt		同支付单：属主是用户对，分页 VO 没有属主过滤位，事后过滤会破坏 total 与页语义；本批不接	@rain	2027-06-30
+pay	app	cn.iocoder.yudao.module.pay.service.app.PayAppService	exempt		支付应用是租户级配置面（pay:app:*，D4 甲）	@rain	2027-06-30
+pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt		支付渠道是应用级配置面（pay:channel:*，D4 甲）	@rain	2027-06-30
+pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		通知任务是模块内部的投递机器（pay_notify_task/log，无属主人列、无 controller），由 PayNotifyJob 重试	@rain	2027-06-30
+pay	demo-order	cn.iocoder.yudao.module.pay.service.demo.PayDemoOrderService	exempt		演示订单是样例面（demo，非业务行）	@rain	2027-06-30
+pay	demo-withdraw	cn.iocoder.yudao.module.pay.service.demo.PayDemoWithdrawService	exempt		演示提现是样例面（demo，非业务行）	@rain	2027-06-30
 server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
 system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
