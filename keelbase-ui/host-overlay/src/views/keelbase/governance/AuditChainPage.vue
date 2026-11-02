@@ -248,87 +248,6 @@
       </el-collapse-item>
     </el-collapse>
   </ContentWrap>
-
-  <!--
-    上游 REST 写的**旁路台账**：只记不改，且刻意**不是**受治理路径。
-
-    它画成**自成一段**、在行与链**之外**，而表头下面那条警示就是这一段的全部要点：这里没有确认、
-    没有副作用台账、也不在上面那条哈希链上；这些行只是上游自己写 `/admin-api` 时留下的记录。
-    「谁做了什么不因没走 AI 而消失」是它存在的理由，而「它不是一条受治理路径」是读者必须一眼看见的另一半。
-    故两类记录不并表、不并链 —— 混进同一张表，会让读者把「记下了」读成「治理过了」。
-
-    The **bypass ledger** of upstream REST writes: record-only, and deliberately **not** a governed path.
-
-    It is drawn as its own section, **outside** the rows and the chain, and the warning under its title is
-    the whole point: no confirmation, no side-effect ledger, and not on the hash chain above; these rows
-    are only what upstream left behind while writing its own admin API. "Who did what does not vanish
-    because it did not go through the AI" is why it exists; "it is not a governed path" is the other half
-    a reader must see at a glance. So the two kinds are never merged into one table or one chain — merging
-    them would let a reader take "recorded" for "governed".
-  -->
-  <ContentWrap :title="t('keelbase.bypass.title')">
-    <template #header>
-      <el-tag v-if="bypass" size="small" effect="plain">
-        {{ t('keelbase.bypass.total', { n: bypass.total }) }}
-      </el-tag>
-      <el-button class="ml-auto" size="small" :loading="bypassLoading" @click="loadBypass">
-        {{ t('keelbase.common.refresh') }}
-      </el-button>
-    </template>
-
-    <!-- 一眼看出它不是受治理路径：没有确认、没有副作用台账、不在上面的链上。 -->
-    <!-- At a glance, not a governed path: no confirmation, no ledger, not on the chain above. -->
-    <el-alert
-      type="warning"
-      :closable="false"
-      show-icon
-      class="mb-10px"
-      :title="t('keelbase.bypass.notGoverned')"
-    />
-    <div class="text-12px text-[var(--el-text-color-secondary)] mb-10px">
-      {{ t('keelbase.bypass.noBody') }}
-    </div>
-
-    <div v-if="bypassError" class="text-[var(--el-color-danger)] mb-10px">{{ bypassError }}</div>
-    <el-table v-loading="bypassLoading" :data="bypass?.items ?? []" stripe>
-      <el-table-column :label="t('keelbase.bypass.colTime')" width="170">
-        <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
-      </el-table-column>
-      <el-table-column :label="t('keelbase.bypass.colCaller')" width="150">
-        <template #default="{ row }">
-          <div>{{ bypassCaller(row.userId) }}</div>
-          <div v-if="row.userId" class="muted">#{{ row.userId }}</div>
-        </template>
-      </el-table-column>
-      <el-table-column :label="t('keelbase.bypass.colMethod')" width="90" prop="requestMethod" />
-      <el-table-column :label="t('keelbase.bypass.colPath')" min-width="240">
-        <template #default="{ row }"><code class="bypass-path">{{ row.requestUrl }}</code></template>
-      </el-table-column>
-      <el-table-column :label="t('keelbase.bypass.colObject')" min-width="150">
-        <template #default="{ row }">{{ bypassObject(row) }}</template>
-      </el-table-column>
-      <el-table-column :label="t('keelbase.bypass.colResult')" width="150">
-        <template #default="{ row }">{{ bypassResult(row) }}</template>
-      </el-table-column>
-      <el-table-column :label="t('keelbase.bypass.colDuration')" width="100">
-        <template #default="{ row }">{{ bypassDuration(row) }}</template>
-      </el-table-column>
-    </el-table>
-
-    <!-- 这条面收页、不收筛选：筛选被接受却不施加，回出来的会是一份看着像筛过、其实没有的列表。 -->
-    <!-- This face takes a page, not a filter: a filter accepted and not applied returns a list that looks filtered and is not. -->
-    <div class="pager">
-      <el-button size="small" :disabled="bypassPage <= 1 || bypassLoading" @click="stepBypass(-1)">
-        {{ t('keelbase.audit.prev') }}
-      </el-button>
-      <span class="pager-pos">
-        {{ t('keelbase.bypass.pageOf', { page: bypass?.page ?? 1, total: bypass?.total ?? 0, limit: BYPASS_LIMIT }) }}
-      </span>
-      <el-button size="small" :disabled="!bypassHasMore || bypassLoading" @click="stepBypass(1)">
-        {{ t('keelbase.audit.next') }}
-      </el-button>
-    </div>
-  </ContentWrap>
 </template>
 
 <script lang="ts" setup>
@@ -337,15 +256,12 @@ import { useI18n } from 'vue-i18n'
 import { ContentWrap } from '@/components/ContentWrap'
 import {
   auditApi,
-  bypassAuditApi,
   confirmationApi,
   coverageApi,
   effectApi,
   toolApi,
   type AuditRow,
   type AuthorizationBasis,
-  type BypassAuditPage,
-  type BypassAuditRow,
   type ChainVerification,
   type ConfirmationItem,
   type CoverageStatement,
@@ -417,67 +333,6 @@ const since = ref<Date | null>(null)
 /** Caller names for the ids on screen, filled in after the rows land. */
 /** 屏幕上那些 id 的调用方姓名，在行落地之后补上。 */
 const names = ref<Record<string, string>>({})
-
-/**
- * 旁路台账的一页（上游 REST 写）。它与上面那些行是**两类**记录，故各自取、各自分页、各自失败；
- * 一边读不到不影响另一边。
- *
- * One page of the bypass ledger (upstream REST writes). It is a **different kind** of record from the
- * rows above, so it is fetched, paged and can fail on its own; one side failing does not take the other.
- */
-const BYPASS_LIMIT = 20
-const bypass = ref<BypassAuditPage | null>(null)
-const bypassLoading = ref(false)
-const bypassError = ref('')
-const bypassPage = ref(1)
-const bypassHasMore = computed(() => {
-  const data = bypass.value
-  return Boolean(data) && data!.page * data!.limit < data!.total
-})
-
-async function loadBypass() {
-  bypassLoading.value = true
-  bypassError.value = ''
-  try {
-    const data = await bypassAuditApi.page(bypassPage.value, BYPASS_LIMIT)
-    bypass.value = data
-    const resolved = await resolveCallerNames(data.items.map((row) => row.userId))
-    names.value = { ...names.value, ...resolved }
-  } catch (e) {
-    bypass.value = null
-    bypassError.value = runtimeErrorMessage(e, t('keelbase.bypass.loadFailed'))
-  } finally {
-    bypassLoading.value = false
-  }
-}
-
-function stepBypass(delta: number) {
-  bypassPage.value = Math.max(1, bypassPage.value + delta)
-  void loadBypass()
-}
-
-/** 旁路行的调用方：宿主名录给得出名字就用名字，否则用 id 顶着（与审计行同一处理）。 */
-/** A bypass row's caller: the host's name when it has one, the id otherwise (the same treatment as audit rows). */
-function bypassCaller(id: number | null | undefined): string {
-  if (id === null || id === undefined) return '—'
-  return names.value[String(id)] ?? String(id)
-}
-
-/** 业务对象那一格：对象 + 动作；上游没解出对象时就只有动作。 / object + action; just the action when there is no object. */
-function bypassObject(row: BypassAuditRow): string {
-  return [row.businessObject, row.action].filter(Boolean).join(' · ') || '—'
-}
-
-/** 结果：HTTP 状态，信封结果码有值就一并给上。 / the HTTP status, plus the envelope code when there is one. */
-function bypassResult(row: BypassAuditRow): string {
-  return row.resultCode === null || row.resultCode === undefined
-    ? `HTTP ${row.resultStatus}`
-    : `HTTP ${row.resultStatus} · ${row.resultCode}`
-}
-
-function bypassDuration(row: BypassAuditRow): string {
-  return row.durationMs === null || row.durationMs === undefined ? '—' : `${row.durationMs} ms`
-}
 
 /**
  * What each tool is, by the name it registers — read once from the inventory the runtime serves. A
@@ -972,7 +827,6 @@ onMounted(() => {
   void loadVerify()
   void loadRows()
   void loadCoverage()
-  void loadBypass()
 })
 </script>
 
@@ -980,12 +834,6 @@ onMounted(() => {
 .muted {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-}
-/* 路径一长就超出列宽；断行比横向滚动更适合读一条路由。 / A long path outgrows its column; wrapping reads better than scrolling. */
-.bypass-path {
-  font-family: monospace;
-  font-size: 12px;
-  word-break: break-all;
 }
 .overview {
   margin-bottom: 10px;
