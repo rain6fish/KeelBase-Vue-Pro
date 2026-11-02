@@ -184,3 +184,30 @@ test('a held or refused call takes its object from the confirmation record', () 
   assert.match(script, /toolResultType\(proposal\.toolName\)/, 'the object type is not taken from the tool declaration')
   assert.match(script, /objectLine\(\{[\s\S]*?\bproposal,/, 'the object column no longer receives the proposal')
 })
+
+test('chainWhat names the coverage statement instead of pointing at where it sits', () => {
+  // 页面上这句排在覆盖声明**上面**（`AuditChainPage.vue:41` vs `:69`），2026-11-02 之前它写的是
+  // 「上面覆盖声明里的第一条缺口」—— 读者按「上面」往上看，看到的是链结论标签，找不到那句话（M7
+  // 第八问的真实障碍）。方位词与模板顺序是两张纸，没有东西守着它们：顺序一改，句子悄悄变错，而所有
+  // 门禁照绿。故这里要求它只**点名字**（覆盖声明），不指方位；中英两侧一起钉住。
+  //
+  // On the page this sentence sits **above** the coverage statement (`AuditChainPage.vue:41` vs `:69`),
+  // and before 2026-11-02 it said "the first gap in the coverage statement above" — a reader following
+  // "above" lands on the chain verdict tag and never finds it (the real obstacle to M7's eighth question).
+  // A direction word and the template order are two separate sheets, and nothing holds them together: move
+  // the block and the sentence goes quietly wrong while every gate stays green. So it must **name** the
+  // coverage statement, not point at where it sits — pinned on both language sides.
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8')
+  const messages = [...patch.matchAll(/^\+\s*chainWhat:\s*\n\+\s*('[^']*'|"[^"]*")/gm)].map((m) => m[1])
+  assert.equal(messages.length, 2, 'expected one chainWhat per language in the host patch')
+
+  assert.match(page, /t\('keelbase\.audit\.chainWhat'\)/, 'the page no longer renders chainWhat')
+
+  const named = messages.filter((m) => /coverage statement|覆盖声明/.test(m))
+  assert.equal(named.length, 2, 'chainWhat no longer names the coverage statement')
+
+  for (const message of messages) {
+    assert.doesNotMatch(message, /(?:上面|下面|上方|下方)/, `chainWhat points by position: ${message}`)
+    assert.doesNotMatch(message, /\b(?:above|below)\b/i, `chainWhat points by position: ${message}`)
+  }
+})

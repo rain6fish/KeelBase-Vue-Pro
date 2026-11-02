@@ -20,7 +20,7 @@ index 96269a8..2611a9b 100644
 +      broken: 'broken',
 +      rowsTitle: 'Audit rows',
 +      chainWhat:
-+        'Chain intact means the recorded rows link one to the next and none was altered. It does not prove that no row was removed from the tail — that is the first gap in the coverage statement above.',
++        'Chain intact means the recorded rows link one to the next and none was altered. It does not prove that no row was removed from the tail — that is the first gap listed in the coverage statement.',
 +      userId: 'Caller',
 +      userIdPlaceholder: 'Filter by caller id',
 +      since: 'From',
@@ -604,7 +604,7 @@ index 35f1e1a..856d201 100644
 +      broken: '已断',
 +      rowsTitle: '审计行',
 +      chainWhat:
-+        '链完整指已记录的行彼此逐条连得上、且没有被改过。它不能证明末尾没有被整行删掉 —— 那是上面覆盖声明里的第一条缺口。',
++        '链完整指已记录的行彼此逐条连得上、且没有被改过。它不能证明末尾没有被整行删掉 —— 那是覆盖声明里列出的第一条缺口。',
 +      userId: '调用方',
 +      userIdPlaceholder: '按调用方 id 筛选',
 +      since: '起始',
