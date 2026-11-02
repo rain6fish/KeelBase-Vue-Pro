@@ -23,7 +23,7 @@
 // exists in both languages.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -38,8 +38,10 @@ const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
 
 /** 结果类型：本宿主工具声明的那几个（`resultType()` 的返回值）。 */
 const RESULT_TYPES = [
-  'bpm_oa_leave', 'crm_customer', 'crm_follow_up_record', 'infra_demo01_contact',
-  'fms_voucher', 'system_notify_message', 'notify_mailbox', 'products',
+  'bpm_oa_leave', 'bpm_process_instance', 'crm_business', 'crm_clue', 'crm_contact',
+  'crm_contract', 'crm_customer', 'crm_follow_up_record', 'crm_product', 'crm_receivable',
+  'crm_receivable_plan', 'fms_voucher', 'infra_demo01_contact', 'infra_file', 'system_notice',
+  'system_notify_message', 'notify_mailbox', 'products',
 ]
 
 /** 可撤档位：运行时 `AiTool.revokeClass()` 的四个取值。 */
@@ -117,4 +119,44 @@ test('F-4: both languages name every known value and carry the note', () => {
   // Both languages name the values; neither column falls back to the raw code in either language.
   assert.equal(zh.resultType.crm_customer, '客户')
   assert.equal(en.resultType.crm_customer, 'customer')
+})
+
+/** 宿主源码里声明的结果类型（`resultType()` 返回的非空值）。 / The result types the host's sources declare. */
+function declaredResultTypes() {
+  // 每个 `yudao-*` 模块的 `src/main/java` 都在射程内：工具面眼下只在 `yudao-server` 里，但把搜索面写成
+  // 「一处」意味着将来搬到别处时这份对账会**静默少收**一个值，而静默正是它要防的那种错。
+  // Every `yudao-*` module's `src/main/java` is in scope: the tool faces live in `yudao-server` today, but
+  // naming one place means a future move makes this reconciliation **silently miss** a value — and silent is
+  // exactly the failure it exists to catch.
+  const roots = readdirSync(ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('yudao-'))
+    .map((entry) => join(ROOT, entry.name, 'src/main/java'))
+    .filter((dir) => existsSync(dir))
+  const found = new Set()
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) walk(path)
+      else if (entry.name.endsWith('.java')) {
+        const source = readFileSync(path, 'utf8')
+        for (const hit of source.matchAll(/public\s+String\s+resultType\(\)\s*\{\s*return\s+"([a-z0-9_]+)"\s*;/g)) {
+          found.add(hit[1])
+        }
+      }
+    }
+  }
+  for (const root of roots) walk(root)
+  return [...found].sort()
+}
+
+test('结果类型词表与宿主源码一一对应（两边都不许漏）', () => {
+  // 词表是**封闭**的，而它的取值来自工具自己的声明 —— 故这里拿源码对账，而不是信任上面那张手写清单。
+  // 少一个：控制台对已记进台账的类型只剩裸码；多一个：词表里躺着没人会发出来的键。
+  // The vocabulary is **closed** and its values come from the tools' own declarations — so this holds it
+  // against the sources instead of trusting the hand-written list above. One missing: the console shows a
+  // bare code for a type the ledger already records. One extra: a key nobody emits.
+  const declared = declaredResultTypes()
+  assert.ok(declared.length > 0, 'no resultType() declarations were found — the walk is looking in the wrong place')
+  assert.deepEqual([...RESULT_TYPES].sort(), declared,
+    'the console vocabulary and the host\'s declared result types disagree')
 })
