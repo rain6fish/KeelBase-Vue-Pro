@@ -115,7 +115,9 @@ let createdType = null;
 // Dict data must hang off an **existing** dict type (the module checks it; "当前字典类型不存在" is its own
 // refusal). Borrow one when the database has one, otherwise create one and remove it on the way out — a gate
 // must not require some particular seed to be present.
-let dictType = psql('select type from system_dict_type where deleted = false limit 1');
+// `deleted` 在 PostgreSQL 里是 int2（0/1），不是 boolean；`= false` 会让整句失败。
+// `deleted` is int2 (0/1) in PostgreSQL, not boolean; `= false` makes the statement fail.
+let dictType = psql('select type from system_dict_type where deleted = 0 limit 1');
 
 const token = await login();
 console.log(`  note  signed in as ${ADMIN_USER}; this run's marker ${marker}; since ${startedAt}`);
