@@ -223,6 +223,21 @@ public class BpmProcessInstanceTools {
             return "bpm_process_instance";
         }
 
+        /**
+         * 「不可撤销」是诚实的答案：R3 默认落 `local_compensate`，而本宿主没有流程实例的补偿器；0.1.16 只认
+         * `none` 与 `local_compensate` 两档，别的字符串只会把台账行留在 `compensating` 而无人完成。标成可撤销，
+         * 点击时只会得到 409。
+         *
+         * "Not revocable" is the honest answer: R3 defaults to `local_compensate`, and this host has no
+         * compensator for a process instance. 0.1.16 knows only `none` and `local_compensate`; any other string
+         * leaves the ledger row in `compensating` with no one to finish it. Claiming revocable would only earn
+         * a 409 on click.
+         */
+        @Override
+        public String revokeClass() {
+            return "none";
+        }
+
         @Override
         public List<ToolParameter> parameters() {
             return List.of(
