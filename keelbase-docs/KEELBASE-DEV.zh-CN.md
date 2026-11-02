@@ -55,6 +55,30 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 `-pl yudao-server -am` 构建服务端及其依赖，跳过那十五个没接进服务端的业务模块。产物是
 `yudao-server/target/` 下的 fat jar。这一步假定 `mvn` 在 `PATH` 上；下面的数据存储另需 Docker。
 
+### 离线构建：备好一份 Maven 本地库
+
+钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉
+0.1.16）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
+**完全离线**的机器上，同一个构建会以「找不到 0.1.16」失败。先把这一层补进本地库：
+
+```bash
+# 1) 复制基线库（源库只读），缺的版本按根 pom 的镜像解析进目标库
+bash scripts/prepare-m2-repo.sh <source-m2> <target-m2> --fetch
+
+# 2) 断网等价地验证：-o 下不允许任何远程解析
+bash scripts/jdk25.sh mvn -o -Dmaven.repo.local=<target-m2> -pl yudao-server -am test-compile
+```
+
+脚本只做三件事：整份复制源库（**不写源库**）、从仓内所有 `pom.xml` 读出钉住的 `cn.com.keelbase`
+坐标（**版本不写死**，抬 pin 后重跑即可）、核对目标库里有没有对应的 `pom` 与 `jar`。缺的坐标在给
+`--fetch` 时用 `maven-dependency-plugin:get` 解析（仓库取根 `pom.xml` 声明的那两个，不是
+`settings.xml`）；不给则退出码 **2**，并打印下一条该跑的命令。其它退出码：0 齐全 · 1 失败或解析后仍缺 ·
+64 用法错误。目标库已存在时要加 `--force`（往里覆盖，**不删**已有内容）。
+
+**这个脚本只解决 Maven 这一层。** `-o` 证明的是「Maven 不做远程解析」，不是「整台机器没有网络」：
+后台 UI 构建（`scripts/build-host-ui.sh`）仍要从 Gitee 克隆前端仓、由 pnpm 取包。要一台机器**完全**离线
+跑完整条验证，那两层也得预先备好——本脚本没有覆盖它们。
+
 ## 运行
 
 `scripts/run-server.sh` 一条命令就是全部，上面的验证就是用它跑的：
