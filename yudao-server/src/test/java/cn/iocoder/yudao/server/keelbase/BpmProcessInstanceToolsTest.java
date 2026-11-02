@@ -126,6 +126,8 @@ class BpmProcessInstanceToolsTest {
         assertEquals("cancel_my_bpm_instance", cancelTool.name());
         assertEquals("R3", cancelTool.riskLevel());
         assertEquals("bpm_process_instance", cancelTool.resultType());
+        assertEquals("none", cancelTool.revokeClass(),
+                "no compensator exists for a process instance, so the tool must not claim it is revocable");
         assertEquals(List.of("id", "reason"), cancelTool.parameters().stream().map(ToolParameter::name).toList());
         assertTrue(cancelTool.parameters().get(0).required(), "the instance to withdraw is required");
         assertFalse(cancelTool.parameters().get(1).required(),
