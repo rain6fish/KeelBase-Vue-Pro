@@ -318,8 +318,15 @@ const salesMarker = `${marker}-sales`;
 putBack = () =>
   psql(
     [
-      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${MODULE}' and result_id in (select id from ${MODULE} where name like '%${marker}%'))`,
-      `delete from side_effects where result_type = '${MODULE}' and result_id in (select id from ${MODULE} where name like '%${marker}%')`,
+      // `side_effects.result_id` 自 0.1.16 起是文本（效果 id 可能是 UUID），而模块的 `id` 是 bigint ——
+      // 不转就 `character varying = bigint`、整句失败，收尾一条也不删。与 `run-bypass-audit-scenarios.mjs`
+      // 同一处修法。
+      //
+      // `side_effects.result_id` is text as of 0.1.16 (an effect id can be a UUID) while the module's `id`
+      // is bigint; without the cast this is `character varying = bigint`, the statement fails, and the
+      // cleanup removes nothing. The same fix as `run-bypass-audit-scenarios.mjs`.
+      `delete from write_claims where effect_id in (select id from side_effects where result_type = '${MODULE}' and result_id in (select id::text from ${MODULE} where name like '%${marker}%'))`,
+      `delete from side_effects where result_type = '${MODULE}' and result_id in (select id::text from ${MODULE} where name like '%${marker}%')`,
       // 一次性栈（CI）保留确认行，好让 RY-19 的确认率有分母；共用库上照旧收干净。
       // An ephemeral stack (CI) keeps the confirmation rows so RY-19's confirmation rate has a
       // denominator; a shared database still cleans them up.
@@ -358,11 +365,23 @@ check('乙那一行已种', true, salesRowId !== '');
   // **module's own page endpoint** rather than the tool because the runtime puts no tool result on the wire
   // (see the note above `ensureProductsReader`); that endpoint and the tool cross the **same** advised
   // service method, so what it reads is the page this advice produced.
-  const a = await chat(admin, '列出产品');
+  // 这句触发词是**生成模块独有的那一个**，不是它的另外两条：`列出产品` / `产品列表` 也被手写的
+  // `CrmProductTools` 认，而路由按 bean 顺序取第一个匹配、`CrmProductTools` 先命中 —— 用那两句，跑到的是
+  // CRM 的产品工具（它的表在本栈上不存在，答 500），生成模块的工具一次也没被调用。这是**产品侧**的触发词
+  // 撞车（2026-10-31 的 `7026f6d3a1` 引入，本门禁此后未跑过），记在交接件里；门禁自己用独有那一句，
+  // 好让它断言的确实是生成模块。
+  //
+  // This trigger is the one only the generated module claims, not its other two: `列出产品` / `产品列表`
+  // are also claimed by the hand-written `CrmProductTools`, and routing takes the first matching bean —
+  // `CrmProductTools` wins — so those phrases run CRM's product tool (whose table this stack does not
+  // have, hence a 500) and the generated tool is never called. That collision is a **product-side**
+  // defect (introduced by `7026f6d3a1` on 2026-10-31; this gate had not run since), recorded in the
+  // handoff; the gate uses the unique phrase so what it asserts is the generated module.
+  const a = await chat(admin, '生成的产品');
   check('admin 触发生成的工具', 'list_generated_products', (a.toolCalls || [])[0]);
   check('admin 的执行状态（审计轨）', 1, ranAs('list_generated_products'));
 
-  const s = await chat(second, '列出产品');
+  const s = await chat(second, '生成的产品');
   check('第二个调用方触发同一个工具', 'list_generated_products', (s.toolCalls || [])[0]);
   check('它的执行状态（审计轨）', 2, ranAs('list_generated_products'));
 
@@ -390,7 +409,19 @@ console.log(`== 场景 3 · 写${expectHeld ? '被扣下等人，批准后才执
   const writeMarker = `${marker}-write`;
   const own = () => Number(psql(`select count(*) from ${MODULE} where name like '%${writeMarker}%'`));
   const held = pendingCount(secondId);
-  await chat(second, `新建产品 ${writeMarker}`);
+  // 写的三条触发词（`新建产品` / `创建产品` / `添加产品`）**每一条都含有** `CrmProductTools` 的触发词
+  // （前两条同名，第三条含 `加产品`），而路由按 bean 顺序先命中 CRM —— 故生成的写工具**按触发词到不了**。
+  // 这不是脚本能修的：它要么改生成模块的触发词、要么改 CRM 那一侧，是产品侧的取舍。门禁把它**断言出来**，
+  // 让这条缺陷每次跑都看得见，而不是悄悄换成一句能命中别的东西的话。
+  //
+  // All three write triggers (`新建产品` / `创建产品` / `添加产品`) **contain** one of the hand-written
+  // `CrmProductTools`' triggers (the first two are identical, the third contains `加产品`), and routing
+  // hits CRM first by bean order — so the generated write tool is **unreachable by phrase**. A script
+  // cannot fix that: it needs the generated module's vocabulary or CRM's changed, which is a product-side
+  // choice. The gate **asserts** it, so the defect is visible on every run rather than quietly replaced
+  // with a phrase that happens to hit something else.
+  const w = await chat(second, `添加产品 ${writeMarker}`);
+  check('第二个调用方触发生成的写工具', 'create_generated_products', (w.toolCalls || [])[0]);
   if (expectHeld) {
     // "Held" is one more waiting row for this caller — which is also where the token comes from.
     // 「被扣下」是这个调用方多了一行待确认 —— token 也正是从那儿来的。
