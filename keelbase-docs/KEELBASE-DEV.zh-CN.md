@@ -162,6 +162,41 @@ RESET=1 bash scripts/bootstrap-datastore.sh  # 删库重灌
 **⚠ 未覆盖：** pgvector 在位，是运行时知识层走**语义路径**的前提；但那条路还要一个嵌入模型，而这里没配
 ——故**语义路径本身没有跑过**，只验了扩展在位。
 
+## 为全部真栈门准备一套数据存储
+
+场景门要的不止本线自己那套数据存储：它们要读 CRM、助手、治理、BPM 与 FMS 的表，而且共用一套跑着的栈。
+`scripts/bootstrap-gates-datastore.sh` 负责把这套装好 —— 专用的 PostgreSQL（pgvector）与 Redis，并把 schema
+灌进去 —— 最后打印这次运行需要的三个环境变量。
+
+```bash
+# 1. 准备数据存储（专用容器；--reset 重灌、--force 重建）
+bash scripts/bootstrap-gates-datastore.sh
+
+# 2. 对着它起宿主，端口自己挑
+PG_PORT=39871 PG_DB=gates REDIS_PORT=39872 PORT=48171 bash scripts/run-server.sh &
+
+# 3. 跑全部场景门
+HOST_URL=http://127.0.0.1:48171 PG_CONTAINER=gates-pg PG_DB=gates \
+  bash scripts/run-all-scenarios.sh
+```
+
+灌库次序：`sql/postgresql/ruoyi-vue-pro.sql`；`deploy/demo-ecs/seed-manifest.txt` 里的**全部 `load` 行**，
+按清单顺序；`sql/keelbase-bpm.sql`；`sql/keelbase-fms.sql`。后两份是**故意额外**的：那份清单描述的是
+**demo 部署**灌什么，它把 bpm 与 fms 都归成 `skip`（bpm 的菜单不展示、`bpm_*` 表不导入；fms 不在部署 jar 里）。
+场景门覆盖这两个模块，故要真表 —— BPM 四道门、FMS 两道门都要读它们。清单仍是部署的单源；本脚本只补门禁需要的那两份，
+清单与 `bootstrap-db.sh` 一字不动。
+
+默认值：容器 `gates-pg` / `gates-redis`、端口 `39871` / `39872`、库 `gates`、用户 `root`，都可用同名环境变量覆盖。
+容器带 `keelbase.gates-datastore=1` 标签；**同名的容器若不是本脚本建的，脚本拒绝复用也拒绝覆盖** ——
+`--force` 是显式例外，它会删掉它。灌库带 `ON_ERROR_STOP=1`：第一份失败的文件就停下、打印它的名字、非零退出。结束时校验表数大于 100，
+并打印可直接复制的 `PG_PORT=…` / `PG_CONTAINER=…` / `PG_DB=…`。
+
+收尾是显式的，脚本不删自己起的东西：
+
+```bash
+docker rm -f gates-pg gates-redis
+```
+
 ## 一次跑完全部真栈场景门
 
 `scripts/run-all-scenarios.sh` 把每一道 `scripts/run-*-scenarios.mjs` 都对着**同一套**跑着的栈、按固定顺序跑
