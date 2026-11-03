@@ -23,6 +23,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 会员模块在经验记录上的工具面：一个读，走粗闸。
+ *
+ * <p>这是模块五个「记录型」对象里的最后一个。与它的兄弟同形：属主列是会员编号、调用方是管理员编号，故没有可做的
+ * 属主收窄；{@code requireAction(principal, "MemberExperienceRecord", read)} 就是那道闸，而它比控制台的
+ * {@code member:experience-record:query} 更窄——通配只给超级管理员。必须给会员编号：不筛的分页是导出，不是查询。
+ *
+ * <p>模块按记录 id 的读（{@code getExperienceRecord}）**刻意不用**，理由与等级面相同：记录 id 答的是「这是哪一行」，
+ * 而这里要答的是「这个会员的经验怎么动的」。
+ *
  * The member module's tool face over experience records: one read, through the coarse gate.
  *
  * <p>The last of the module's five "record" objects. Same shape as its siblings: the owner column is a
@@ -34,15 +43,6 @@ import org.springframework.context.annotation.Configuration;
  * <p>The module's by-id read ({@code getExperienceRecord}) is deliberately not used, for the same reason
  * as on the level face: a record id answers "which row is this", while the question here is "how did this
  * member's experience move".
- *
- * 会员模块在经验记录上的工具面：一个读，走粗闸。
- *
- * <p>这是模块五个「记录型」对象里的最后一个。与它的兄弟同形：属主列是会员编号、调用方是管理员编号，故没有可做的
- * 属主收窄；{@code requireAction(principal, "MemberExperienceRecord", read)} 就是那道闸，而它比控制台的
- * {@code member:experience-record:query} 更窄——通配只给超级管理员。必须给会员编号：不筛的分页是导出，不是查询。
- *
- * <p>模块按记录 id 的读（{@code getExperienceRecord}）**刻意不用**，理由与等级面相同：记录 id 答的是「这是哪一行」，
- * 而这里要答的是「这个会员的经验怎么动的」。
  */
 @Configuration
 public class MemberExperienceRecordTools {

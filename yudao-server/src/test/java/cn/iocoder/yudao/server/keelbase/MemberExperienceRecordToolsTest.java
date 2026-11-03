@@ -28,9 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * The experience face: one member's experience changes, never an unfiltered page, through the coarse gate.
- *
  * 经验面：一个会员的经验变动，绝不是一个不筛的分页，走粗闸。
+ *
+ * The experience face: one member's experience changes, never an unfiltered page, through the coarse gate.
  */
 class MemberExperienceRecordToolsTest {
 

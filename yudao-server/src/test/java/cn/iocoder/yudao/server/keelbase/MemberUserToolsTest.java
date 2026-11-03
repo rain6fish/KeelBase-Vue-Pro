@@ -26,17 +26,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
+ * 会员面的第一批：搜索与读取，都走粗闸，都用同一份投影。
+ *
+ * <p>最要紧的是投影：一行会员带着手机、邮箱、口令散列与两个 IP，一个都不许出去。其次是空搜索绝不能变成一次导出，
+ * 第三是被闸拒掉的调用方根本到不了 service。
+ *
  * The member face's first batch: search and read, both through the coarse gate, both with the same
  * projection.
  *
  * <p>The projection is the test that matters most: a member row carries a phone, an e-mail, a password
  * hash and two IPs, and none of them may leave. The second is that an empty search never becomes an
  * export, and the third is that a caller the gate refuses never reaches the service at all.
- *
- * 会员面的第一批：搜索与读取，都走粗闸，都用同一份投影。
- *
- * <p>最要紧的是投影：一行会员带着手机、邮箱、口令散列与两个 IP，一个都不许出去。其次是空搜索绝不能变成一次导出，
- * 第三是被闸拒掉的调用方根本到不了 service。
  */
 class MemberUserToolsTest {
 
