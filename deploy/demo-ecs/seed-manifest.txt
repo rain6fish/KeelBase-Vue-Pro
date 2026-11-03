@@ -37,6 +37,12 @@
 # Tables for the business modules: crm and the product catalogue (this deployment's two business faces).
 load keelbase-crm.sql
 load keelbase-products.sql
+# OA 的表：M3 第三批把 oa 打开进部署 jar，只接读面。无需菜单种子（`oa:*` 权限码本批没有种），
+# 但工具与场景门的夹具都直接读写模块自己的表，故表必须在这里。
+# OA's tables: M3 batch three opens oa into the deployment jar, read face only. No menu seed is needed
+# (this batch seeds no `oa:*` permission codes), but both the tool and the gate's fixtures read and write
+# the module's own tables, so the tables have to be here.
+load keelbase-oa.sql
 
 # AI 助手管理台：先 ai1 自己的表，再常驻 agent（agent 行引用 provider/model），再抽屉的父级与权限，
 # 最后管理台的菜单行。
@@ -166,7 +172,6 @@ skip keelbase-demo-data.sql # 样例数据，文件头写明带外灌入、不�
 # the jar at all.
 skip keelbase-fms.sql # 模块 fms 不在部署 jar 里（与 roadmap 原文冲突，见上） | module fms is not in the deployment jar (conflicts with the roadmap line; see above)
 skip keelbase-hrm.sql # 模块 hrm 不在部署 jar 里 | module hrm is not in the deployment jar
-skip keelbase-oa.sql # 模块 oa 不在部署 jar 里 | module oa is not in the deployment jar
 skip keelbase-pms.sql # 模块 pms 不在部署 jar 里 | module pms is not in the deployment jar
 skip keelbase-report.sql # 模块 report 不在部署 jar 里 | module report is not in the deployment jar
 
