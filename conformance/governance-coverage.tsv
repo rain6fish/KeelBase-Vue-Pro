@@ -153,6 +153,38 @@ pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt
 pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		通知任务是模块内部的投递机器（pay_notify_task/log，无属主人列、无 controller），由 PayNotifyJob 重试	@rain	2027-06-30
 pay	demo-order	cn.iocoder.yudao.module.pay.service.demo.PayDemoOrderService	exempt		演示订单是样例面（demo，非业务行）	@rain	2027-06-30
 pay	demo-withdraw	cn.iocoder.yudao.module.pay.service.demo.PayDemoWithdrawService	exempt		演示提现是样例面（demo，非业务行）	@rain	2027-06-30
+pms	knowledge-content-permission	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeContentPermissionService	exempt		访问模型本身：工具化等于给 AI 改/枚举权限的入口；不接	@rain	2027-06-30
+pms	knowledge-document-label	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeDocumentLabelService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	knowledge-document	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeDocumentService	exempt		本批未接；同族（库成员 + 内容权限），下一批	@rain	2027-06-30
+pms	knowledge-folder	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeFolderService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	knowledge-document-comment	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentCommentService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	knowledge-document-like	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentLikeService	exempt		个人簿记，无跨人问题	@rain	2027-06-30
+pms	knowledge-document-share	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentShareService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	knowledge-favorite	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeFavoriteService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	knowledge-folder-read	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeFolderReadService	exempt		个人已读簿记，无 AI 问题	@rain	2027-06-30
+pms	knowledge-interaction-target	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeInteractionTargetService	exempt		内部装配的解析口，无独立业务行	@rain	2027-06-30
+pms	knowledge-view-record	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeViewRecordService	exempt		个人浏览簿记，无 AI 问题	@rain	2027-06-30
+pms	knowledge-group	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeGroupService	exempt		本批未接；个人视图配置，无跨人问题	@rain	2027-06-30
+pms	knowledge-library-member	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryMemberService	exempt		授权面本身：工具化等于改权限；不接	@rain	2027-06-30
+pms	knowledge-library	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	knowledge-library-template	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	knowledge-recycle	cn.iocoder.yudao.module.pms.service.kb.recycle.PmsKnowledgeRecycleService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
+pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	project-announcement	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectAnnouncementService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	project-favorite	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectFavoriteService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	project-group	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectGroupService	exempt		个人视图配置，无跨人问题	@rain	2027-06-30
+pms	project-member	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectMemberService	exempt		授权面本身：工具化等于改权限；不接	@rain	2027-06-30
+pms	project	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectService	seam	PmsProjectGovernance		@rain	2027-06-30
+pms	project-template	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	workbench	cn.iocoder.yudao.module.pms.service.pm.workbench.PmsWorkbenchService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	work-item-activity	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemActivityService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	work-item-board	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemBoardService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item-comment	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemCommentService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	work-item-label	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemLabelService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService	seam	PmsProjectGovernance		@rain	2027-06-30
+pms	work-item-status	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemStatusService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item-user-sort	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemUserSortService	exempt		个人排序簿记，无 AI 问题	@rain	2027-06-30
+pms	work-item-work-log	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
 server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
 system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

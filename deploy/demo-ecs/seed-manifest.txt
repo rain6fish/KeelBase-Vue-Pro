@@ -170,7 +170,7 @@ skip keelbase-demo-data.sql # 样例数据，文件头写明带外灌入、不�
 skip keelbase-fms.sql # 模块 fms 不在部署 jar 里（与 roadmap 原文冲突，见上） | module fms is not in the deployment jar (conflicts with the roadmap line; see above)
 skip keelbase-hrm.sql # 模块 hrm 不在部署 jar 里 | module hrm is not in the deployment jar
 skip keelbase-oa.sql # 模块 oa 不在部署 jar 里 | module oa is not in the deployment jar
-skip keelbase-pms.sql # 模块 pms 不在部署 jar 里 | module pms is not in the deployment jar
+load keelbase-pms.sql # M3 把 pms 放进了部署 jar，它的 33 张表要落下（没有菜单行） | M3 put pms in the deployment jar; its 33 tables land here (no menus)
 skip keelbase-report.sql # 模块 report 不在部署 jar 里 | module report is not in the deployment jar
 
 # 只动 pms 的菜单（pms 不部署），以及厂商外链菜单 —— 后者是顶级路径，`module-scope.sql` 第 5 步已经

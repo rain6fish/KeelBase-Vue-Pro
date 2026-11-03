@@ -120,6 +120,7 @@ public final class GovernedToolFaces {
                 new ToolFace("MemberSignInTools"),
                 new ToolFace("MemberLevelRecordTools"),
                 new ToolFace("MemberExperienceRecordTools"),
+                new ToolFace("PmsProjectTools"),
                 new ToolFace("PayWalletTools"),
                 new ToolFace("PayOrderTools"),
                 new ToolFace("PayRefundTools"),
