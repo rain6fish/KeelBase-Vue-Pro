@@ -245,6 +245,35 @@ one that matters most is that the wire carries no tool result, so a tool's proje
 against the module's row and pinned by a unit test rather than read off the response. A green summary
 says every gate's own assertions held; it claims nothing beyond them.
 
+## The same gates on CI
+
+`.github/workflows/real-stack.yml` runs the whole set on every push to `main`, every pull request
+targeting `main`, and on demand, against a stack it builds for the occasion.
+
+- **Named containers**, `gate-pg` (pgvector/pgvector:pg17) and `gate-redis` (redis:7-alpine), ports on
+  loopback. They are named rather than `services:` because every gate reaches PostgreSQL through
+  `docker exec "$PG_CONTAINER"`, and a service container's name is generated.
+- **Seed**: `deploy/demo-ecs/bootstrap-db.sh` (upstream schema, the manifest's `load` lines, the menu
+  scope, the upload store), then `sql/keelbase-bpm.sql` and `sql/keelbase-fms.sql`. The manifest marks
+  both of those `skip` — this deployment neither shows bpm's menus nor ships fms — while the BPM and
+  FMS gate groups need the real tables.
+- **Build**: `mvn -B -ntp -pl yudao-server -am -DskipTests package`, then a step asserts the jar carries
+  a `Main-Class` (proof that `spring-boot:repackage` ran) and prints the `keelbase4j-*` versions found
+  in `BOOT-INF/lib`, so the runtime the gates ran against is a reading.
+- **Host**: `scripts/run-server.sh` in the background; the job polls `/app/capabilities` until it
+  answers 200, gives up after 300 s, and fails at once with the host's tail if the process exits early.
+- **Gates**: `scripts/run-all-scenarios.sh` with `SCENARIO_LOG_DIR` inside the workspace. The console
+  log, every per-gate log, `readings.txt`, the host log and the seed/build logs are uploaded as the
+  `real-stack-gates` artifact, `if: always()` — a red run's readings are the ones worth reading.
+
+**What the job does not run.** `run-model-loop-scenarios.mjs` is skipped by the script itself: it wants
+a host started with the model loop on, and the job starts the ordinary one. The three gates that call a
+real model (`run-ai1-crm-scenarios`, `run-assistant-drawer-scenarios`, `run-mcp-governance-scenarios`)
+read their key from `KEY_FILE` and exit 1 without one, so the job takes them out of `scripts/`
+discovery and prints one `SKIP` line each into the log and the step summary — visible, never counted as
+a pass. Add the repository secret `SPRING_AI_ENV` holding that file's contents
+(`SPRING_AI_DEEPSEEK_API_KEY=…`, `SPRING_AI_DEEPSEEK_CHAT_MODEL=…`) and all three run.
+
 ## Generating a governed module from a spec
 
 ```bash

@@ -197,6 +197,32 @@ PG_CONTAINER=sg-pg PG_DB=sg_1102 HOST_URL=http://127.0.0.1:18093 \
 故工具投影是对着**模块那一行**断、并由单元测试钉住，而不是从应答里读出来的。汇总全绿说的是**每道门自己的断言都
 成立了**，它不多主张一分。
 
+## 同一批门在 CI 上
+
+`.github/workflows/real-stack.yml` 在每次推 `main`、每个指向 `main` 的 PR、以及手动触发时，对着它为这一轮
+现起的一套栈跑完整批门。
+
+- **具名容器**：`gate-pg`（pgvector/pgvector:pg17）与 `gate-redis`（redis:7-alpine），端口只挂在回环上。
+  不用 `services:` 而用**具名**容器，是因为每道门都经 `docker exec "$PG_CONTAINER"` 访问 PostgreSQL，
+  而 service container 的名字是生成的、点不到。
+- **灌库**：`deploy/demo-ecs/bootstrap-db.sh`（上游 schema、清单的 `load` 行、菜单收敛、上传存储），之后
+  再灌 `sql/keelbase-bpm.sql` 与 `sql/keelbase-fms.sql`。清单里这两份都是 `skip` —— 本部署既不展示 bpm
+  的菜单、也不带 fms —— 而 BPM 与 FMS 两组门要的是**真表**。
+- **构建**：`mvn -B -ntp -pl yudao-server -am -DskipTests package`，随后一步断言 jar 带 `Main-Class`
+  （证明 `spring-boot:repackage` 跑过），并打印 `BOOT-INF/lib` 里三个 `keelbase4j-*` 的版本 —— 于是
+  「门禁跑在哪个运行时上」是一条读数，不是猜测。
+- **宿主**：后台跑 `scripts/run-server.sh`；作业轮询 `/app/capabilities` 直到它答 200，300 秒仍不应答即失败；
+  进程若提前退出，立刻失败并把宿主日志的尾巴打出来。
+- **门**：`scripts/run-all-scenarios.sh`，`SCENARIO_LOG_DIR` 指在工作区内。控制台日志、逐门日志、
+  `readings.txt`、宿主日志与灌库/构建日志一起作为 `real-stack-gates` artifact 上传，且是 `if: always()`
+  —— **红的那一轮，那份读数才最该看**。
+
+**这个作业不跑哪些。** `run-model-loop-scenarios.mjs` 由脚本自己跳过：它要一个按「模型回路已打开」起的宿主，
+而作业起的是平常那一个。三道要真模型的（`run-ai1-crm-scenarios` / `run-assistant-drawer-scenarios` /
+`run-mcp-governance-scenarios`）从 `KEY_FILE` 读 key、没有就 exit 1，故作业把它们移出 `scripts/` 的发现范围，
+逐道在日志与 step summary 里打一行 `SKIP` —— 读得见，且**绝不计作通过**。配好仓库 secret `SPRING_AI_ENV`
+（内容就是那个文件的全文：`SPRING_AI_DEEPSEEK_API_KEY=…`、`SPRING_AI_DEEPSEEK_CHAT_MODEL=…`），三道就照常跑。
+
 ## 从 Spec 生成一个受治理的模块
 
 ```bash
