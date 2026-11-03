@@ -141,6 +141,47 @@ member	experience-record	cn.iocoder.yudao.module.member.service.level.MemberExpe
 member	point-record	cn.iocoder.yudao.module.member.service.point.MemberPointRecordService	tool-only	MemberPointTools#list_member_point_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-record	cn.iocoder.yudao.module.member.service.signin.MemberSignInRecordService	tool-only	MemberSignInTools#list_member_sign_in_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-config	cn.iocoder.yudao.module.member.service.signin.MemberSignInConfigService	exempt		租户级签到配置（管理面，D4 甲）	@rain	2027-06-30
+oa	leave-apply	cn.iocoder.yudao.module.oa.service.leave.OaLeaveApplyService	seam	OaApplyDocumentsGovernance	属主是 creator（无业务列）；分页已收，按 id 读是裸 selectById ⇒ 按标识符读 + 事后判属主		
+oa	overtime-apply	cn.iocoder.yudao.module.oa.service.overtime.OaOvertimeApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	reimbursement	cn.iocoder.yudao.module.oa.service.reimbursement.OaReimbursementService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	regular-apply	cn.iocoder.yudao.module.oa.service.regular.OaRegularApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	resign-apply	cn.iocoder.yudao.module.oa.service.resign.OaResignApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	travel-apply	cn.iocoder.yudao.module.oa.service.travel.OaTravelApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	travel-reimbursement	cn.iocoder.yudao.module.oa.service.travel.OaTravelReimbursementService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	supply-apply	cn.iocoder.yudao.module.oa.service.supply.OaSupplyApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	seal-apply	cn.iocoder.yudao.module.oa.service.seal.OaSealApplyService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	vehicle-apply	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleApplyService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	vehicle-return	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleReturnService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	meeting-room-booking	cn.iocoder.yudao.module.oa.service.meetingroom.OaMeetingRoomBookingService	seam	OaApplyDocumentsGovernance	属主是 creator；分页已收，按 id 读不判		
+oa	official-doc-send	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocSendService	seam	OaApplyDocumentsGovernance	属主是 creator；分页已收，按 id 读不判		
+oa	official-doc-receive	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocReceiveService	seam	OaApplyDocumentsGovernance	属主是 dept_id（部门，不是人）；分页按部门收、按 id 读连部门都不判 ⇒ 判据改为「收文部门 = 调用方部门」，读不出即收窄		
+oa	announcement	cn.iocoder.yudao.module.oa.service.announcement.OaAnnouncementService	exempt		分页按 creator / 收件人收，按 id 读判「创建人或接收人」；工具面照 §2.2 传 ActingCaller 即无越权口	@rain	2027-09-30
+oa	attendance	cn.iocoder.yudao.module.oa.service.attendance.OaAttendanceService	exempt		我的分页按 user_id、管理分页按下属；按 id 读判「在本人管理范围内」，且越界与不存在同一答案	@rain	2027-09-30
+oa	contact	cn.iocoder.yudao.module.oa.service.contact.OaContactService	exempt		分页走共享关系表，按 id 读判共享关系；属主是「创建人 + 共享对象」两层，不是单列	@rain	2027-09-30
+oa	contact-category	cn.iocoder.yudao.module.oa.service.contact.OaContactCategoryService	exempt		user_id 列，列表与写都按传入的 userId 收	@rain	2027-09-30
+oa	discussion	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionService	exempt		讨论板是公开面（分页本就不收属主）；manage 页对超管放开是模块语义；无个人数据可收窄	@rain	2027-09-30
+oa	discussion-like	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionLikeService	exempt		user_id 列，点赞按本人	@rain	2027-09-30
+oa	discussion-reply	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionReplyService	exempt		user_id 列，按讨论读、删判作者	@rain	2027-09-30
+oa	discussion-vote	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionVoteService	exempt		user_id 列，投票记录按本人	@rain	2027-09-30
+oa	file-favorite	cn.iocoder.yudao.module.oa.service.file.OaFileFavoriteService	exempt		user_id 列；建收藏前先判节点 READ	@rain	2027-09-30
+oa	file-node	cn.iocoder.yudao.module.oa.service.file.OaFileNodeService	exempt		模块自带 ACL 表（subject_type/subject_id/level/inherit），读口 validateFileNodePermission 已判层级；权限表形态，收窄口径另定	@rain	2027-09-30
+oa	file-permission	cn.iocoder.yudao.module.oa.service.file.OaFilePermissionService	exempt		节点的授权行，按节点与调用方取；无单属主	@rain	2027-09-30
+oa	mail-account	cn.iocoder.yudao.module.oa.service.mail.OaMailAccountService	exempt		含明文 password 列；账号按 creator 收，但凭据不该进工具面	@rain	2027-09-30
+oa	mail-folder	cn.iocoder.yudao.module.oa.service.mail.OaMailFolderService	exempt		按 account_id；无 REST 直读口，只经账号校验后的调用链	@rain	2027-09-30
+oa	mail-message	cn.iocoder.yudao.module.oa.service.mail.OaMailMessageService	exempt		邮件正文与通信对手（content/sender/recipients/ccs）是 PII，与账号凭据同链 ⇒ 工具面不开	@rain	2027-09-30
+oa	mail-provider	cn.iocoder.yudao.module.oa.service.mail.OaMailProviderService	exempt		imap/smtp 配置含凭据；管理面，无属主	@rain	2027-09-30
+oa	meeting-room	cn.iocoder.yudao.module.oa.service.meetingroom.OaMeetingRoomService	exempt		会议室台账（manager_user_id），管理面 oa:meeting-room:*；可预定页按 bookingScope 过滤	@rain	2027-09-30
+oa	note	cn.iocoder.yudao.module.oa.service.note.OaNoteService	exempt		分页按持有关系，按 id 读判持有；创建人 + 接收人两层	@rain	2027-09-30
+oa	note-category	cn.iocoder.yudao.module.oa.service.note.OaNoteCategoryService	exempt		user_id 列，列表与写都按传入的 userId 收	@rain	2027-09-30
+oa	official-doc-template	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocTemplateService	exempt		公文模板是配置面（oa:officialdoc-template:*），无属主	@rain	2027-09-30
+oa	plan	cn.iocoder.yudao.module.oa.service.plan.OaPlanService	exempt		creator 收；按 id 读 validatePlanOwner；点评另判下属范围（模块语义）	@rain	2027-09-30
+oa	schedule	cn.iocoder.yudao.module.oa.service.schedule.OaScheduleService	exempt		创建人 + 参与人两层，按 id 读判「创建人或参与人」	@rain	2027-09-30
+oa	seal	cn.iocoder.yudao.module.oa.service.seal.OaSealService	exempt		印章台账（keeper_user_id），管理面 oa:seal:*	@rain	2027-09-30
+oa	supply-item	cn.iocoder.yudao.module.oa.service.supply.OaSupplyItemService	exempt		用品台账（dept_id），库存管理面 oa:supply-item:*	@rain	2027-09-30
+oa	supply-issue	cn.iocoder.yudao.module.oa.service.supply.OaSupplyIssueService	exempt		仓管发放/归还工作流，无属主；分页本就不看调用方，接它等于给 AI 开仓管权限	@rain	2027-09-30
+oa	task	cn.iocoder.yudao.module.oa.service.task.OaTaskService	exempt		创建人 + 接收人两层，按 id 读判；发布页与接收页各自收	@rain	2027-09-30
+oa	vehicle	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleService	exempt		车辆台账（dept_id），管理面 oa:vehicle:*	@rain	2027-09-30
+oa	work-report	cn.iocoder.yudao.module.oa.service.workreport.OaWorkReportService	exempt		creator 收；按 id 读判「本人或（下属 + statistics 权限）」	@rain	2027-09-30
 pay	wallet	cn.iocoder.yudao.module.pay.service.wallet.PayWalletService	seam	PayWalletGovernance			
 pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTransactionService	exempt		钱包流水的属主是前两个实参（userId + userType），两个分页口都自带这两个过滤位；M3 首批只接钱包一个对象，它是下一个接缝候选 · recheck 前重判	@rain	2027-06-30
 pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	exempt		充值单的属主是前两个实参（userId + userType），分页口自带这两个过滤位；写口是到账/退款两条内部流程，是本批之外的第二个候选	@rain	2027-06-30
