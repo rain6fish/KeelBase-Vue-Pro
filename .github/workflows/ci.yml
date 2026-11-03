@@ -117,6 +117,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # 让本文件能在特性分支上被点名跑一次（`gh workflow run ci.yml --ref <branch>`）：证明一道 job 真跑，
+  # 不必为了验证而把触发器开进 main。
+  #
+  # Runs this file on a feature branch on demand (`gh workflow run ci.yml --ref <branch>`): a job can be
+  # shown to really run without opening a trigger into `main` for the sake of a check.
+  workflow_dispatch:
 
 permissions:
   contents: read
