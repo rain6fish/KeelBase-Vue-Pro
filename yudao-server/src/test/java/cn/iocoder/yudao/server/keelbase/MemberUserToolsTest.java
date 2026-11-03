@@ -141,7 +141,7 @@ class MemberUserToolsTest {
 
     @Test
     void theByIdRouteReadsTheNumberOutOfTheMessage() {
-        Map<String, Object> args = new MemberUserTools.GetRoute().args(Map.of("message", "查一下会员 7 的资料"));
+        Map<String, Object> args = new MemberUserTools.GetRoute().args(Map.of("message", "会员资料 7"));
 
         assertEquals("7", args.get("memberId"));
     }

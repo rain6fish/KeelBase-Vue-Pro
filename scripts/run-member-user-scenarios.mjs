@@ -194,7 +194,7 @@ const refused = (tool) => Number(psql(`select count(*) from ai_audit_logs where 
 const getBefore = executed('get_member');
 const findBefore = executed('find_members');
 const adminToken = await login(ADMIN_USER, resolveAdminPassword(psql));
-const read = await chat(adminToken, `查一下会员 ${memberId} 的资料`);
+const read = await chat(adminToken, `会员资料 ${memberId}`);
 const readReply = String(read.reply || '');
 check('路由选中 get_member', 'true', JSON.stringify(read.toolCalls || []).includes('get_member'));
 check('答出积分', 'true', /point=120|"point":\s*120/.test(readReply));
@@ -215,7 +215,7 @@ note('回复', searchReply);
 console.log('== 非超管 ==');
 const refusedBefore = refused('get_member');
 const userToken = await login(`m3u${MARKER.slice(4)}`, resolveAdminPassword(psql));
-const asUser = await chat(userToken, `查一下会员 ${memberId} 的资料`);
+const asUser = await chat(userToken, `会员资料 ${memberId}`);
 const asUserReply = String(asUser.reply || '');
 check('非超管拿不到积分', 'true', !asUserReply.includes(`小明-${MARKER}`) && !/\b120\b/.test(asUserReply));
 check('非超管这一轮没有多出 executed 行', '1', executed('get_member') - getBefore);
@@ -224,7 +224,7 @@ note('回复', asUserReply);
 
 // ── 3) 会员令牌进不了这道门（本次修复的证伪面） ─────────────────────────────────────────────────
 console.log('== 会员令牌 ==');
-const asMember = await chat(memberToken, `查一下会员 ${memberId} 的资料`);
+const asMember = await chat(memberToken, `会员资料 ${memberId}`);
 check('会员令牌打 /ai/chat 得 401', '401', asMember.httpStatus);
 check('会员令牌拿不到会员事实', 'true',
   !String(asMember.reply || '').includes(`小明-${MARKER}`));

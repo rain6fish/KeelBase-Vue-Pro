@@ -266,9 +266,9 @@ public class MemberUserTools {
     /** The phrases this by-id read answers to. / 本按 id 读所回答的短语。 */
     static final class GetRoute implements ModuleRoute {
 
-        /** 「会员编号 / 会员号 / 会员」后面那个数字。 */
+        /** 「会员资料 / 会员详情 / 会员编号 / 会员档案 / 会员」后面那个数字。 */
         private static final Pattern ID =
-                Pattern.compile("(?:会员编号|会员号|会员)\\s*[=:：]?\\s*(\\d+)");
+                Pattern.compile("会员(?:资料|详情|编号|号|档案)?\\s*[=:：]?\\s*(\\d+)");
 
         @Override
         public String toolName() {
@@ -277,7 +277,7 @@ public class MemberUserTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("会员资料", "会员详情", "查一下会员", "看会员", "会员编号", "这个会员");
+            return List.of("会员资料", "会员详情", "会员编号", "会员档案", "这个会员");
         }
 
         @Override
