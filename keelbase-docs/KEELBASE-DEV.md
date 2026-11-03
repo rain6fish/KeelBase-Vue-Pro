@@ -232,6 +232,25 @@ Discovery and order are documented in the script's own header. In short: the `OR
 deliberate sequence (cheap faces first, anything needing a real model last), and a gate added later is
 picked up automatically and run after the listed ones, alphabetically.
 
+**Two rounds, compared.** A gate passing once says only that it passed once; the rule for these gates is
+that two consecutive runs produce the **same readings**. `--repeat 2` turns that into one command:
+
+```bash
+PG_CONTAINER=sg-pg PG_DB=sg_1102 HOST_URL=http://127.0.0.1:18093 \
+  bash scripts/run-all-scenarios.sh --repeat 2
+```
+
+Each round runs every gate and keeps its own `round-<n>/` directory — logs, per-gate exit codes and
+`READING` lines. When every round has finished, the script compares (a) each gate's pass / fail / skip
+status and (b) the `READING` lines concatenated in gate order, **byte for byte** with `cmp` — never the
+timestamped full logs, which differ every run by design. A gate failing in any round, or any readings
+mismatch, exits 1 and names the gate and the first line that differs. `--repeat 1` (the default) is
+exactly the single-pass behaviour described above.
+
+**It does not reset the stack between rounds.** The stack is shared, so a gate that leaves rows behind
+makes round 2 differ — and that difference is a real finding, not noise to be papered over. Reset and
+re-bootstrap the database yourself between rounds when you want a clean-slate comparison.
+
 **Gates it skips, and why.** A gate whose prerequisite this script cannot arrange is printed as `SKIP`
 with its reason and is counted as neither a pass nor a failure. There is one today:
 `run-model-loop-scenarios.mjs` needs a host started with `KEELBASE_MODEL_API_KEY` (see the note on that
