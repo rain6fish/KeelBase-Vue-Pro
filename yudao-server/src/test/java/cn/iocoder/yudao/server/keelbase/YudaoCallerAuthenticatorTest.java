@@ -15,6 +15,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 
 /**
+ * 哪一套令牌能成为本宿主的调用方。
+ *
+ * <p>宿主把两种令牌签进同一张表：控制台的和会员模块的。它们的编号来自两套都从同一个数开始的序列，而身份这条缝
+ * 是拿主体去**管理员**名录里认人——故光凭一个编号分不开这两者。这几个测试钉住那道门：管理员令牌是调用方，
+ * 会员令牌谁都不是，令牌库拒掉的令牌也一直谁都不是。
+ *
  * Which token namespace may become a caller here.
  *
  * <p>The host signs two kinds of token into one table: the console's and the member module's. Their ids
@@ -22,12 +28,6 @@ import org.springframework.mock.web.MockHttpServletRequest;
  * through the <em>administrator</em> directory — so an id is not enough to tell the two apart. These
  * tests pin the door: an administrator token is a caller, a member token is nobody, and a token the
  * store refuses stays nobody.
- *
- * 哪一套令牌能成为本宿主的调用方。
- *
- * <p>宿主把两种令牌签进同一张表：控制台的和会员模块的。它们的编号来自两套都从同一个数开始的序列，而身份这条缝
- * 是拿主体去**管理员**名录里认人——故光凭一个编号分不开这两者。这几个测试钉住那道门：管理员令牌是调用方，
- * 会员令牌谁都不是，令牌库拒掉的令牌也一直谁都不是。
  */
 class YudaoCallerAuthenticatorTest {
 

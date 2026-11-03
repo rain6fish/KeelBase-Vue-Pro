@@ -23,6 +23,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 会员模块在积分记录上的工具面：一个读，走粗闸。
+ *
+ * <p><b>为什么必须要会员编号、且没有「列出全部」那种写法。</b>理由**不是**租户：框架的租户拦截器对这张表的查询
+ * 同样会加 {@code tenant_id}（真栈实测——即使这个 DO 继承的是普通审计基类，那一列也必须存在）。理由是**不筛的分页
+ * 是一次导出、不是一次查询**：它会答出本租户**每一个会员**的记录，那是另一种能力，不是「这个会员挣了什么」。
+ * 故本面只答「这个会员的记录」，没有会员编号就不跑。
+ *
+ * <p><b>治理它的是什么。</b>与隔壁会员面相同：属主列存的是**会员**编号，而调用方是管理员编号，故属主收窄无从谈起，
+ * {@code requireAction(principal, "MemberPointRecord", read)} 就是全部。今天的规则只把通配授予超级管理员，
+ * 故本面比控制台的 {@code point:record:query} 更窄。
+ *
  * The member module's tool face over point records: one read, through the coarse gate.
  *
  * <p><b>Why a member id is required and there is no "list everything" variant.</b> Tenancy is not the
@@ -37,17 +48,6 @@ import org.springframework.context.annotation.Configuration;
  * {@code requireAction(principal, "MemberPointRecord", read)} is the whole gate. Today's rules grant the
  * wildcard only to the super administrator, so this face is narrower than the console's
  * {@code point:record:query}.
- *
- * 会员模块在积分记录上的工具面：一个读，走粗闸。
- *
- * <p><b>为什么必须要会员编号、且没有「列出全部」那种写法。</b>理由**不是**租户：框架的租户拦截器对这张表的查询
- * 同样会加 {@code tenant_id}（真栈实测——即使这个 DO 继承的是普通审计基类，那一列也必须存在）。理由是**不筛的分页
- * 是一次导出、不是一次查询**：它会答出本租户**每一个会员**的记录，那是另一种能力，不是「这个会员挣了什么」。
- * 故本面只答「这个会员的记录」，没有会员编号就不跑。
- *
- * <p><b>治理它的是什么。</b>与隔壁会员面相同：属主列存的是**会员**编号，而调用方是管理员编号，故属主收窄无从谈起，
- * {@code requireAction(principal, "MemberPointRecord", read)} 就是全部。今天的规则只把通配授予超级管理员，
- * 故本面比控制台的 {@code point:record:query} 更窄。
  */
 @Configuration
 public class MemberPointTools {

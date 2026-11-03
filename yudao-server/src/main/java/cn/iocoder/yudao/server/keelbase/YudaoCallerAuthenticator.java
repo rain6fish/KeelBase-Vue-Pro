@@ -58,14 +58,14 @@ public class YudaoCallerAuthenticator implements CallerAuthenticator {
             if (accessToken == null) {
                 return null;
             }
+            // 这里只认控制台那一套令牌。芋道把会员与管理员令牌签进同一张表、共用同一套编号序列，而身份这条缝又是
+            // 拿主体去**管理员**名录里认人——于是一个 id 与某管理员相同的会员令牌，会被读成那个管理员。别的命名
+            // 空间在门口就拒掉；工具面本来就是管理员面。
             // Only the console's token namespace is a caller here. Yudao signs member and administrator
             // tokens into the same table with the same number sequence, and the identity seam resolves
             // the subject through the administrator directory — so a member token whose id matches an
             // administrator's would be read as that administrator. Refuse the other namespace at the
             // door; the tool face is an administrator face.
-            // 这里只认控制台那一套令牌。芋道把会员与管理员令牌签进同一张表、共用同一套编号序列，而身份这条缝又是
-            // 拿主体去**管理员**名录里认人——于是一个 id 与某管理员相同的会员令牌，会被读成那个管理员。别的命名
-            // 空间在门口就拒掉；工具面本来就是管理员面。
             if (!UserTypeEnum.ADMIN.getValue().equals(accessToken.getUserType())) {
                 return null;
             }
