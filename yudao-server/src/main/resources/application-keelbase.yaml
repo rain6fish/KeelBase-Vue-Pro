@@ -92,18 +92,18 @@ keelbase:
     # `preset` is the EASY-3 **feature preset** (full / small / lite), not a module inventory; the
     # inventory is `businessModules` below. Explicit `features` values override the preset's defaults.
     preset: full
-    # 只把本部署真正跑的业务面写成 true：crm 与产品目录（见 `deploy/demo-ecs/seed-manifest.txt` 的
-    # `load` 与 `module-scope.sql` 的保留清单）。其余模块的种子是 `skip`、菜单被停用，故显式 false，
+    # 只把本部署真正跑的业务面写成 true：crm、产品目录与办公自动化（见 `deploy/demo-ecs/seed-manifest.txt`
+    # 的 `load` 与 `module-scope.sql` 的保留清单）。其余模块的种子是 `skip`、菜单被停用，故显式 false，
     # 让「问一个模块开没开」得到 false 而不是 undefined。
     #
-    # Only the business faces this deployment actually runs are true: crm and the product catalogue
+    # Only the business faces this deployment actually runs are true: crm, the product catalogue and OA
     # (see `load` in `deploy/demo-ecs/seed-manifest.txt` and the keep list in `module-scope.sql`). The
     # other modules' seeds are `skip` and their menus are switched off, so they are explicitly false —
     # asking whether one of them is on returns false, not undefined.
     features:
       crm: true
       bpm: false
-      oa: false
+      oa: true
       hrm: false
       fms: false
       report: false
@@ -120,3 +120,6 @@ keelbase:
       - id: products
         label: 产品目录
         description: 销售维护的产品目录，只有属主能改自己的产品
+      - id: oa
+        label: 办公自动化
+        description: 请假、报销、出差等申请单据，AI 只读本人的那一行

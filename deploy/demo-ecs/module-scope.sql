@@ -21,7 +21,7 @@
 -- 这份清单。`status <> 1` 的守卫让它幂等；写法是「把顶级路径不在本部署保留清单里的一律禁用」，于是**加
 -- 一个模块＝改一处清单**。
 
--- 保留：首页没有 path（它是根），加上本部署运行的模块根（`/system` · `/infra` · `/crm` · `/ai1`）、
+-- 保留：首页没有 path（它是根），加上本部署运行的模块根（`/system` · `/infra` · `/crm` · `/oa` · `/ai1`）、
 -- 治理菜单区的那个顶级路径（`/keelbase-governance`），以及助手抽屉那条隐藏父级（`/ai-assistant`）。
 --
 -- ⚠ **治理区必须在清单里**：它是「本部署展示什么」的一部分，而不属于任何一个 yudao 模块 —— 它的页面由
@@ -40,7 +40,7 @@
 -- 前端看不到它 ⇒ 普通用户**用不了助手抽屉**。`assistant-role-grants.sql` 的头部正写着「父级必须启用着」。
 --
 -- Kept: 首页 has no path (it is the root), plus the module roots this deployment runs
--- (`/system` · `/infra` · `/crm` · `/ai1`), the top-level path the governance menu area sits under
+-- (`/system` · `/infra` · `/crm` · `/oa` · `/ai1`), the top-level path the governance menu area sits under
 -- (`/keelbase-governance`), and the assistant drawer's hidden parent (`/ai-assistant`).
 --
 -- ⚠ The governance area **has** to be on this list: it is part of *what this deployment shows*, and it
@@ -67,7 +67,7 @@ with recursive off as (
       from system_menu
      where deleted = 0
        and parent_id = 0
-       and coalesce(path, '') not in ('', '/system', '/infra', '/crm', '/keelbase-governance', '/ai1', '/ai-assistant')
+       and coalesce(path, '') not in ('', '/system', '/infra', '/crm', '/oa', '/keelbase-governance', '/ai1', '/ai-assistant')
     union all
     select m.id
       from system_menu m
