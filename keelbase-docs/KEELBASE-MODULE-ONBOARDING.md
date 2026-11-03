@@ -106,6 +106,23 @@ with the same filter) in **its own** query; the advice cannot invent one. The ga
 semantics with a pair: an exempt caller sees the module total, a narrowed caller sees the page-local
 total (`run-demo01-contact-scenarios.mjs`, scenario 3.5).
 
+**An owner column is the caller's only when it lives in the caller's id space.** The narrowing this
+file keeps describing compares the owner column with `principal.userId()`, so "owner" has two halves:
+who the row belongs to in business terms, and which id space that value comes from. Only when the
+second matches does `own` mean anything. A column that points at a different population — a member id,
+a subscriber id, another product's user — must **not** be declared an owner: pinning it to the acting
+caller returns, not the caller's own rows, but whichever row happens to carry the same number. Two
+sequences that both start at 1 collide; that is ordinary, not an edge case. When the owner column is
+in another space and no type column separates them, the object is out of scope for the aspect, and
+the tool face has three honest options: a coarse-gate read (`OwnershipGuard.requireAction` + tenant +
+a projection that drops identity fields — the shape `ListYudaoUsersTool` already uses), a caller that
+actually lives in that space, or `exempt`. The falsifiable test for each: swap the caller id for a
+same-numbered id from the other space — a real `own` refuses it, and a fabricated one lets it through.
+`member` is the first module that had to answer this (`member_user.id` versus the caller's
+administrator id), and its tool face therefore declares a **coarse gate, narrower than the console**:
+today's rules grant the wildcard only to this host's super administrator, so a console role holding
+`member:user:query` is still refused here.
+
 **Declare a narrowing *as* a narrowing.** CRM's advice asks only the owner question, while upstream's
 `crm_permission` grants READ and WRITE to participants as well as the owner. The advice is therefore
 **stricter than the module, not equal to it** — its file says so, and widening it is a decision about
