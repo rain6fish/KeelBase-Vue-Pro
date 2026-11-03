@@ -34,7 +34,11 @@ public interface OaMeetingRoomMapper extends BaseMapperX<OaMeetingRoomDO> {
                     .eq(OaMeetingRoomDO::getStatus, OaMeetingRoomStatusEnum.NORMAL.getStatus())
                     .and(scope -> scope.eq(OaMeetingRoomDO::getBookingScope, OaMeetingRoomBookingScopeEnum.ALL.getScope())
                             .or(specified -> specified.eq(OaMeetingRoomDO::getBookingScope, OaMeetingRoomBookingScopeEnum.SPECIFIED.getScope())
-                                    .apply("JSON_CONTAINS(booking_user_ids, {0})", bookingUserId.toString())));
+                                    // 本线部署在 PostgreSQL 上：该列是 Jackson 序列化的 JSON 文本（List<Long>），
+                                    // 而 PostgreSQL 没有 MySQL 的 JSON_CONTAINS。改成 jsonb 包含判断。
+                                    // This line deploys on PostgreSQL: the column holds Jackson-serialised JSON
+                                    // text (List<Long>), and PostgreSQL has no MySQL JSON_CONTAINS.
+                                    .apply("CAST(booking_user_ids AS jsonb) @> CAST({0} AS jsonb)", bookingUserId.toString())));
         }
         return selectPage(reqVO, query);
     }
