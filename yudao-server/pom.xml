@@ -232,12 +232,14 @@
         </dependency>
 
         <!-- PMS 项目管理模块。默认注释，保证编译速度 -->
-        <!-- Enabled for this line. / 本线打开。 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-pms</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- M3 为 pms 这一批打开它：覆盖门只枚举**已部署**的模块，而工具面需要那两个 service 在类路径上。 /
+             M3 enables it for the pms batch: the coverage gate enumerates deployed modules only, and the
+             tool faces need those two services on the classpath. -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-pms</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
         <!-- OA 办公自动化模块。M3 第三批打开读面。 / The OA module — opened by M3 batch three, read face only. -->
         <dependency>

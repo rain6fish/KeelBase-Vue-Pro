@@ -42,13 +42,13 @@ public interface PmsProjectGroupRelationMapper extends BaseMapperX<PmsProjectGro
      */
     default Map<Long, Integer> selectGroupCountMapByUserIdAndProjectIds(Long userId, Collection<Long> projectIds) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsProjectGroupRelationDO>()
-                .select("group_id AS groupId", "COUNT(DISTINCT project_id) AS count")
+                .select("group_id", "COUNT(DISTINCT project_id) AS count")
                 .eq("user_id", userId)
                 .in("project_id", projectIds)
                 .groupBy("group_id"));
         Map<Long, Integer> groupCountMap = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            groupCountMap.put(((Number) row.get("groupId")).longValue(),
+            groupCountMap.put(((Number) row.get("group_id")).longValue(),
                     ((Number) row.get("count")).intValue());
         }
         return groupCountMap;
