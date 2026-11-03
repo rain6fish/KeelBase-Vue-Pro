@@ -186,11 +186,14 @@ check('第二个调用方那一行已种', true, secondRowId !== '');
 console.log('== 场景 2 · 身份传递：list_my_oa_leave_applies ==');
 {
   const floor = auditFloor();
-  const a = await chat(admin, '看我的请假');
+  // 触发词**刻意避开** BPM 样例那五个短语（见工具面的类注释）：撞车时先注册的赢，而它指向 `bpm_oa_leave`。
+  // The phrase deliberately avoids BPM's five: on a collision the first-registered route wins, and that one
+  // points at `bpm_oa_leave`.
+  const a = await chat(admin, '请假申请列表');
   check('admin 触发 oa 工具', 'list_my_oa_leave_applies', (a.toolCalls || [])[0]);
   check('admin 那次以 admin 身份执行（审计轨）', 1, ranAs('list_my_oa_leave_applies', 1, floor));
 
-  const s = await chat(second, '看我的请假');
+  const s = await chat(second, '请假申请列表');
   check('第二个调用方触发同一个工具', 'list_my_oa_leave_applies', (s.toolCalls || [])[0]);
   check('它那次以自己身份执行（审计轨）', 1, ranAs('list_my_oa_leave_applies', secondId, floor));
 }
@@ -200,13 +203,14 @@ console.log('== 场景 3 · 按 id 读：get_my_oa_leave_apply ==');
 {
   // 两次调用都**执行**——接缝在工具路径上把别人的行交回空，而不是抛错，故审计轨上两次都是 executed。
   // 「交回的是空」不在这里断言（答案不带工具结果），由 `OaApplyDocumentsGovernanceTest` 钉住。
-  const floor = auditFloor();
+  const ownFloor = auditFloor();
   await chat(second, '查请假单', { targetId: Number(secondRowId) });
-  check('读自己的行以自己身份执行（审计轨）', 1, ranAs('get_my_oa_leave_apply', secondId, floor));
+  check('读自己的行以自己身份执行（审计轨）', 1, ranAs('get_my_oa_leave_apply', secondId, ownFloor));
 
+  const otherFloor = auditFloor();
   await chat(second, '查请假单', { targetId: Number(adminRowId) });
   check('读别人的行同样被执行（收窄在返回值，不在拒绝）', 1,
-    ranAs('get_my_oa_leave_apply', secondId, floor));
+    ranAs('get_my_oa_leave_apply', secondId, otherFloor));
   console.log('  note  别人的行交回空这一条由单测断言：聊天答案不带工具结果');
 }
 

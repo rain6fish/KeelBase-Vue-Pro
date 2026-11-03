@@ -129,7 +129,16 @@ public class OaApplyDocumentsTools {
 
         @Override
         public List<String> triggers() {
-            return List.of("看我的请假", "我的请假", "请假记录", "请假列表", "列请假");
+            // **刻意避开 BPM 样例的那五个短语**（`BpmOALeaveTools.ListRoute`：「看我的请假」「我的请假」
+            // 「请假记录」「请假列表」「列请假」）。实测：同一句话撞车时先注册的那条赢，而它指向的是
+            // `bpm_oa_leave`——本部署根本不灌这张表，故那条路只会被拒，用户什么也拿不到。这里每一句都
+            // **不含**上面五个中的任何一个作为连续子串。
+            //
+            // Deliberately avoids the five phrases `BpmOALeaveTools.ListRoute` already owns. Measured: on a
+            // collision the first-registered route wins, and it points at `bpm_oa_leave`, whose table this
+            // deployment does not seed — so that path only refuses and the caller gets nothing. Every phrase
+            // here avoids all five as a contiguous substring.
+            return List.of("请假申请单", "请假申请列表", "OA 请假申请", "请假申请记录");
         }
 
         @Override
