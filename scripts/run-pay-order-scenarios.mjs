@@ -57,6 +57,12 @@ const bad = (name, expected, got) => { console.log(`  FAIL  ${name} — expected
 const check = (name, expected, got) => (String(expected) === String(got) ? ok(name) : bad(name, expected, got));
 const note = (name, got) => console.log(`  note  ${name} → ${got}`);
 
+// Identity and internal columns that must not leave the projection. `orderId` / `orderNo` are the
+// business identifier and stay; these are who the row belongs to and how the table is administered.
+const HIDDEN = ['userId', 'user_id', 'userType', 'user_type', 'userIp', 'user_ip',
+  'channelUserId', 'channel_user_id', 'appId', 'app_id', 'tenantId', 'tenant_id', 'creator', 'updater', 'deleted'];
+const leaks = (reply, hidden) => hidden.filter((key) => String(reply).includes(key));
+
 const psql = (sql) => execFileSync('docker',
   ['exec', '-i', '-e', 'PGPASSWORD=password', PG, 'psql', '-U', 'root', '-d', DB, '-tAc', sql],
   { encoding: 'utf8' }).trim();
@@ -166,6 +172,8 @@ check('答的是管理员 1 自己的支付单', 'true', /hasOrder=true/.test(ow
 check('回复带自己的单号', 'true', ownReply.includes(OWN));
 check('同号会员那一单不在回复里', 'true', !ownReply.includes('7777'));
 check('另一个管理员那一单不在回复里', 'true', !ownReply.includes('9999'));
+check('投影带业务标识（不是空回复）', 'true', /orderId=/.test(ownReply));
+check('投影不含身份/内部字段', '[]', JSON.stringify(leaks(ownReply, HIDDEN)));
 note('回复', ownReply);
 
 // ── 2) 证伪面：别人的单与不存在的单同一个答案 ─────────────────────────────────────────────────────
@@ -206,6 +214,16 @@ for (const turn of [own, other, none, gone]) {
 }
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
-console.log(`\nREADING toolReplyOwn=1 otherAndMissingAlike=1 restSeesOtherRow=1 marker=${MARKER}`);
+// 读数由断言算出，不写死：红灯时汇总行也必须跟着变红（这是探针自己的可证伪面）。
+const reading = {
+  toolReplyOwn: /hasOrder=true/.test(ownReply) && ownReply.includes(OWN)
+    && !ownReply.includes('7777') && !ownReply.includes('9999'),
+  otherAndMissingAlike: /hasOrder=false/.test(otherReply) && /hasOrder=false/.test(noneReply)
+    && !otherReply.includes('9999'),
+  projectionClean: /orderId=/.test(ownReply) && leaks(ownReply, HIDDEN).length === 0,
+  restSeesOtherRow: String(viaRest.data?.id) === String(otherId) && String(viaRest.data?.price) === '9999'
+};
+console.log(`\nREADING toolReplyOwn=${+reading.toolReplyOwn} otherAndMissingAlike=${+reading.otherAndMissingAlike}`
+  + ` projectionClean=${+reading.projectionClean} restSeesOtherRow=${+reading.restSeesOtherRow} marker=${MARKER}`);
 console.log(`\n${pass} ok / ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
