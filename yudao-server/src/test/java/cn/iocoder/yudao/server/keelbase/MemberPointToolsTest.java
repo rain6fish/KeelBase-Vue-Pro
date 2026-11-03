@@ -28,16 +28,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
+ * 积分记录面：一个会员的记录，绝不是一个不筛的分页，走粗闸。
+ *
+ * <p>这里钉三件事：分页总是用它拿到的会员编号构造——这张表没有租户列，不带它就会跨租户；答复只带业务字段、不带
+ * 身份字段；被闸拒掉的调用方根本到不了 service。
+ *
  * The point-record face: one member's records, never an unfiltered page, through the coarse gate.
  *
  * <p>Three things are pinned here. The page is always built with the member id it was given — the table
  * has no tenant column, so a page without one would cross tenants. The answer carries the business
  * fields and no identity field. And a caller the gate refuses never reaches the service.
- *
- * 积分记录面：一个会员的记录，绝不是一个不筛的分页，走粗闸。
- *
- * <p>这里钉三件事：分页总是用它拿到的会员编号构造——这张表没有租户列，不带它就会跨租户；答复只带业务字段、不带
- * 身份字段；被闸拒掉的调用方根本到不了 service。
  */
 class MemberPointToolsTest {
 

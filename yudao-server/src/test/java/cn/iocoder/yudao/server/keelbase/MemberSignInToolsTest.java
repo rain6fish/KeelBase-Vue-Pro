@@ -28,9 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * The sign-in face: one member's records, never an unfiltered page, through the coarse gate.
- *
  * 签到面：一个会员的记录，绝不是一个不筛的分页，走粗闸。
+ *
+ * The sign-in face: one member's records, never an unfiltered page, through the coarse gate.
  */
 class MemberSignInToolsTest {
 

@@ -33,10 +33,13 @@
 # load — applied in this order / 按此顺序导入
 # ---------------------------------------------------------------------------
 
-# 业务模块的表：crm 与产品目录（本部署的两个业务面）。
-# Tables for the business modules: crm and the product catalogue (this deployment's two business faces).
+# 业务模块的表：crm 与产品目录（本部署的两个业务面），以及 M3 放进 jar 的会员模块 —— 它没有菜单行，
+# 只有表。
+# Tables for the business modules: crm and the product catalogue (this deployment's two business faces), plus
+# the member module M3 put in the jar — it seeds no menus, only tables.
 load keelbase-crm.sql
 load keelbase-products.sql
+load keelbase-member.sql
 
 # AI 助手管理台：先 ai1 自己的表，再常驻 agent（agent 行引用 provider/model），再抽屉的父级与权限，
 # 最后管理台的菜单行。

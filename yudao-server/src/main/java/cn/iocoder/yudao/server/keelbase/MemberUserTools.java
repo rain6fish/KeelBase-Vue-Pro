@@ -21,6 +21,22 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 会员模块的工具面，第一批：找会员、读一个会员。
+ *
+ * <p><b>为什么是这两个、而不是某个记录类型。</b>会员的其余问题——积分、签到、等级履历——都是**就某个会员**问的；
+ * 不先解析出会员，那些工具就没有可问的对象。这是锚点对象。
+ *
+ * <p><b>治理它们的只有粗闸。</b>会员表上的属主列存的是**会员**编号；本宿主的调用方永远是**管理员**编号。两套序列
+ * 相互独立、而且会撞号，故把分页或单行钉到行动调用方，只会交出**号码相同的那个会员**——既不是调用方自己的行，也不是
+ * 空。这就是这里没有属主通知的原因：{@code requireAction(principal, "MemberUser", read)} 就是全部，
+ * 与 {@link ListYudaoUsersTool} 对「不属于调用方的行」用的是同一个形状。
+ *
+ * <p><b>把收窄声明出来。</b>今天的规则源只把通配授予本宿主的超级管理员，故这些工具只答管理员、其余一律拒绝——包括
+ * 一个持有 {@code member:user:query} 的控制台角色。**工具面因此比控制台更窄**，而这句话正是公开它的意义。
+ *
+ * <p><b>为什么搜索必须要一个昵称。</b>模块的查询把空名当作「不加条件」放过去，那会把整个租户的会员交给模型。搜索工具
+ * 要一个词，并对回来的结果截断。
+ *
  * The member module's tool face, first batch: finding a member and reading one.
  *
  * <p><b>Why these two and not a record type.</b> Every other member question — points, sign-in, level
@@ -42,22 +58,6 @@ import org.springframework.context.annotation.Configuration;
  * <p><b>Why a nickname is required to search.</b> The module's lookup passes a blank name through as
  * "no condition", which would hand every member in the tenant to the model. The search tool asks for a
  * term, and truncates what comes back.
- *
- * 会员模块的工具面，第一批：找会员、读一个会员。
- *
- * <p><b>为什么是这两个、而不是某个记录类型。</b>会员的其余问题——积分、签到、等级履历——都是**就某个会员**问的；
- * 不先解析出会员，那些工具就没有可问的对象。这是锚点对象。
- *
- * <p><b>治理它们的只有粗闸。</b>会员表上的属主列存的是**会员**编号；本宿主的调用方永远是**管理员**编号。两套序列
- * 相互独立、而且会撞号，故把分页或单行钉到行动调用方，只会交出**号码相同的那个会员**——既不是调用方自己的行，也不是
- * 空。这就是这里没有属主通知的原因：{@code requireAction(principal, "MemberUser", read)} 就是全部，
- * 与 {@link ListYudaoUsersTool} 对「不属于调用方的行」用的是同一个形状。
- *
- * <p><b>把收窄声明出来。</b>今天的规则源只把通配授予本宿主的超级管理员，故这些工具只答管理员、其余一律拒绝——包括
- * 一个持有 {@code member:user:query} 的控制台角色。**工具面因此比控制台更窄**，而这句话正是公开它的意义。
- *
- * <p><b>为什么搜索必须要一个昵称。</b>模块的查询把空名当作「不加条件」放过去，那会把整个租户的会员交给模型。搜索工具
- * 要一个词，并对回来的结果截断。
  */
 @Configuration
 public class MemberUserTools {

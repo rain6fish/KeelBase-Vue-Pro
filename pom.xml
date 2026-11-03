@@ -15,9 +15,9 @@
         <!-- 各种 module 拓展 -->
         <module>yudao-module-system</module>
         <module>yudao-module-infra</module>
-        <!-- M3 enables it for the member batch: the coverage gate enumerates deployed modules only,
-             and the tool face needs the service on the classpath. /
-             M3 为会员这一批打开它：覆盖门只枚举**已部署**的模块，而工具面需要那个 service 在类路径上。 -->
+        <!-- M3 为会员这一批打开它：覆盖门只枚举**已部署**的模块，而工具面需要那个 service 在类路径上。 /
+             M3 enables it for the member batch: the coverage gate enumerates deployed modules only,
+             and the tool face needs the service on the classpath. -->
         <module>yudao-module-member</module>
         <!-- YD-2 enables it: `yudao-module-crm` depends on it, so it has to be in the reactor. /
              YD-2 把它打开：`yudao-module-crm` 依赖它，故必须在 reactor 里。 -->

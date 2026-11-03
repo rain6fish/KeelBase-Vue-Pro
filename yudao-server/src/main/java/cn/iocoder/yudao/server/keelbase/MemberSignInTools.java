@@ -23,6 +23,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 会员模块在签到记录上的工具面：一个读，走粗闸。
+ *
+ * <p>属主列存的是会员编号、调用方是管理员编号，故属主收窄无从谈起；{@code requireAction(principal,
+ * "MemberSignInRecord", read)} 就是全部，而本面比控制台的 {@code point:sign-in-record:query} 更窄——今天的规则只把
+ * 通配授予超级管理员。
+ *
+ * <p>必须给会员编号。不筛的分页会答出本租户每个会员的签到史，那是一次导出，不是这个面要答的「这个会员签到了几次」。
+ *
  * The member module's tool face over sign-in records: one read, through the coarse gate.
  *
  * <p>The owner column holds a member id while the caller is an administrator id, so no ownership
@@ -33,14 +41,6 @@ import org.springframework.context.annotation.Configuration;
  * <p>A member id is required. An unfiltered page would answer with every member's sign-in history in the
  * tenant, which is an export rather than the "how often did this member check in" question this face
  * answers.
- *
- * 会员模块在签到记录上的工具面：一个读，走粗闸。
- *
- * <p>属主列存的是会员编号、调用方是管理员编号，故属主收窄无从谈起；{@code requireAction(principal,
- * "MemberSignInRecord", read)} 就是全部，而本面比控制台的 {@code point:sign-in-record:query} 更窄——今天的规则只把
- * 通配授予超级管理员。
- *
- * <p>必须给会员编号。不筛的分页会答出本租户每个会员的签到史，那是一次导出，不是这个面要答的「这个会员签到了几次」。
  */
 @Configuration
 public class MemberSignInTools {

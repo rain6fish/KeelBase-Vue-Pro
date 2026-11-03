@@ -23,6 +23,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * 会员模块在等级记录上的工具面：一个读，走粗闸。
+ *
+ * <p>与隔壁几个会员面同形：属主列是会员编号、调用方是管理员编号，故没有可做的属主收窄；
+ * {@code requireAction(principal, "MemberLevelRecord", read)} 就是那道闸，而它比控制台的
+ * {@code member:level-record:query} 更窄——通配只给超级管理员。
+ *
+ * <p>模块还有一个按记录 id 的读（{@code getLevelRecord}），本面**不用**它：记录 id 答的是「这是哪一行」，而这个面
+ * 要答的是「这个会员的等级怎么变的」。按会员编号的分页才是对得上的那个。
+ *
  * The member module's tool face over level records: one read, through the coarse gate.
  *
  * <p>Same shape as the neighbouring member faces: the owner column is a member id and the caller is an
@@ -33,15 +42,6 @@ import org.springframework.context.annotation.Configuration;
  * <p>The module also exposes a read by record id ({@code getLevelRecord}), which is not used here: a
  * record id answers "which row is this", while the question this face serves is "how did this member's
  * level change". The page by member id is the one that matches.
- *
- * 会员模块在等级记录上的工具面：一个读，走粗闸。
- *
- * <p>与隔壁几个会员面同形：属主列是会员编号、调用方是管理员编号，故没有可做的属主收窄；
- * {@code requireAction(principal, "MemberLevelRecord", read)} 就是那道闸，而它比控制台的
- * {@code member:level-record:query} 更窄——通配只给超级管理员。
- *
- * <p>模块还有一个按记录 id 的读（{@code getLevelRecord}），本面**不用**它：记录 id 答的是「这是哪一行」，而这个面
- * 要答的是「这个会员的等级怎么变的」。按会员编号的分页才是对得上的那个。
  */
 @Configuration
 public class MemberLevelRecordTools {

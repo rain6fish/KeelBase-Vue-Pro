@@ -28,9 +28,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * The level-record face: one member's level changes, never an unfiltered page, through the coarse gate.
- *
  * 等级记录面：一个会员的等级变动，绝不是一个不筛的分页，走粗闸。
+ *
+ * The level-record face: one member's level changes, never an unfiltered page, through the coarse gate.
  */
 class MemberLevelRecordToolsTest {
 

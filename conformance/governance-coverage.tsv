@@ -137,7 +137,7 @@ member	group	cn.iocoder.yudao.module.member.service.group.MemberGroupService	exe
 member	tag	cn.iocoder.yudao.module.member.service.tag.MemberTagService	exempt		租户级标签字典（管理面，D4 甲）	@rain	2027-06-30
 member	level	cn.iocoder.yudao.module.member.service.level.MemberLevelService	exempt		租户级等级配置（管理面，D4 甲）	@rain	2027-06-30
 member	level-record	cn.iocoder.yudao.module.member.service.level.MemberLevelRecordService	tool-only	MemberLevelRecordTools#list_member_level_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
-member	experience-record	cn.iocoder.yudao.module.member.service.level.MemberExperienceRecordService	exempt		本批未接；属主为会员编号空间、与调用方不重叠，路线见 handoff/member-namespace-20261103.md	@rain	2027-06-30
+member	experience-record	cn.iocoder.yudao.module.member.service.level.MemberExperienceRecordService	tool-only	MemberExperienceRecordTools#list_member_experience_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	point-record	cn.iocoder.yudao.module.member.service.point.MemberPointRecordService	tool-only	MemberPointTools#list_member_point_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-record	cn.iocoder.yudao.module.member.service.signin.MemberSignInRecordService	tool-only	MemberSignInTools#list_member_sign_in_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-config	cn.iocoder.yudao.module.member.service.signin.MemberSignInConfigService	exempt		租户级签到配置（管理面，D4 甲）	@rain	2027-06-30
