@@ -205,6 +205,48 @@ install needs the file too, for the same reason.
 path, but that path also needs an embedding model, and none is configured here — so the **semantic path
 itself has not been exercised**, only the extension's presence.
 
+## A datastore for every real-stack gate
+
+The gates need more than the line's own datastore: they read CRM, assistant, governance, BPM and FMS
+tables, and they all share one running stack. `scripts/bootstrap-gates-datastore.sh` prepares that stack —
+a dedicated PostgreSQL (pgvector) and Redis, with the schema loaded — and prints the three environment
+variables the run needs.
+
+```bash
+# 1. Prepare the datastore (dedicated containers; --reset reloads, --force recreates)
+bash scripts/bootstrap-gates-datastore.sh
+
+# 2. Start the host against it, on a port of your own
+PG_PORT=39871 PG_DB=gates REDIS_PORT=39872 PORT=48171 bash scripts/run-server.sh &
+
+# 3. Run every gate
+HOST_URL=http://127.0.0.1:48171 PG_CONTAINER=gates-pg PG_DB=gates \
+  bash scripts/run-all-scenarios.sh
+```
+
+The script loads, in this order: `sql/postgresql/ruoyi-vue-pro.sql`; every `load` line of
+`deploy/demo-ecs/seed-manifest.txt`, in the manifest's order; `sql/keelbase-bpm.sql`; and
+`sql/keelbase-fms.sql`. The last two are **extra on purpose**: the manifest describes what the **demo
+deployment** seeds, and it classifies both bpm and fms as `skip` (bpm's menus are hidden and its tables
+are not seeded; fms is not in the deployment jar). The gates cover both modules, so they need real
+tables — four BPM gates and two FMS gates read them. The manifest remains the single source for the
+deployment; this script adds only what the gates need and leaves the manifest and `bootstrap-db.sh`
+alone.
+
+Defaults: containers `gates-pg` / `gates-redis`, ports `39871` / `39872`, database `gates`, user `root`.
+Everything is overridable through the same-named environment variables. The containers carry a
+`keelbase.gates-datastore=1` label; a container of the same name that this script did not create is
+refused rather than reused or overwritten — `--force` is the explicit exception that removes it.
+Loading runs with `ON_ERROR_STOP=1`: the first failing file stops the run, its name is printed, and the
+exit is non-zero. At the end the script checks that the database has more than 100 tables and prints
+`PG_PORT=…`, `PG_CONTAINER=…`, `PG_DB=…` ready to copy.
+
+Cleanup is explicit; the script does not remove what it started:
+
+```bash
+docker rm -f gates-pg gates-redis
+```
+
 ## Running every real-stack scenario gate at once
 
 `scripts/run-all-scenarios.sh` runs every `scripts/run-*-scenarios.mjs` gate against **one** running
