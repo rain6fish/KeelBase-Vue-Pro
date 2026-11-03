@@ -76,9 +76,9 @@ const adminId = psql(`select id from system_users where username = '${ADMIN_USER
 
 const userId = psql(`select coalesce(max(id), 0) + 1 from system_users`);
 const cleanup = () => {
-  psql(`delete from pms_work_item where creator = '${MARKER}'`);
-  psql(`delete from pms_project_member where creator = '${MARKER}'`);
-  psql(`delete from pms_project where creator = '${MARKER}'`);
+  psql(`delete from pms_work_item where name like '%${MARKER}%'`);
+  psql(`delete from pms_project_member where project_id in (select id from pms_project where name like '%${MARKER}%')`);
+  psql(`delete from pms_project where name like '%${MARKER}%'`);
   psql(`delete from system_user_role where user_id = ${userId}`);
   psql(`delete from system_oauth2_access_token where user_id = ${userId}`);
   psql(`delete from system_users where id = ${userId}`);
@@ -87,25 +87,27 @@ process.on('exit', () => {
   try { cleanup(); } catch (e) { console.log(`  note  收尾失败 ${e.message}`); }
 });
 
+// `creator` 必须是**用户编号**：控制台会 `NumberUtils.parseLong(project.getCreator())`，填标记字符串会直接 500。
+// `creator` must be a **user id**: the console parses it with `NumberUtils.parseLong`, and a marker string 500s.
 psql(`INSERT INTO pms_project (name, status, type, level, description, open_status, creator, tenant_id)
-      VALUES ('甲项目-${MARKER}', 1, 1, 1, '', false, '${MARKER}', ${TENANT}),
-             ('乙项目-${MARKER}', 1, 1, 1, '', false, '${MARKER}', ${TENANT})`);
-const mine = psql(`select id from pms_project where creator = '${MARKER}' and name like '甲项目%'`);
-const other = psql(`select id from pms_project where creator = '${MARKER}' and name like '乙项目%'`);
+      VALUES ('甲项目-${MARKER}', 1, 1, 1, '', false, '${adminId}', ${TENANT}),
+             ('乙项目-${MARKER}', 1, 1, 1, '', false, '${adminId}', ${TENANT})`);
+const mine = psql(`select id from pms_project where name like '甲项目-${MARKER}'`);
+const other = psql(`select id from pms_project where name like '乙项目-${MARKER}'`);
 
 psql(`INSERT INTO system_users (id, username, password, nickname, status, creator, tenant_id)
       VALUES (${userId}, 'm3pr${MARKER.slice(6)}', '${adminHash}', '普通角色-${MARKER}', 0, '${MARKER}', ${TENANT})`);
 psql(`INSERT INTO system_user_role (id, user_id, role_id, creator, tenant_id)
       VALUES ((select coalesce(max(id), 0) + 1 from system_user_role), ${userId}, 2, '${MARKER}', ${TENANT})`);
 psql(`INSERT INTO pms_project_member (project_id, user_id, level, creator, tenant_id)
-      VALUES (${mine}, ${adminId}, 1, '${MARKER}', ${TENANT}),
-             (${mine}, ${userId}, 3, '${MARKER}', ${TENANT})`);
+      VALUES (${mine}, ${adminId}, 1, '${adminId}', ${TENANT}),
+             (${mine}, ${userId}, 3, '${adminId}', ${TENANT})`);
 
 psql(`INSERT INTO pms_work_item (project_id, type, serial_number, name, priority, assignee_user_id, status_id,
         status, lifecycle_status, progress, creator, tenant_id)
-      VALUES (${mine}, 1, 1, '甲-工作项-${MARKER}', 2, ${userId}, 1, 1, 1, 30, '${MARKER}', ${TENANT}),
-             (${other}, 1, 1, '乙-工作项-${MARKER}', 2, ${userId}, 1, 1, 1, 10, '${MARKER}', ${TENANT})`);
-check('本轮项目 = 2', '2', psql(`select count(*) from pms_project where creator = '${MARKER}' and deleted = 0`));
+      VALUES (${mine}, 1, 1, '甲-工作项-${MARKER}', 2, ${userId}, 1, 1, 1, 30, '${adminId}', ${TENANT}),
+             (${other}, 1, 1, '乙-工作项-${MARKER}', 2, ${userId}, 1, 1, 1, 10, '${adminId}', ${TENANT})`);
+check('本轮项目 = 2', '2', psql(`select count(*) from pms_project where name like '%${MARKER}%' and deleted = 0`));
 
 const executed = (tool) => Number(psql(`select count(*) from ai_audit_logs where tool = '${tool}' and outcome = 'executed'`));
 const PROJECTS = 'list_my_projects';
@@ -146,13 +148,16 @@ check('超管看得到两个项目', 'true',
 console.log('== 控制台 ==');
 const userPage = await api('/pms/pm/project/page?pageSize=50', { token: userToken });
 check('控制台对普通角色按权限码拒绝（403）', '403', userPage.code);
-// 超管那一页在本方言上 500：`PmsWorkItemMapper.selectStatusCountMapByProjectIds` 用 `project_id AS projectId`
-// 取别名，PostgreSQL 把未加引号的别名**小写**成 `projectid`，于是 `row.get("projectId")` 拿到 null。
-// 这是上游 pms 在 PG 上的缺陷，不是本批引入的；本门禁因此**不拿控制台内容作断言**，只在交接件里记成部署阻塞项。
-// The super administrator's page 500s on this dialect: that mapper aliases `project_id AS projectId`, PostgreSQL
-// lower-cases an unquoted alias to `projectid`, and `row.get("projectId")` is null. An upstream defect on PostgreSQL,
-// not introduced here; the gate therefore does not assert console content and records it as a deployment blocker.
-note('控制台分页（超管）', '本方言上 500 —— 上游 selectMaps 的 camelCase 别名在 PostgreSQL 被小写');
+// 超管那一页会走 `PmsWorkItemMapper.selectStatusCountMapByProjectIds` 的状态计数；它原先用
+// `project_id AS projectId` 取别名，PostgreSQL 把未加引号的别名小写成 `projectid`，`row.get("projectId")` 拿到 null。
+// 那 6 处已改为下划线别名（两方言都成立），故这里恢复对控制台内容的断言。
+// The super administrator's page runs the status count map, which used to alias `project_id AS projectId`; PostgreSQL
+// lower-cases an unquoted alias, so `row.get("projectId")` was null. All six sites now use snake_case aliases, which
+// hold on both dialects, so the console content is asserted again.
+const adminPage = await api('/pms/pm/project/page?pageSize=50', { token: adminToken });
+check('/pms/pm/project/page code', '0', adminPage.code);
+const adminNames = (adminPage.data?.list || []).map((row) => row.name).filter((n) => String(n).includes(MARKER));
+check('控制台对超管给两个（这一页不再 500）', '2', adminNames.length);
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
 console.log(`\nREADING memberOnlySeesOwn=1 otherProjectRefused=1 superAdminSeesBoth=1 consolePermissionGate=1 marker=${MARKER}`);
