@@ -115,6 +115,10 @@ public final class GovernedToolFaces {
                 new ToolFace("FmsClosingSchemeTools"),
                 new ToolFace("SystemNotifyMessageTools"),
                 new ToolFace("SystemNoticeTools"),
+                new ToolFace("PayWalletTools"),
+                new ToolFace("PayOrderTools"),
+                new ToolFace("PayRefundTools"),
+                new ToolFace("PayTransferTools"),
                 new ToolFace("ProductsTools"), // 生成的 / generated
                 new ToolFace("ConsolePages"),
                 new ToolFace("ListYudaoUsersTool"),

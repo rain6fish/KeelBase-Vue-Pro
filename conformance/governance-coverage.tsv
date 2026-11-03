@@ -1,7 +1,9 @@
 # KeelBase-YuDao 治理覆盖账本 —— 「完全接入」的唯一账本（M0）。
 #
 # 部署范围里每个业务 service 恰好一行，四态之一：
-#   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄
+#   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄；
+#              收窄可以是「分页过滤」（分页有属主位）或「按标识符读 + 事后判属主」（分页没有属主位、但有单行读），
+#              后者在工具路径上**拒绝分页**；见 keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  只有工具面经引擎，REST 写入没有切面收窄（理由必填）
 #   gap        未接入、已排期（负责人 + 目标日期必填；过期即红）
 #   exempt     明确不接（理由 + 负责人 + 复核日期必填；过期即红）
@@ -13,7 +15,10 @@
 # KeelBase-YuDao governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
 #
 # One row per business service in the deployed scope, in exactly one of four postures:
-#   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing
+#   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing;
+#              the narrowing is either a page filter (the page has an owner slot) or a read by identifier with an
+#              owner check (it has none, but a single-row read exists); the latter **refuses the page** on the tool
+#              path — see keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  only the tool face goes through the engine; the REST write is not narrowed (reason required)
 #   gap        not onboarded, scheduled (owner + target date required; overdue is red)
 #   exempt     deliberately out of scope (reason + owner + recheck date required; overdue is red)
@@ -124,6 +129,18 @@ infra	job-log	cn.iocoder.yudao.module.infra.service.job.JobLogService	exempt		�
 infra	student-erp	cn.iocoder.yudao.module.infra.service.demo.demo03.erp.Demo03StudentErpService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
 infra	student-inner	cn.iocoder.yudao.module.infra.service.demo.demo03.inner.Demo03StudentInnerService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
 infra	student-normal	cn.iocoder.yudao.module.infra.service.demo.demo03.normal.Demo03StudentNormalService	exempt		上游样例表，不是业务对象	@rain	2027-09-30
+pay	wallet	cn.iocoder.yudao.module.pay.service.wallet.PayWalletService	seam	PayWalletGovernance			
+pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTransactionService	exempt		钱包流水的属主是前两个实参（userId + userType），两个分页口都自带这两个过滤位；M3 首批只接钱包一个对象，它是下一个接缝候选 · recheck 前重判	@rain	2027-06-30
+pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	exempt		充值单的属主是前两个实参（userId + userType），分页口自带这两个过滤位；写口是到账/退款两条内部流程，是本批之外的第二个候选	@rain	2027-06-30
+pay	wallet-recharge-package	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargePackageService	exempt		充值套餐是管理面配置（pay:wallet-recharge-package:*，D4 甲）	@rain	2027-06-30
+pay	order	cn.iocoder.yudao.module.pay.service.order.PayOrderService	seam	PayOrderGovernance	支付单属主是用户对（user_id + user_type），分页没有属主过滤位（PayOrderPageReqVO 只有 appId/channelCode/status/时间）⇒ 工具面不开分页（工具路径上分页与批量读被拒绝），改接「按支付单号/编号读 + 事后判属主」：别人的行与不存在的行同一个答案；本面只读，无写（模块的写全是内部流程或调外部渠道）	@rain	2027-06-30
+pay	refund	cn.iocoder.yudao.module.pay.service.refund.PayRefundService	seam	PayRefundGovernance	与支付单同形：分页 VO 没有属主过滤位，接「按退款单号/编号读 + 事后判属主」；工具路径上分页与导出列表被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
+pay	transfer	cn.iocoder.yudao.module.pay.service.transfer.PayTransferService	seam	PayTransferGovernance	与支付单同形：分页 VO 没有属主过滤位（userName/userAccount 是收款人，不是属主），接「按转账单号/编号读 + 事后判属主」；分页在工具路径上被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
+pay	app	cn.iocoder.yudao.module.pay.service.app.PayAppService	exempt		支付应用是租户级配置面（pay:app:*，D4 甲）	@rain	2027-06-30
+pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt		支付渠道是应用级配置面（pay:channel:*，D4 甲）	@rain	2027-06-30
+pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		通知任务是模块内部的投递机器（pay_notify_task/log，无属主人列、无 controller），由 PayNotifyJob 重试	@rain	2027-06-30
+pay	demo-order	cn.iocoder.yudao.module.pay.service.demo.PayDemoOrderService	exempt		演示订单是样例面（demo，非业务行）	@rain	2027-06-30
+pay	demo-withdraw	cn.iocoder.yudao.module.pay.service.demo.PayDemoWithdrawService	exempt		演示提现是样例面（demo，非业务行）	@rain	2027-06-30
 server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
 system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

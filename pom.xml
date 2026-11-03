@@ -21,7 +21,9 @@
         <module>yudao-module-bpm</module>
         <module>yudao-module-report</module>
 <!--        <module>yudao-module-mp</module>-->
-<!--        <module>yudao-module-pay</module>-->
+        <!-- M3 把它打开：支付模块是被治理的第一个新模块，宿主的切面与工具面要编译它。 /
+             M3 enables it: pay is the first new module under governance, and the host's aspect and tool face compile against it. -->
+        <module>yudao-module-pay</module>
 <!--        <module>yudao-module-mall</module>-->
         <!-- YD-2 enables it: the first *existing* upstream business module KeelBase governs. /
              YD-2 把它打开：KeelBase 治理的第一个**上游既有**业务模块。 -->
