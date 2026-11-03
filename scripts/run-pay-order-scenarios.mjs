@@ -13,6 +13,10 @@
 // 列型照部署方言：`deleted` 是 **`smallint`**（钱包那条门禁实测过 `boolean` 会让框架的逻辑删条件报
 // `operator does not exist: boolean = integer`）。
 //
+// **红对照（本门禁可证伪的做法）**：把 `PayOrderGovernance#withholdOthersOrder` 改成直接返回 `call.proceed()`、
+// 重建宿主再跑本脚本——证伪面必须转红（别人的单答 `hasOrder=true` 且带 9999）。`READING` 行由断言算出，
+// 红灯时不会再打印全 1。
+//
 // 五条断言，夹具按**本轮唯一标记**（打在 `creator` 上）收束：
 //
 //   1. **工具路径只答调用方自己的那一单**（按支付单号）。种三行：管理员 1 自己的 100、另一个管理员 100 的 9999、
@@ -25,6 +29,11 @@
 //   4. **请求路径原样放行**。同一个管理员走 REST `/pay/order/get?id=<别人的单>`：照旧拿得到那一行。切面只在
 //      **有行动调用方**时动（工具路径），控制台的行为与上游一字不差。
 //   5. **审计轨**：每次工具调用各留一行 `get_my_pay_order -> ok` / `executed`。
+//
+// **Red control (how this gate is shown to be falsifiable)**: make
+// `PayOrderGovernance#withholdOthersOrder` return `call.proceed()` directly, rebuild the host and rerun this script —
+// the falsifiable group must go red (another's order answers `hasOrder=true` with 9999). The `READING` line is computed
+// from the assertions, so it cannot print all ones while the gate is red.
 //
 // The real-stack gate over the payment order (`pay_order`): the owner is still **the pair `user_id` + `user_type`**,
 // but the page has no owner slot, so this face reads **by identifier and decides the owner afterwards**.
@@ -166,6 +175,8 @@ check('答的是管理员 1 自己的支付单', 'true', /hasOrder=true/.test(ow
 check('回复带自己的单号', 'true', ownReply.includes(OWN));
 check('同号会员那一单不在回复里', 'true', !ownReply.includes('7777'));
 check('另一个管理员那一单不在回复里', 'true', !ownReply.includes('9999'));
+const ownRead = /hasOrder=true/.test(ownReply) && ownReply.includes(OWN)
+  && !ownReply.includes('7777') && !ownReply.includes('9999');
 note('回复', ownReply);
 
 // ── 2) 证伪面：别人的单与不存在的单同一个答案 ─────────────────────────────────────────────────────
@@ -178,6 +189,8 @@ check('别人的单答 hasOrder=false', 'true', /hasOrder=false/.test(otherReply
 check('不存在的单答 hasOrder=false', 'true', /hasOrder=false/.test(noneReply));
 check('别人的单不带它的金额', 'true', !otherReply.includes('9999'));
 check('两次答案的可观测形态相同', 'true', /hasOrder=false/.test(otherReply) && /hasOrder=false/.test(noneReply));
+const otherWithheld = /hasOrder=false/.test(otherReply) && !otherReply.includes('9999');
+const noneWithheld = /hasOrder=false/.test(noneReply);
 note('别人的单', otherReply);
 note('不存在的单', noneReply);
 
@@ -196,6 +209,7 @@ const viaRest = await api(`/pay/order/get?id=${otherId}`, { token });
 check('/pay/order/get code', '0', viaRest.code);
 check('控制台照旧看得到别人的单（切面不动请求路径）', String(otherId), viaRest.data?.id);
 check('控制台拿到的是那一单的金额', '9999', viaRest.data?.price);
+const restSeesOtherRow = String(viaRest.data?.id) === String(otherId) && String(viaRest.data?.price) === '9999';
 
 // ── 5) 审计轨 ───────────────────────────────────────────────────────────────────────────────────
 console.log('== 审计轨 ==');
@@ -206,6 +220,8 @@ for (const turn of [own, other, none, gone]) {
 }
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
-console.log(`\nREADING toolReplyOwn=1 otherAndMissingAlike=1 restSeesOtherRow=1 marker=${MARKER}`);
+console.log(`\nREADING toolReplyOwn=${ownRead ? 1 : 0}`
+  + ` otherAndMissingAlike=${otherWithheld && noneWithheld ? 1 : 0}`
+  + ` restSeesOtherRow=${restSeesOtherRow ? 1 : 0} marker=${MARKER}`);
 console.log(`\n${pass} ok / ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
