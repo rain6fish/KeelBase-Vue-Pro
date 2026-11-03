@@ -119,6 +119,7 @@ public final class GovernedToolFaces {
                 new ToolFace("MemberPointTools"),
                 new ToolFace("MemberSignInTools"),
                 new ToolFace("MemberLevelRecordTools"),
+                new ToolFace("MemberExperienceRecordTools"),
                 new ToolFace("ProductsTools"), // 生成的 / generated
                 new ToolFace("ConsolePages"),
                 new ToolFace("ListYudaoUsersTool"),
