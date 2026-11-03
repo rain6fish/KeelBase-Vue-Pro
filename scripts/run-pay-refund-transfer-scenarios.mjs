@@ -44,6 +44,14 @@ const bad = (name, expected, got) => { console.log(`  FAIL  ${name} — expected
 const check = (name, expected, got) => (String(expected) === String(got) ? ok(name) : bad(name, expected, got));
 const note = (name, got) => console.log(`  note  ${name} → ${got}`);
 
+// Identity and internal columns that must not leave either projection. Transfers additionally carry the
+// recipient's name and account in the table; neither is part of "what happened to my transfer".
+const HIDDEN = ['userId', 'user_id', 'userType', 'user_type', 'userIp', 'user_ip',
+  'appId', 'app_id', 'tenantId', 'tenant_id', 'creator', 'updater', 'deleted'];
+const TRANSFER_HIDDEN = [...HIDDEN, 'userAccount', 'user_account', 'userName', 'user_name',
+  '张三', '李四', '王五', 'openid-own', 'openid-other', 'openid-member'];
+const leaks = (reply, hidden) => hidden.filter((key) => String(reply).includes(key));
+
 const psql = (sql) => execFileSync('docker',
   ['exec', '-i', '-e', 'PGPASSWORD=password', PG, 'psql', '-U', 'root', '-d', DB, '-tAc', sql],
   { encoding: 'utf8' }).trim();
@@ -183,6 +191,8 @@ check('答的是管理员 1 自己的退款单', 'true', /hasRefund=true/.test(r
 check('回复带自己的退款单号', 'true', refundOwnReply.includes(REFUND_OWN));
 check('同号会员那一单不在回复里', 'true', !refundOwnReply.includes('7777'));
 check('另一个管理员那一单不在回复里', 'true', !refundOwnReply.includes('9999'));
+check('退款投影带业务标识（不是空回复）', 'true', /refundId=/.test(refundOwnReply));
+check('退款投影不含身份/内部字段', '[]', JSON.stringify(leaks(refundOwnReply, HIDDEN)));
 
 const refundOther = await chat(token, `查一下退款单 ${REFUND_OTHER} 的状态`);
 const refundNone = await chat(token, `查一下退款单 ${REFUND_NONE} 的状态`);
@@ -209,6 +219,8 @@ check('答的是管理员 1 自己的转账单', 'true', /hasTransfer=true/.test
 check('回复带自己的转账单号', 'true', transferOwnReply.includes(TRANSFER_OWN));
 check('同号会员那一单不在回复里', 'true', !transferOwnReply.includes('7777'));
 check('另一个管理员那一单不在回复里', 'true', !transferOwnReply.includes('9999'));
+check('转账投影带业务标识（不是空回复）', 'true', /transferId=/.test(transferOwnReply));
+check('转账投影不含身份/内部字段（含收款人）', '[]', JSON.stringify(leaks(transferOwnReply, TRANSFER_HIDDEN)));
 
 const transferOther = await chat(token, `查一下转账单 ${TRANSFER_OTHER} 的状态`);
 const transferNone = await chat(token, `查一下转账单 ${TRANSFER_NONE} 的状态`);
@@ -251,6 +263,23 @@ for (const [turn, tool] of calls) {
 }
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
-console.log(`\nREADING refundOwn=1 refundOtherAndMissingAlike=1 transferOwn=1 transferOtherAndMissingAlike=1 restSeesOtherRows=1 marker=${MARKER}`);
+// 读数由断言算出，不写死：红灯时汇总行也必须跟着变红。
+const reading = {
+  refundOwn: /hasRefund=true/.test(refundOwnReply) && refundOwnReply.includes(REFUND_OWN)
+    && !refundOwnReply.includes('7777') && !refundOwnReply.includes('9999'),
+  refundOtherAndMissingAlike: /hasRefund=false/.test(refundOtherReply)
+    && /hasRefund=false/.test(refundNoneReply) && !refundOtherReply.includes('9999'),
+  transferOwn: /hasTransfer=true/.test(transferOwnReply) && transferOwnReply.includes(TRANSFER_OWN)
+    && !transferOwnReply.includes('7777') && !transferOwnReply.includes('9999'),
+  transferOtherAndMissingAlike: /hasTransfer=false/.test(transferOtherReply)
+    && /hasTransfer=false/.test(transferNoneReply) && !transferOtherReply.includes('9999'),
+  projectionClean: /refundId=/.test(refundOwnReply) && leaks(refundOwnReply, HIDDEN).length === 0
+    && /transferId=/.test(transferOwnReply) && leaks(transferOwnReply, TRANSFER_HIDDEN).length === 0,
+  restSeesOtherRows: String(refundRest.data?.id) === String(refundOtherId)
+    && String(transferRest.data?.id) === String(transferOtherId)
+};
+console.log(`\nREADING refundOwn=${+reading.refundOwn} refundOtherAndMissingAlike=${+reading.refundOtherAndMissingAlike}`
+  + ` transferOwn=${+reading.transferOwn} transferOtherAndMissingAlike=${+reading.transferOtherAndMissingAlike}`
+  + ` projectionClean=${+reading.projectionClean} restSeesOtherRows=${+reading.restSeesOtherRows} marker=${MARKER}`);
 console.log(`\n${pass} ok / ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
