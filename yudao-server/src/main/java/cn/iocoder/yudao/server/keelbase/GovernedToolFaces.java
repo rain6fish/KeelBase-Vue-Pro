@@ -115,6 +115,8 @@ public final class GovernedToolFaces {
                 new ToolFace("FmsClosingSchemeTools"),
                 new ToolFace("SystemNotifyMessageTools"),
                 new ToolFace("SystemNoticeTools"),
+                new ToolFace("MemberUserTools"),
+                new ToolFace("MemberPointTools"),
                 new ToolFace("PayWalletTools"),
                 new ToolFace("PayOrderTools"),
                 new ToolFace("PayRefundTools"),
