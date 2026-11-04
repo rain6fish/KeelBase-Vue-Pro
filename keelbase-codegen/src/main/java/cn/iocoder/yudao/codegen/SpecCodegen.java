@@ -268,7 +268,17 @@ public final class SpecCodegen {
             // The bypass trail table (`sql/keelbase-bypass-audit.sql`): the table behind "record, never
             // alter" for upstream REST writes. Hand-written and produced by no Spec — it is no business
             // module's table, so no `specs/*.json` could generate it; undeclared, the check calls it UNDECLARED.
-            "sql/keelbase-bypass-audit.sql");
+            "sql/keelbase-bypass-audit.sql",
+            // 会员模块的建表脚本（`sql/keelbase-member.sql`，`ec4be4ac0b` 引入，同时列进了部署种子）：上游测试 schema
+            // 覆盖 5 张，其余 6 张照 `keelbase-crm.sql` 的办法从各自主键推导。手写、任何 Spec 都不产出；引入时漏了在
+            // 此声明，边界检查自那次合并起把 CI 判红。补声明 = 让声明**追上事实**；判据一字未松。
+            //
+            // The member module's DDL (`sql/keelbase-member.sql`, landed in `ec4be4ac0b` and listed in the seed
+            // manifest at the same time): upstream's test schema covers 5 tables, and the other 6 were derived
+            // from their own primary keys the way `keelbase-crm.sql` was. Hand-written, produced by no Spec; it
+            // was not declared here when it landed, so the boundary check has kept CI red since that merge.
+            // Declaring it lets the declaration catch up with fact; no judgement is relaxed.
+            "sql/keelbase-member.sql");
 
     private SpecCodegen() {
     }
