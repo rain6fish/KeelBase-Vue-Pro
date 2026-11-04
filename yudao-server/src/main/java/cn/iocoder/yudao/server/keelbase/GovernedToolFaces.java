@@ -96,6 +96,7 @@ public final class GovernedToolFaces {
                 // 工具面 / the tool faces
                 new ToolFace("CrmCustomerTools"),
                 new ToolFace("CrmFollowUpTools"),
+                new ToolFace("CrmFollowUpRecordTools"),
                 new ToolFace("CrmContractTools"),
                 new ToolFace("CrmReceivableTools"),
                 new ToolFace("CrmReceivablePlanTools"),
