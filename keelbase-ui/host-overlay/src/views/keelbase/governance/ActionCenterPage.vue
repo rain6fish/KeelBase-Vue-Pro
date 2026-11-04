@@ -159,12 +159,12 @@
             <div class="d-row">
               <span class="d-key">{{ t('keelbase.effects.colTarget') }}</span>
               <span>
-                {{ maskTitle(row.targetTitle) }}
-                <!-- The masking note belongs to a title that exists. Where the runtime answers none,
-                     saying "masked" would describe an act nobody performed. -->
-                <!-- 掩码那句话属于**真有过标题**的情形。运行时没答内容时说「已掩码」，是在描述一件没人
-                     做过的事。 -->
-                <span v-if="row.targetTitle" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
+                {{ targetText(row) }}
+                <!-- 掩码那句话属于**真有过名字**的情形。运行时与宿主都没答内容时说「已掩码」，是在描述
+                     一件没人做过的事。 -->
+                <!-- The masking note belongs to a name that exists. Where neither the runtime nor the
+                     host answers one, saying "masked" would describe an act nobody performed. -->
+                <span v-if="targetNamed(row)" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>
@@ -210,7 +210,7 @@
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colTarget')" width="240">
         <template #default="{ row }">
-          {{ maskTitle(row.targetTitle) }} <span class="muted">{{ idText(row.resultId) }}</span>
+          {{ targetText(row) }} <span class="muted">{{ idText(row.resultId) }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colResultType')" prop="resultType" width="150" />
@@ -252,6 +252,7 @@ import { ContentWrap } from '@/components/ContentWrap'
 import Pagination from '@/components/Pagination/index.vue'
 import { businessLogApi, confirmationApi, effectApi, type BusinessLogRow, type ConfirmationItem, type EffectRow } from '@/keelbase/governanceApi'
 import { resolveCallerNames } from '@/keelbase/callerNames'
+import { resolveRecordNames } from '@/keelbase/recordNames'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
@@ -293,6 +294,25 @@ function idText(value: number | string | null | undefined): string {
 }
 
 /**
+ * 这一格写什么：宿主答得出就给它的名字（已掩码），否则用运行时给的标题，再没有就说「未登记名称」。
+ * 破折号留给**真没有对象**的行，不再用来表示「没问到」。
+ *
+ * What this cell says: the host's name when it has one (masked), else the runtime's title, else "name
+ * not registered". The dash is left to rows that really carry no object, not to "we did not ask".
+ */
+function targetText(row: EffectRow): string {
+  const named = targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`]
+  if (named) return named
+  if (row.targetTitle) return maskTitle(row.targetTitle)
+  return t('keelbase.effects.targetUnnamed')
+}
+
+/** 这一格真有个名字（宿主或运行时给的），掩码那句说明才该出现。 / Whether the cell holds a real name. */
+function targetNamed(row: EffectRow): boolean {
+  return Boolean(targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`] || row.targetTitle)
+}
+
+/**
  * 这一行的发起人：名录认得就显示名字，认不得就原样显示 id —— 页面**只补名字、不改事实**。
  *
  * The caller behind the row: a name when the directory knows it, the id itself otherwise — this only
@@ -322,6 +342,15 @@ const effects = ref<EffectRow[]>([])
 /** 名录给发起人配好的名字，按 id 索引；取不到时列回落成 id 本身。 */
 /** Names the directory holds for the callers, keyed by id; the column falls back to the id. */
 const names = ref<Record<string, string>>({})
+/**
+ * 宿主给这一行**落在哪条记录**配好的名字（已掩码），按 `类型#主键` 索引。口径与写入台账页同一份：
+ * 运行时的 `targetTitle` 对客户这类记录是 **null**（2026-11-04 真栈实测）。
+ *
+ * The host's name (masked) for **the record this row landed on**, keyed by `type#key`; the same rule as
+ * the write ledger's page. The runtime's `targetTitle` is **null** for a customer row (measured on a real
+ * stack, 2026-11-04), so the cell used to carry a dash and a key and nothing else.
+ */
+const targetNames = ref<Record<string, string>>({})
 const total = ref(0)
 const page = ref(1)
 const limit = ref(20)
@@ -451,6 +480,10 @@ async function loadEffects() {
     effects.value = res.items
     total.value = res.total
     names.value = { ...names.value, ...(await resolveCallerNames(res.items.map((r) => r.userId))) }
+    targetNames.value = {
+      ...targetNames.value,
+      ...Object.fromEntries(await resolveRecordNames(res.items.map((r) => ({ type: r.resultType, id: r.resultId })))),
+    }
   } catch (e) {
     effects.value = []
     total.value = 0

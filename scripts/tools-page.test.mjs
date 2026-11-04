@@ -160,3 +160,16 @@ test('结果类型词表与宿主源码一一对应（两边都不许漏）', ()
   assert.deepEqual([...RESULT_TYPES].sort(), declared,
     'the console vocabulary and the host\'s declared result types disagree')
 })
+
+test('目标那一格问宿主要名字，答不上时说「未登记名称」', () => {
+  // 与行动中心同一格、同一口径：宿主那条窄读面答得出就给名字（已掩码），答不出就明说「未登记名称」，
+  // 不再用破折号表示「没问」。
+  //
+  // The same cell and the same rule as the action centre: the host's narrow read face gives a name
+  // (masked) when it can, and the cell says "name not registered" when it cannot — never a dash standing
+  // for "we did not ask".
+  assert.match(page, /import \{ resolveRecordNames \}/, 'the page no longer asks the host for record names')
+  assert.match(page, /resolveRecordNames\(res\.items\.map/, 'the ledger is drawn without asking the host')
+  assert.match(template, /\{\{ targetText\(row\) \}\}/, 'the target cell no longer goes through targetText')
+  assert.doesNotMatch(template, /\{\{ maskTitle\(row\.targetTitle\) \}\}/, 'the dash-only target cell is back')
+})

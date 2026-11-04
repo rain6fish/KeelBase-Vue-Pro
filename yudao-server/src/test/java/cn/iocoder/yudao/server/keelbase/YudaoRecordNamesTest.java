@@ -17,7 +17,10 @@ import cn.iocoder.yudao.module.crm.dal.mysql.customer.CrmCustomerMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.followup.CrmFollowUpRecordMapper;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
 import cn.iocoder.yudao.module.products.dal.mysql.products.ProductsMapper;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +50,8 @@ class YudaoRecordNamesTest {
     private DataSource dataSource;
     private YudaoAdministrator administrators;
     private YudaoAuditReaderRules auditReaders;
+    private CrmCustomerMapper customers;
+    private ToolRegistry tools;
     private YudaoRecordNames directory;
 
     @BeforeEach
@@ -59,11 +64,11 @@ class YudaoRecordNamesTest {
         auditReaders = mock(YudaoAuditReaderRules.class);
         when(auditReaders.isAuditReader("9002")).thenReturn(true); // 审计读者 / the audit reader
 
-        CrmCustomerMapper customers = mock(CrmCustomerMapper.class);
+        customers = mock(CrmCustomerMapper.class);
         when(customers.selectById(9005L)).thenReturn(CrmCustomerDO.builder().name("万科").build());
         when(customers.selectById(9004L)).thenReturn(CrmCustomerDO.builder().name("海康").build());
 
-        ToolRegistry tools = new ToolRegistry(List.of(
+        tools = new ToolRegistry(List.of(
                 new FakeTool("update_crm_customer", "crm_customer"),
                 new FakeTool("create_crm_customer", "crm_customer")));
 
@@ -75,8 +80,10 @@ class YudaoRecordNamesTest {
     private void resetSchema() throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("drop all objects");
+            // `result_id` 按真栈的形状建：运行时 0.1.16（迁移 V18）把它改成了文本列。
+            // `result_id` mirrors the real stack: runtime 0.1.16 (migration V18) turned it into a text column.
             statement.execute("create table side_effects (id bigint auto_increment primary key,"
-                    + " result_type varchar(64), result_id bigint)");
+                    + " result_type varchar(64), result_id varchar(255))");
             statement.execute("create table confirmation_requests (id bigint auto_increment primary key,"
                     + " tool_name varchar(128), args_json varchar(2000))");
             // 一次真的写落在 9005；一次被拒的调用提议动 9004（没有台账行）。
@@ -131,6 +138,81 @@ class YudaoRecordNamesTest {
                 directory.namesFor(1L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
 
         assertEquals(1, named.size(), "the administrator holds this read anyway: " + named);
+    }
+
+    @Test
+    void theLedgerKeyIsComparedAsTextSoAStrictServerStillAnswers() {
+        // 真栈上这一腿曾经**谁都答不出**（2026-11-04 实测：管理员与审计读者都拿到空表）。`side_effects.result_id`
+        // 自运行时 0.1.16 起是文本列，而以 `setLong` 交主键时 PostgreSQL 拒绝
+        // `character varying = bigint` 这种比较；本类把那个错误收成「没有名字」，于是一条台账行也配不上名。
+        // H2 的普通模式与 PostgreSQL 模式都会把文本列悄悄转成数字，看不见这个缺陷 —— 故这里用一个**在
+        // `setLong` 上就拒绝**的数据源复现那种服务器的严格，断言这一腿照样答得出名字。
+        //
+        // On a real stack this leg answered **nobody** (measured 2026-11-04: the administrator and the audit
+        // reader both got an empty list). `side_effects.result_id` is a text column since runtime 0.1.16, and
+        // handing the key to JDBC as a `Long` makes PostgreSQL refuse the `character varying = bigint`
+        // comparison; the class turns that error into "no name", so not one ledger row could be named. Both
+        // H2 modes quietly convert the text column to a number and cannot see it, so this test hands the class
+        // a data source that **refuses `setLong`** — the strict server, reproduced — and asserts the leg still
+        // answers.
+        YudaoRecordNames strict = new YudaoRecordNames(
+                customers, mock(CrmFollowUpRecordMapper.class), mock(Demo01ContactMapper.class),
+                mock(ProductsMapper.class), tools, refusesNumbers(dataSource), administrators, auditReaders);
+
+        List<YudaoRecordNames.Named> named =
+                strict.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
+
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9005", "万****")), named);
+    }
+
+    /**
+     * 包一层数据源：凡 SQL 里出现 `side_effects` 的语句，`setLong` 一律抛错 —— 与 PostgreSQL 对
+     * `character varying = bigint` 的拒绝同一个形状。
+     *
+     * Wraps the data source so that `setLong` on any statement naming `side_effects` throws — the same shape
+     * as PostgreSQL refusing `character varying = bigint`.
+     */
+    private static DataSource refusesNumbers(DataSource underlying) {
+        return (DataSource) Proxy.newProxyInstance(
+                YudaoRecordNamesTest.class.getClassLoader(), new Class<?>[]{DataSource.class},
+                (proxy, method, arguments) -> {
+                    Object result = method.invoke(underlying, arguments);
+                    if (result instanceof Connection connection) {
+                        return Proxy.newProxyInstance(
+                                YudaoRecordNamesTest.class.getClassLoader(), new Class<?>[]{Connection.class},
+                                (connectionProxy, connectionMethod, connectionArguments) -> {
+                                    Object made = connectionMethod.invoke(connection, connectionArguments);
+                                    if (!(made instanceof PreparedStatement statement)) {
+                                        return made;
+                                    }
+                                    String sql = connectionArguments != null && connectionArguments.length > 0
+                                            ? String.valueOf(connectionArguments[0]) : "";
+                                    return Proxy.newProxyInstance(
+                                            YudaoRecordNamesTest.class.getClassLoader(),
+                                            new Class<?>[]{PreparedStatement.class},
+                                            (statementProxy, statementMethod, statementArguments) -> {
+                                                // 绑一个数字给文本列，PG 就走不了；`setLong` 与
+                                                // `setObject(…, Long)` 两条都算（Spring 用哪条随版本）。
+                                                // A number bound to a text column is what PG refuses; both
+                                                // `setLong` and `setObject(…, Long)` count (Spring's choice
+                                                // varies by version).
+                                                String name = statementMethod.getName();
+                                                boolean bindsANumber = statementArguments != null
+                                                        && statementArguments.length >= 2
+                                                        && statementArguments[1] instanceof Number
+                                                        && ("setLong".equals(name) || "setInt".equals(name)
+                                                            || "setShort".equals(name) || "setByte".equals(name)
+                                                            || "setObject".equals(name));
+                                                if (bindsANumber && sql.contains("side_effects")) {
+                                                    throw new SQLException(
+                                                            "operator does not exist: character varying = bigint");
+                                                }
+                                                return statementMethod.invoke(statement, statementArguments);
+                                            });
+                                });
+                    }
+                    return result;
+                });
     }
 
     @Test

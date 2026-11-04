@@ -109,3 +109,52 @@ export async function resolveRecordName(
   cache.set(key, name)
   return name
 }
+
+/**
+ * 一次问一批引用：回一张 `类型#主键` → 名字（已掩码）的表，宿主答不上的**不在表里** —— 由调用方决定那一格
+ * 怎么措辞，本模块不替它编一个词。已经问过的引用不再发请求（与单条那条同一个缓存，否定答案也缓存）。
+ *
+ * 批量是给**表格列**用的：写入台账与行动中心的「目标」列每一行都要一个名字，一行一条请求就成了整页一屏
+ * 二十条。这条端点本来就收逗号分隔的一串引用，故一次问完。
+ *
+ * Asks about a batch of references at once: a `type#key` → name (masked) table. A reference the host
+ * cannot answer is **not in the table** — the caller decides how that cell reads, and this module does
+ * not invent a word for it. References already asked about cost no request (same cache as the single
+ * call, negative answers included). The batch exists for a **table column**: the write ledger and the
+ * action centre name every row, so one request per row would be a screenful of requests; the face takes
+ * a comma-separated list, so one call covers them.
+ */
+export async function resolveRecordNames(
+  refs: Array<{ type?: string | null; id?: string | number | null }>,
+): Promise<Map<string, string>> {
+  const wanted = new Map<string, { type: string; id: string | number }>()
+  for (const ref of refs) {
+    if (!ref || !ref.type || ref.id === null || ref.id === undefined || ref.id === '') continue
+    wanted.set(keyOf(ref.type, ref.id), { type: ref.type, id: ref.id })
+  }
+  const ask: Array<{ type: string; id: string | number }> = []
+  for (const [key, ref] of wanted) {
+    if (cache.get(key) === undefined) ask.push(ref)
+  }
+  if (ask.length) {
+    try {
+      const rows = (await request.get({
+        url: ROUTE,
+        params: { refs: ask.map((r) => `${r.type}:${r.id}`).join(',') },
+      })) as NamedRecord[] | null
+      for (const ref of ask) cache.set(keyOf(ref.type, ref.id), '')
+      for (const row of rows || []) {
+        if (row?.type) cache.set(keyOf(row.type, row.id), row.name ?? '')
+      }
+    } catch {
+      // 一次没问成，这一批就当没名字；引用仍留空表，下一次再问。
+      // One failed call leaves this batch unnamed; the page asks again next time.
+    }
+  }
+  const named = new Map<string, string>()
+  for (const key of wanted.keys()) {
+    const name = cache.get(key)
+    if (name) named.set(key, name)
+  }
+  return named
+}
