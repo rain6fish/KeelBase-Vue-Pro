@@ -599,6 +599,23 @@ jobs:
       - name: Every page the assistant offers must be one the console this deployment runs can open
         run: node scripts/check-console-pages.mjs
 
+      # The planner picks a route by a bare substring — `text.contains(trigger)`, first hit wins, and across
+      # configuration classes the order comes from scanning. A phrase two tool faces both claim therefore raises
+      # nothing: it quietly takes the wrong road. Both incidents were found by running the stack (pms's 「我的待办」
+      # against BPM's task face, oa's 「看我的请假」 taken by BPM's sample), and the second one still has only a
+      # real-stack gate. This reads the `triggers()` declarations out of the Java sources and refuses any phrase two
+      # different faces share, or one that is a substring of another — the same criterion
+      # `YudaoGovernanceContextTest.noTwoToolFacesClaimTheSamePhrase` states, moved to where no build is needed.
+      # A declaration shape it cannot read exits 2 rather than being skipped. Pure Node, no JDK, no stack.
+      # 规划器按**裸子串**选路——`text.contains(trigger)`，第一条命中就赢，而跨配置类的顺序来自扫描。于是「一句
+      # 话两个工具面都认」什么也不会报：它只是安静地走错一条。两起事故都是跑起来才发现的（`pms` 的「我的待办」
+      # 撞 BPM 的任务面、`oa` 的「看我的请假」被 BPM 样例抢走），而第二起至今只有真栈门抓得到。这道检查从 Java
+      # 源码里读 `triggers()` 声明，拒掉「两个不同工具面共用一个短语」或「一句是另一句的子串」——判据与
+      # `YudaoGovernanceContextTest.noTwoToolFacesClaimTheSamePhrase` 同一条，只是挪到不需要构建的地方。
+      # 读不懂的声明形状 exit 2，不跳过。纯 Node、不要 JDK、不起栈。
+      - name: No two tool faces answer to the same phrase
+        run: node scripts/check-trigger-uniqueness.mjs
+
       # The deployment's seed manifest is reconciled with what it serves: every `sql/keelbase-*.sql`
       # has to be classified (`load` / `separate` / `skip` + reason), and a menu file for a keelbase-ui
       # page that is not loaded, or a top-level path the scope file does not keep, is the silent way a
