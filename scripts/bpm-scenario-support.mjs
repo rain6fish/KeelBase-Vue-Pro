@@ -32,8 +32,18 @@ export const PG = process.env.PG_CONTAINER || 'bpmgates-1102-pg';
 export const DB = process.env.PG_DB || 'bpm_gates_1102';
 export const MODEL_KEY = process.env.BPM_MODEL_KEY || 'gateM2BpmGates1102';
 
-const MVN = process.env.MVN || 'D:/Develop/apache-maven-3.9.16/bin/mvn';
-const MVN_REPO = process.env.MVN_REPO || 'D:/Rain6fish/.m2-bpmgates';
+// 默认取 PATH 上的 `mvn`，仓库目录也交给 Maven 自己的默认值 —— 本文件因此可以在任何一台干净机器上跑，
+// 不再默认指向本机那两条 `D:/…`。给了 `MVN_REPO` 就等于点名了一个隔离缓存：那种跑法默认离线（与本地各次
+// 读数同形），`MVN_OFFLINE=0/1` 可覆盖任一方向。
+//
+// Default to `mvn` on `PATH` and let Maven use its own default repository, so this file runs on any clean
+// machine instead of pointing at this one's two `D:/…` paths. Naming `MVN_REPO` means an isolated cache,
+// and that mode is offline by default (the way the local readings were taken); `MVN_OFFLINE=0/1`
+// overrides either way.
+const MVN = process.env.MVN || 'mvn';
+const MVN_REPO = process.env.MVN_REPO || '';
+const MVN_OFFLINE = process.env.MVN_OFFLINE === undefined
+  ? Boolean(MVN_REPO) : process.env.MVN_OFFLINE !== '0';
 const PSQL = process.env.PSQL || 'psql';
 const PSQL_HELPER = (process.env.PSQL_HELPER || 'docker').toLowerCase();
 const PSQL_HELPER_SCRIPT = process.env.PSQL_HELPER_SCRIPT
@@ -267,10 +277,10 @@ export function runProjectionTests(classes) {
   let failure = '';
   try {
     output = execFileSync('bash', [
-      'scripts/jdk25.sh', MVN, '-B', '-o', '-pl', 'yudao-server', '-am',
+      'scripts/jdk25.sh', MVN, '-B', ...(MVN_OFFLINE ? ['-o'] : []), '-pl', 'yudao-server', '-am',
       `-Dtest=${classes.join(',')}`, '-DfailIfNoTests=false', '-Dsurefire.failIfNoSpecifiedTests=false',
       '-DargLine=-Djdk.attach.allowAttachSelf=true -XX:+EnableDynamicAgentLoading',
-      `-Dmaven.repo.local=${MVN_REPO}`, 'test',
+      ...(MVN_REPO ? [`-Dmaven.repo.local=${MVN_REPO}`] : []), 'test',
     ], { cwd: ROOT, encoding: 'utf8', stdio: 'pipe', timeout: 30 * 60 * 1000 });
   } catch (e) {
     output = `${e.stdout || ''}\n${e.stderr || ''}`;

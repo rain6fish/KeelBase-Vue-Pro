@@ -32,13 +32,24 @@
 //
 // Everything it creates, it removes again. **Bypass rows and audit rows stay on purpose** — they are the
 // readings this gate exists to leave behind.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
+import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ADMIN_USER, resolveAdminPassword } from './admin-credential.mjs';
 
 const HOST = process.env.HOST_URL || 'http://127.0.0.1:48080';
 const PG = process.env.PG_CONTAINER || 'keelbase-yudao-pg';
 const DB = process.env.PG_DB || 'ruoyi-vue-pro';
 const TENANT = process.env.TENANT_ID || '1';
+// 证据目录默认落在系统临时目录：`D:/…` 那种默认只在 Windows 上成立，干净机器与 CI 都不该依赖它。
+// CI 用 `EVIDENCE_DIR` 指到工作区内，好把第二个宿主的日志一并上传。
+//
+// The evidence directory defaults to the system temp dir: a `D:/…` default only exists on Windows, and
+// neither a clean machine nor CI should depend on it. CI points `EVIDENCE_DIR` inside the workspace so
+// the second host's log can be uploaded with the run.
+const EVIDENCE = process.env.EVIDENCE_DIR || join(tmpdir(), 'keelbase-bypass-audit-evidence');
 
 let pass = 0;
 let fail = 0;
