@@ -323,6 +323,20 @@ test('a changed computed form exits 2 — the reader says so instead of skipping
   assert.match(stderr, /triggerOf/, 'the message must say which rule it could not read')
 })
 
+test('a tree with no route at all exits 2 — an empty reading is not a pass', (t) => {
+  const root = fixture(t, {
+    'NothingHere.java': `// SPDX-License-Identifier: Apache-2.0
+package cn.iocoder.yudao.server.keelbase;
+
+public class NothingHere {
+}
+`,
+  })
+  const { status, stderr } = run(root)
+  assert.equal(status, 2, `zero routes must not read as green:\n${stderr}`)
+  assert.match(stderr, /implements ModuleRoute/, 'the message must say what it looked for')
+})
+
 test('two routes to the same tool may share a phrase — the destination is the same', (t) => {
   const root = fixture(t, {
     'CrmTools.java': host(

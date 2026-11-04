@@ -517,6 +517,16 @@ export function audit(root = ROOT) {
     }
   }
 
+  // 一条路由都没读到，与「读成空表」是同一件事：路径指错了、目录空了、扫描写坏了，都会让上面所有判据**空着成立**。
+  // 一棵真检出不会没有路由，故这里直接判读脚本出错。
+  // Zero routes read is the same thing as reading an empty list: a wrong path, an empty directory or a broken walk
+  // would make every criterion above hold vacuously. A real checkout has routes, so this is the reader's error.
+  if (routeImplementations === 0) {
+    unreadable.push(
+      new ReaderError(SCOPE, 1, `no \`implements ModuleRoute\` under ${join(root, SCOPE)} — the enumeration, not the tree, is wrong`),
+    )
+  }
+
   // 全树扫描的另一半：每个 `implements ModuleRoute` 都要有一条被读到的声明。少一条就说明有一种形状本读者**没看见**，
   // 那与「读成空表」是同一类假绿。
   // The other half of a whole-tree scan: every `implements ModuleRoute` needs a declaration that was read. One short
