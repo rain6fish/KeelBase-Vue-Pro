@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // 上游 REST 写旁路审计（「丁」）的门禁：**一次写恰一行**、**读与登录零行**、**失败照样留行且两个码对得上**、
-// **受治理的那条路不重行**。
+// **受治理的那条路不重行**、**开关关闭 ⇒ 零行且行为不变**。
 //
 //   bash scripts/run-server.sh &
 //   node scripts/run-bypass-audit-scenarios.mjs
@@ -11,6 +11,10 @@
 // 包在 HTTP 200 里的业务拒绝被读成成功），和给受治理的工具路径也记一行（于是同一次写留两行、读者以为是两件事）。
 // 故场景 3 专挑一次**业务拒绝**（HTTP 200、信封 `code` 非 0），场景 5/6 专挑**不该有行**的那些请求。
 //
+// **场景 7 自己起停第二个宿主**：它从本门的环境里取 `PG_*` / `REDIS_*`（必须与第一个宿主同一套数据存储），
+// 端口取 `BYPASS_AUDIT_OFF_PORT`（默认 48098），日志落在 `EVIDENCE_DIR`（默认系统临时目录）。那条宿主把
+// `keelbase.bypass-audit.enabled` 关掉，故过滤器**根本不装** —— 一次写零行，而响应与业务行与开着时一样。
+//
 // **本轮的唯一标记是 `occurred_at`。** 表里没有一列可以写标记（也不该为门禁加一列），故每条断言都按
 // `occurred_at >= 本轮开始` 收窄 —— 重跑、并跑都不会互相干扰，而这是本线每道门禁写法的那一条（按名字收窄，
 // 不按整表计数）。
@@ -18,13 +22,20 @@
 // 它造的每一样都拆掉；**旁路行与审计行刻意留着** —— 它们就是这道门禁要留下的读数。
 //
 // The gate for the upstream-REST bypass trail ("丁"): **one write, one row**; **reads and logins leave none**;
-// **a failure keeps its row with both codes agreeing**; **the governed path leaves no second row**.
+// **a failure keeps its row with both codes agreeing**; **the governed path leaves no second row**;
+// **switch off ⇒ zero rows and unchanged behaviour**.
 //
 // What it proves is not "something is recorded" but "the shape of what is recorded is right". The two easy
 // mistakes for a trail row are recording the wire status alone (so this host's business refusals, wrapped in
 // HTTP 200, would read as success) and recording the governed tool path too (two rows for one write, read as
 // two events). Scenario 3 therefore triggers a **business refusal** (HTTP 200, envelope `code` non-zero), and
 // scenarios 5 and 6 trigger requests that must leave **no row at all**.
+//
+// **Scenario 7 starts and stops a second host itself**: it takes `PG_*` / `REDIS_*` from this gate's
+// environment (they must name the same datastore as the first host), listens on `BYPASS_AUDIT_OFF_PORT`
+// (default 48098), and writes its log to `EVIDENCE_DIR` (default: the system temp dir). That host has
+// `keelbase.bypass-audit.enabled` off, so the filter is **not installed** — one write leaves no row, while
+// the response and the business row are the same as with it on.
 //
 // **This run's marker is `occurred_at`.** No column exists to write a marker into (and none should be added for
 // a gate's sake), so every assertion is scoped to `occurred_at >= this run's start` — reruns and concurrent runs
@@ -39,7 +50,10 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ADMIN_USER, resolveAdminPassword } from './admin-credential.mjs';
 
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = process.env.HOST_URL || 'http://127.0.0.1:48080';
+const OFF_PORT = process.env.BYPASS_AUDIT_OFF_PORT || '48098';
+const OFF_HOST = process.env.BYPASS_AUDIT_OFF_URL || `http://127.0.0.1:${OFF_PORT}`;
 const PG = process.env.PG_CONTAINER || 'keelbase-yudao-pg';
 const DB = process.env.PG_DB || 'ruoyi-vue-pro';
 const TENANT = process.env.TENANT_ID || '1';
@@ -59,6 +73,7 @@ const bad = (name, expected, got) => {
   fail += 1;
 };
 const check = (name, expected, got) => (String(expected) === String(got) ? ok(name) : bad(name, expected, got));
+const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
 const psql = (sql) => execFileSync(
   'docker', ['exec', '-i', '-e', 'PGPASSWORD=password', PG, 'psql', '-U', 'root', '-d', DB, '-tAc', sql],
@@ -79,8 +94,8 @@ const bypassRows = () => {
 const countSince = () => Number(psql(
   `select count(*) from keelbase_bypass_log where occurred_at >= '${startedAt}'`));
 
-async function api(path, { method = 'GET', token, body, base = '/admin-api' } = {}) {
-  const res = await fetch(`${HOST}${base}${path}`, {
+async function api(path, { method = 'GET', token, body, base = '/admin-api', host = HOST } = {}) {
+  const res = await fetch(`${host}${base}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
@@ -94,13 +109,115 @@ async function api(path, { method = 'GET', token, body, base = '/admin-api' } = 
   return { status: res.status, json };
 }
 
-async function login() {
+async function login(host = HOST) {
   const password = resolveAdminPassword(psql);
-  const r = await api('/system/auth/login', { method: 'POST', body: { username: ADMIN_USER, password } });
+  const r = await api('/system/auth/login', { method: 'POST', host, body: { username: ADMIN_USER, password } });
   if (!r.json || r.json.code !== 0) {
     throw new Error(`login(${ADMIN_USER}) answered ${JSON.stringify(r.json)} (HTTP ${r.status})`);
   }
   return r.json.data.accessToken;
+}
+
+// ── 第二个宿主（开关关）的起停 / the second host and its life cycle ──────────────────────────────
+let offHost = null;
+
+/** 谁在这个端口上监听（只在 Windows 上用于收尾自查）。 / Who listens on this port (Windows cleanup check). */
+function portHolders(port) {
+  try {
+    const netstat = execFileSync('netstat', ['-ano'], { encoding: 'utf8' });
+    const pids = new Set();
+    for (const line of netstat.split(/\r?\n/)) {
+      if (line.includes(`:${port}`) && line.includes('LISTENING')) {
+        const pid = line.trim().split(/\s+/).pop();
+        if (pid && /^\d+$/.test(pid) && pid !== '0') pids.add(pid);
+      }
+    }
+    return [...pids];
+  } catch {
+    return [];
+  }
+}
+
+function killTree(child) {
+  if (!child || child.pid == null) return;
+  if (process.platform === 'win32') {
+    try { execFileSync('taskkill', ['/PID', String(child.pid), '/T', '/F'], { stdio: 'ignore' }); } catch { /* already gone */ }
+  } else if (child.exitCode === null) {
+    try { child.kill('SIGTERM'); } catch { /* already gone */ }
+  }
+}
+
+function startOffHost() {
+  mkdirSync(EVIDENCE, { recursive: true });
+  const log = join(EVIDENCE, 'off-host.log');
+  const out = openSync(log, 'w');
+  console.log(`  note  starting the second host (switch off) on ${OFF_HOST}; log ${log}`);
+  console.log(`  note  it shares this gate's datastore: ${process.env.PG_HOST || '127.0.0.1'}:`
+    + `${process.env.PG_PORT || '54329'}/${process.env.PG_DB || DB}`);
+  const child = spawn('bash', ['scripts/run-server.sh'], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      PORT: OFF_PORT,
+      SERVER_ADDRESS: '127.0.0.1',
+      // 开关的语义是「不装」；`bypass-audit` 与 `bypassAudit` 在 relaxed binding 下是同一个键。
+      // The switch means "not installed"; `bypass-audit` and `bypassAudit` are one key under relaxed binding.
+      SPRING_APPLICATION_JSON: JSON.stringify({ keelbase: { bypassAudit: { enabled: false } } })
+    },
+    stdio: ['ignore', out, out]
+  });
+  closeSync(out);
+  return child;
+}
+
+async function waitForHost(host, child, timeoutMs = 300000) {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    if (child.exitCode !== null) return false; // 它已经退了，等下去没有意义。 / It already died.
+    try {
+      const res = await fetch(`${host}/actuator/health`);
+      if (res.status === 200) return true;
+    } catch { /* 还没开始监听。 / Not listening yet. */ }
+    await sleep(1000);
+  }
+  return false;
+}
+
+function stopOffHostSync() {
+  const child = offHost;
+  offHost = null;
+  if (!child) return;
+  killTree(child);
+  if (process.platform === 'win32') {
+    for (const pid of portHolders(OFF_PORT)) {
+      try { execFileSync('taskkill', ['/PID', pid, '/T', '/F'], { stdio: 'ignore' }); } catch { /* already gone */ }
+    }
+  }
+}
+
+async function stopOffHost() {
+  const child = offHost;
+  offHost = null;
+  if (!child) return;
+  killTree(child);
+  if (process.platform !== 'win32') {
+    for (let i = 0; i < 30 && child.exitCode === null; i += 1) await sleep(500);
+    if (child.exitCode === null) { try { child.kill('SIGKILL'); } catch { /* already gone */ } }
+    return;
+  }
+  // `run-server.sh` 会 exec 进 java（同一 PID），故树杀通常就够；再按端口自查一次，免得下一次跑绑不上端口。
+  // `run-server.sh` execs into java (same PID), so the tree kill normally suffices; check the port anyway so
+  // the next run cannot fail to bind it.
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    const holders = portHolders(OFF_PORT);
+    if (holders.length === 0) return;
+    for (const pid of holders) {
+      try { execFileSync('taskkill', ['/PID', pid, '/T', '/F'], { stdio: 'ignore' }); } catch { /* already gone */ }
+    }
+    await sleep(500);
+  }
+  console.error(`  note  port ${OFF_PORT} is still listening after stopping the second host`);
 }
 
 // 造出来的字典数据，收尾时按 id 删；收尾函数在造出第一行的那一刻挂上。
@@ -115,11 +232,22 @@ function runPutBack() {
 }
 process.on('exit', () => {
   try { runPutBack(); } catch (e) { console.error(`  note  exit-path cleanup failed: ${e.message}`); }
+  stopOffHostSync();
 });
+// 被 Ctrl-C 或 CI 的取消打断时也要停掉第二个宿主：默认信号处理不会走 `exit`。
+// A Ctrl-C or a CI cancellation must stop the second host too: the default signal handling skips `exit`.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    stopOffHostSync();
+    process.exit(signal === 'SIGINT' ? 130 : 143);
+  });
+}
 
 const marker = `bypass-gate-${Date.now()}`;
+const offMarker = `${marker}-off`;
 let createdId = null;
 let createdType = null;
+let offCreatedId = null;
 
 // 字典数据必须挂在一个**已存在**的字典类型下（模块自己校验，`当前字典类型不存在` 就是它的拒绝）。库里有就借一个，
 // 没有就造一个、收尾时拆掉 —— 门禁不该要求某种种子恰好存在。
@@ -166,6 +294,10 @@ putBack = () => {
     psql(`delete from system_dict_data where id = ${createdId}`);
   }
   psql(`delete from system_dict_data where value = '${marker}'`);
+  if (offCreatedId !== null) {
+    psql(`delete from system_dict_data where id = ${offCreatedId}`);
+  }
+  psql(`delete from system_dict_data where value = '${offMarker}'`);
   if (createdType !== null) {
     psql(`delete from system_dict_type where type = '${createdType}'`);
   }
@@ -231,9 +363,45 @@ const before6 = countSince();
 await api('/ai/chat/stream', { method: 'POST', token, base: '/admin', body: { message: marker } });
 check('6. the conversation route leaves no bypass row', before6, countSince());
 
+// ── 7 · 开关关闭 ⇒ 零行且行为不变 ──────────────────────────────────────────────────────────────────────
+// 开关的语义是「不装」：`keelbase.bypass-audit.enabled=false` 时过滤器根本不注册，于是一次写既不留行、也与
+// 开着时行为一样。只有这一条要第二个宿主，故门禁自己起、并在每条退出路径上停掉它 —— 留一个监听者会让下一次跑
+// 绑不上端口。
+//
+// The switch means "not installed": with `keelbase.bypass-audit.enabled=false` the filter is never registered,
+// so a write leaves no row and behaves exactly as it does with the switch on. This is the one scenario that
+// needs a second host, so the gate starts one and stops it on every exit path — a leftover listener would
+// block the next run.
+offHost = startOffHost();
+const offUp = await waitForHost(OFF_HOST, offHost);
+check('7. the second host (switch off) came up', true, offUp);
+if (!offUp) console.error(`  note  the second host did not come up; see ${join(EVIDENCE, 'off-host.log')}`);
+try {
+  if (offUp) {
+    const offToken = await login(OFF_HOST);
+    const before7 = countSince();
+    const offWrite = await api('/system/dict-data/create', {
+      method: 'POST', token: offToken, host: OFF_HOST,
+      body: { dictType, label: offMarker, value: offMarker, sort: 0, status: 0 }
+    });
+    check('7. the write still answered 200 on the wire', 200, offWrite.status);
+    check('7. the write still succeeded in the envelope', 0, offWrite.json?.code);
+    if (offWrite.json?.code === 0) offCreatedId = offWrite.json.data;
+    check('7. the write still landed its row', 1,
+      Number(psql(`select count(*) from system_dict_data where value = '${offMarker}'`)));
+    // 留痕是异步的；给它一个窗口，好让「也没有迟到的那一行」同样是一个读数。
+    // The trail is asynchronous; give it a window so "no late row either" is a reading too.
+    await sleep(2000);
+    check('7. the switch-off write left no bypass row', before7, countSince());
+  }
+} finally {
+  await stopOffHost();
+}
+
 // ── 汇总 ───────────────────────────────────────────────────────────────────────────────────────────
-// Three writes were sent (one accepted, one refused, one unserved); three rows is the whole reading.
-check('7. the run left exactly the three writes it made', 3, countSince());
+// Three writes were sent to the recording host (one accepted, one refused, one unserved); the switch-off
+// host's write is a fourth and leaves nothing — **three rows is the whole reading**.
+check('8. the run left exactly the three writes it made', 3, countSince());
 
 runPutBack();
 psql('select 1'); // 收尾之后再碰一次库：删不掉时这里会抛，而不是悄悄留一行。
