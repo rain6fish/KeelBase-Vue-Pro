@@ -166,6 +166,15 @@
       <el-table-column :label="t('keelbase.audit.colWho')" width="170">
         <template #default="{ row }">
           <div>{{ callerName(row.userId) }}</div>
+          <!--
+            `YD-45`：裁决行上这个人是**作裁决的那位**，不是调用方。行为那列只说「确认」时说不出这一层，
+            故在这里点名。只认 `approved` / `declined`：同一种动作的 `attempted` 行是一次重试，不是裁决。
+
+            `YD-45`: on a decision row this person is **the decider**, not the caller. The action column
+            only says "confirmation" and cannot carry that distinction, so it is named here. Only
+            `approved` / `declined` count — an `attempted` row of the same action is a retry, not a decision.
+          -->
+          <el-tag v-if="deciderText(row)" size="small" effect="plain">{{ deciderText(row) }}</el-tag>
           <!-- 没有 id 的行**不画那一行**：`#—` 读起来像一个坏掉的 id，而不是「这次没人可挂」。 -->
           <div v-if="row.userId" class="muted">#{{ row.userId }}</div>
         </template>
@@ -423,6 +432,21 @@ const query = reactive<{ userId: string; isError: string }>({ userId: '', isErro
 function callerName(id: string | null | undefined): string {
   if (!id) return '—'
   return names.value[String(id)] ?? String(id)
+}
+
+/**
+ * 裁决行上「谁」那一格的标签：这个人批准了或拒绝了这次调用。读不了的两行（`attempted` 重试、别的
+ * `tool_confirmation` 形态）不贴标签 —— 一个贴错标签的裁决者比不贴更糟。
+ *
+ * The tag on the "who" cell of a decision row: this person approved or declined the call. Rows this
+ * page cannot read as a decision (`attempted` retries, other `tool_confirmation` shapes) get no tag —
+ * a mislabelled decider is worse than none.
+ */
+function deciderText(row: AuditRow): string {
+  if (row.action !== 'tool_confirmation') return ''
+  if (row.outcome === 'approved') return t('keelbase.audit.approverTag')
+  if (row.outcome === 'declined') return t('keelbase.audit.declinerTag')
+  return ''
 }
 
 /**

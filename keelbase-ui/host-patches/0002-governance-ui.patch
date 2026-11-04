@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,579 @@
+@@ -1,4 +1,588 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -31,6 +31,8 @@ index 96269a8..2611a9b 100644
 +      colId: 'ID',
 +      colTime: 'Time',
 +      colWho: 'Who',
++      approverTag: 'Approver',
++      declinerTag: 'Decliner',
 +      colUser: 'Caller',
 +      colAction: 'Action',
 +      colTool: 'Tool',
@@ -313,7 +315,7 @@ index 96269a8..2611a9b 100644
 +      auditChain: 'This page covers every AI tool call that goes through the engine — the deployment\'s own tools, MCP, SKILL and RAG retrieval. It does not cover the upstream resolver path, which does not pass through this governance.',
 +      opAudit: 'This page does not cover: the AI audit rows (a separate chain) or the upstream resolver path. MCP and SKILL calls are AI tool calls, so they leave AI audit rows, not business operation logs.',
 +      toolInventory: 'This page lists every tool the engine can execute, including MCP, SKILL and RAG tools. It does not cover the upstream resolver path.',
-+      trace: 'This page does not cover: rows written outside any conversation (a task run, an MCP caller) or the call\'s argument string (this runtime does not store it). MCP, SKILL and RAG calls are linked to their session; the upstream resolver path is not governed. This page answers the caller\'s own conversations only; it is granted to ordinary users and walk readers, and the audit-reader role is deliberately not granted it: the page would be empty for that role, and a conversation\'s text is outside its remit, so a missing page there is a missing grant.',
++      trace: 'This page does not cover: rows written outside any conversation (a task run, an MCP caller) or the call\'s argument string (this runtime does not store it). MCP, SKILL and RAG calls are linked to their session; the upstream resolver path is not governed. This page answers the caller\'s own conversations only; it is granted to ordinary users and walk readers, and the audit-reader role is deliberately not granted it: the page would be empty for that role, and a conversation\'s text is outside its remit, so a missing page there is a missing grant. Who approved a held call is joined from the audit chain\'s decision row, so it is shown only to a caller who may read that chain; otherwise the step says the fact could not be read.',
 +      actionCenter: 'This page does not cover: reads that ran without a decision, or MCP and SKILL external writes — they have no confirmation and no side-effect ledger row, because an external tool has no result id. The upstream resolver path is not governed.',
 +      effectsLedger: 'This page does not cover: MCP and SKILL external writes (no result id, so no ledger row), or the upstream resolver path.',
 +      policy: 'This page does not cover: the upstream resolver path — its tools are outside this policy’s scope. MCP, SKILL and RAG tools are registered and can be gated here.',
@@ -361,6 +363,13 @@ index 96269a8..2611a9b 100644
 +      stepsTitle: 'Trace',
 +      noticeTag: 'disclosure',
 +      detailLine: 'Record: {detail}',
++      approverLabel: 'Approved by',
++      declinerLabel: 'Declined by',
++      approverLine: '{label}: {who}',
++      approverNamed: '{name} · #{id}',
++      approverIdOnly: 'User #{id}',
++      approverUnrecorded: '{label}: no single matching row in the audit rows read',
++      approverUnreadable: '{label}: could not be read (this page needs audit-read access)',
 +    },
 +    opAudit: {
 +      title: 'Operations audit',
@@ -586,7 +595,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,573 @@
+@@ -1,4 +1,582 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -615,6 +624,8 @@ index 35f1e1a..856d201 100644
 +      colId: '编号',
 +      colTime: '时间',
 +      colWho: '谁',
++      approverTag: '批准人',
++      declinerTag: '拒绝人',
 +      colUser: '调用方',
 +      colAction: '动作',
 +      colTool: '工具',
@@ -895,7 +906,7 @@ index 35f1e1a..856d201 100644
 +      auditChain: '本页覆盖经引擎的每一次 AI 工具调用 —— 部署自己的工具、MCP、SKILL 与 RAG 检索。它不覆盖上游解析器路 —— 那条路不经本治理。',
 +      opAudit: '本页不覆盖：AI 审计行（另一条链）与上游解析器路。MCP 与 SKILL 的调用是 AI 工具调用，留下的是 AI 审计行、不是业务操作日志。',
 +      toolInventory: '本页列出引擎能执行的每一个工具，包括 MCP、SKILL 与 RAG 工具。它不覆盖上游解析器路。',
-+      trace: '本页不覆盖：没有会话时写下的行（一次任务运行、一个 MCP 调用方），以及调用的参数串（本运行时不存它）。MCP、SKILL 与 RAG 调用都链到各自会话；上游解析器路不受治理。本页只答调用方自己的会话；本页发给普通用户与走查读者，审计读者角色按决定不授予此页 —— 他们在这里会是空的，且对话正文不在那个角色的权限范围内，所以看不见是这一页没有授予它，不是页面缺失。',
++      trace: '本页不覆盖：没有会话时写下的行（一次任务运行、一个 MCP 调用方），以及调用的参数串（本运行时不存它）。MCP、SKILL 与 RAG 调用都链到各自会话；上游解析器路不受治理。本页只答调用方自己的会话；本页发给普通用户与走查读者，审计读者角色按决定不授予此页 —— 他们在这里会是空的，且对话正文不在那个角色的权限范围内，所以看不见是这一页没有授予它，不是页面缺失。被扣下的调用是谁批准，由审计链上的裁决行联出，故只有能读那条链的调用方看得到；否则那一步明说读不到。',
 +      actionCenter: '本页不覆盖：没有经过裁决就执行的读，以及 MCP 与 SKILL 的外部写 —— 它们没有确认、没有副作用台账行，因为外部工具没有可登记的结果 id。上游解析器路不受治理。',
 +      effectsLedger: '本页不覆盖：MCP 与 SKILL 的外部写（没有结果 id，故无台账行），以及上游解析器路。',
 +      policy: '本页不覆盖：上游解析器路 —— 它的工具不在这份策略的范围内。MCP、SKILL 与 RAG 工具都已注册，可以在这里设闸。',
@@ -941,6 +952,13 @@ index 35f1e1a..856d201 100644
 +      stepsTitle: '轨迹',
 +      noticeTag: '披露',
 +      detailLine: '记录：{detail}',
++      approverLabel: '批准人',
++      declinerLabel: '拒绝人',
++      approverLine: '{label}：{who}',
++      approverNamed: '{name} · #{id}',
++      approverIdOnly: '用户 #{id}',
++      approverUnrecorded: '{label}：所读的审计行里没有唯一的对应行',
++      approverUnreadable: '{label}：读不到（本页需要审计读取权）',
 +    },
 +    opAudit: {
 +      title: '操作审计',
