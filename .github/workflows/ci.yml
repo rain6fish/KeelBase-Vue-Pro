@@ -1182,7 +1182,7 @@ jobs:
       # The bypass audit: the gate starts a **second** host itself (`keelbase.bypassAudit.enabled=false`), so
       # the datastore knobs are handed to it here; that host's log lands in `gates/evidence/` and is uploaded
       # with the artifacts.
-      - name: Gate — bypass audit (44 ok expected)
+      - name: Gate — bypass audit (26 ok expected)
         timeout-minutes: 25
         env:
           HOST_URL: http://127.0.0.1:48090
