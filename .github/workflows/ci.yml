@@ -8,11 +8,17 @@
 # authoritative: `maven.yml` never triggers on this repository's branches. The host's own Java tests
 # and the ai1 module's own tests run for real in `conformance`, below.
 #
-# Ten jobs, and each answers a question the others cannot (one carries a step that answers a
+# Eleven jobs, and each answers a question the others cannot (one carries a step that answers a
 # question of its own, marked where it appears):
 #
 #   path-refs            every path this repository writes about itself — in a comment, a doc, a
 #                        script — points at a file it actually holds;
+#   sql-aliases          no query whose result is consumed as a **Map** aliases a result column in
+#                        camelCase — PostgreSQL folds an unquoted alias to lower case, and MyBatis puts
+#                        that folded name in the map as its key, so `AS priceSum` reads back as a
+#                        missing key (a silent 0) rather than an error; `AS "priceSum"` and
+#                        `CAST(x AS DATE)` stay allowed, and so do Bean results, which MyBatis matches
+#                        case-insensitively;
 #   script-tests         every `scripts/*.test.mjs` this repository ships actually runs — one glob
 #                        rather than a list, so a test added later is covered without editing this
 #                        workflow; the topical jobs still name their own files, because a failure
@@ -77,10 +83,14 @@
 # 测试 skip 开关在本仓**不作数**：`maven.yml` 在本仓的分支上根本不触发。宿主自己的 Java 测试、以及 ai1
 # 模块自己的测试，都在下面的 `conformance` 里**真跑**。
 #
-# 十道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
+# 十一道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
 #
 #   path-refs            本仓写到自己身上的每一条路径——注释里的、文档里的、脚本里的——都指向一个它
 #                        确实持有的文件；
+#   sql-aliases          没有一条**结果按 Map 消费**的查询把列起成 camelCase 别名 —— PG 把未加引号的别名
+#                        折成小写，而 MyBatis 把折叠后的名字原样当成 Map 的键，于是 `AS priceSum` 读回来是
+#                        「键不存在」（静默的 0）而不是异常；`AS "priceSum"` 与 `CAST(x AS DATE)` 是允许的
+#                        例外，Bean 结果也允许 —— MyBatis 对属性是忽略大小写匹配的；
 #   script-tests         本仓带的每个 `scripts/*.test.mjs` 都真的跑得起来 —— 用一条 glob 而不是一份清单，
 #                        故以后新加的测试不改这个 workflow 就已经在射程内；分题的 job 仍各自点名自己的
 #                        文件，因为那里的失败应当在**那道 job 的问题**里去读；
@@ -151,6 +161,44 @@ jobs:
       # same note, for the same reason, is in the sibling repositories' workflows.
       - name: Cited paths must exist
         run: node scripts/check-path-refs.mjs
+
+  # 这一道是 2026-11-04 那两笔真缺陷的闸：`PayWalletTransactionMapper` 的 `SUM(price) AS priceSum` 让钱包收支
+  # 恒为 0，`AiChatMessageMapper` 同理；pms 另有六处同形让控制台项目页在 PG 上 500。两次都是**事后逐条修**，
+  # 没有一道闸拦这一类写法。这道 job 把 `scripts/check-sql-aliases.mjs` 接进 CI —— 纯 Node，不起栈，几秒完成。
+  #
+  # 它判的是**真正会坏的那一类**：结果按 Map 消费的查询。PG 把未加引号的别名折成小写，而 MyBatis 把折叠后的
+  # 名字原样当 Map 的键 ⇒ 代码按键取不到，拿到默认值或 null，**不报错**。Bean 结果不判，因为 MyBatis 的属性
+  # 匹配忽略大小写（`pricesum` 照样映射到 `priceSum`）。判据、允许的例外（`AS "quoted"`、`CAST AS type`）、
+  # 部署范围与「只认带 `AS` 的别名」这条边界，都写在脚本头部。脚本按 `yudao-server/pom.xml` 里未被注释的
+  # `yudao-module-*` 取部署范围；范围外的上游写法只计数、不判（`--all` 才判）。
+  #
+  # This is the gate for the two real defects of 2026-11-04: `PayWalletTransactionMapper`'s
+  # `SUM(price) AS priceSum` pinned wallet income and expense at 0, and `AiChatMessageMapper` did the same;
+  # six pms sites of the same shape made the console's project page 500 on PostgreSQL. Both were fixed
+  # site by site **after the fact**, with no gate over the shape. This job wires
+  # `scripts/check-sql-aliases.mjs` into CI — pure Node, no stack, seconds.
+  #
+  # It judges **the queries that actually break**: those whose result is consumed as a Map. PostgreSQL
+  # folds an unquoted alias to lower case, and MyBatis puts that folded name in the map as its key ⇒ the
+  # lookup misses and returns a default or null, **without an error**. Bean results are not judged, because
+  # MyBatis matches properties case-insensitively (`pricesum` still maps to `priceSum`). The criteria, the
+  # allowed exceptions (`AS "quoted"`, `CAST AS type`), the deployed scope, and the boundary ("only
+  # aliases spelled with `AS` are recognised") all live in the script's header. The scope is the
+  # uncommented `yudao-module-*` in `yudao-server/pom.xml`; upstream spellings outside it are counted, not
+  # judged (`--all` judges them).
+  sql-aliases:
+    name: No Map-returning query aliases a result column in camelCase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # 部署范围是默认范围：CI 的构建与本仓的部署用同一份 `yudao-server/pom.xml`，故这里不加 `--all`。
+      # The deployed scope is the default: CI builds the same `yudao-server/pom.xml` this repository
+      # deploys, so no `--all` here.
+      - name: No camelCase result-column alias on a Map-returning query
+        run: node scripts/check-sql-aliases.mjs
 
   script-tests:
     name: Every script test this repository ships runs
