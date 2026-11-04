@@ -223,6 +223,17 @@ for (const turn of [own, other, none, gone]) {
 }
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
-console.log(`\nREADING toolReplyOwn=1 otherAndMissingAlike=1 restSeesOtherRow=1 marker=${MARKER}`);
+// 读数由断言算出，不写死：红灯时汇总行也必须跟着变红（这是探针自己的可证伪面）。
+// The readings are computed from the assertions, never hardcoded: a red run must show red here too.
+const reading = {
+  toolReplyOwn: /hasTransaction=true/.test(ownReply) && ownReply.includes(OWN)
+    && !ownReply.includes('7777') && !ownReply.includes('9999'),
+  otherAndMissingAlike: /hasTransaction=false/.test(otherReply) && /hasTransaction=false/.test(noneReply)
+    && !otherReply.includes('9999'),
+  restSeesOtherRow: String(viaRest.data?.total) === '1'
+    && String(viaRest.data?.list?.[0]?.price) === '9999'
+};
+console.log(`\nREADING toolReplyOwn=${+reading.toolReplyOwn} otherAndMissingAlike=${+reading.otherAndMissingAlike}`
+  + ` restSeesOtherRow=${+reading.restSeesOtherRow} marker=${MARKER}`);
 console.log(`\n${pass} ok / ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

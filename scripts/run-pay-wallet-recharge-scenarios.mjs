@@ -280,6 +280,21 @@ for (const turn of [own, other, none, dangling, gone]) {
 }
 
 // ── 读音 ───────────────────────────────────────────────────────────────────────────────────────
-console.log(`\nREADING toolReplyOwn=1 otherAndMissingAlike=1 danglingWalletWithheld=1 oneReadNoWriteNoPage=1 marker=${MARKER}`);
+// 读数由断言算出，不写死：红灯时汇总行也必须跟着变红（这是探针自己的可证伪面）。
+// The readings are computed from the assertions, never hardcoded: a red run must show red here too.
+const reading = {
+  toolReplyOwn: /hasRecharge=true/.test(ownReply) && ownReply.includes(String(ownId))
+    && ownReply.includes('120') && !ownReply.includes('7777') && !ownReply.includes('9999'),
+  otherAndMissingAlike: /hasRecharge=false/.test(otherReply) && /hasRecharge=false/.test(noneReply)
+    && !otherReply.includes('9999'),
+  danglingWalletWithheld: /hasRecharge=false/.test(String(dangling.reply || ''))
+    && !String(dangling.reply || '').includes('4242'),
+  oneReadNoWriteNoPage: ours.length === 1 && ours.some((t) => t.name === TOOL)
+    && pageCalls.filter((n) => /(list|page|search)/i.test(n)).length === 0
+    && writeCalls.filter((n) => WRITE_WORDS.test(n)).length === 0
+};
+console.log(`\nREADING toolReplyOwn=${+reading.toolReplyOwn} otherAndMissingAlike=${+reading.otherAndMissingAlike}`
+  + ` danglingWalletWithheld=${+reading.danglingWalletWithheld}`
+  + ` oneReadNoWriteNoPage=${+reading.oneReadNoWriteNoPage} marker=${MARKER}`);
 console.log(`\n${pass} ok / ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
