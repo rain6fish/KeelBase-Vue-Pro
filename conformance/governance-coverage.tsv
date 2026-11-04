@@ -75,7 +75,7 @@ crm	contract-config	cn.iocoder.yudao.module.crm.service.contract.CrmContractConf
 crm	customer	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerService	seam	CrmCustomerGovernance			
 crm	customer-limit-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerLimitConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	customer-pool-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerPoolConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
-crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService	tool-only	CrmFollowUpTools#record_crm_followup	只有工具面经引擎；REST 写入没有切面收窄	@rain	2027-06-30
+crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService	seam	CrmFollowUpRecordGovernance			
 crm	owner-record	cn.iocoder.yudao.module.crm.service.permission.CrmOwnerRecordService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	performance-config	cn.iocoder.yudao.module.crm.service.performance.CrmPerformanceConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	permission	cn.iocoder.yudao.module.crm.service.permission.CrmPermissionService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
