@@ -346,6 +346,24 @@ const boundary = {
     //     但每次调用先被引擎判过、并留下审计行；同样无确认、无台账。
     //   · ai1 RAG —— `Ai1RagTool.java:227` 的 `buildAdvisor` 把检索交给引擎（R1 读），每次检索两行审计。
     //
+    // `defaults` 也是**设计事实**，不是扫描结果：它回答「这个部署刚起来、还没人写过策略时，这条路能做什么」。
+    // 外部工具在注册时由 `YudaoAi1ToolGovernor.registerAll` 把**非只读**的那些写成 `enabled:false`
+    // （`GovernancePolicyStore.ensureDisabled`），故 ai1 MCP 与 SKILL 的写类是 `writes-off`；MCP 的工具名
+    // 由对端给、静态列不出来，只有 SKILL 的七个名字是固定的（`onTools` / `offTools`）。三条读工具
+    // （Glob / Grep / ListDirectory）是 R1、不落默认条目，故照常可用。`Skill` —— 只加载 `SKILL.md` 的那个
+    // 工具 —— 也在被禁的七个里：新部署里模型连技能说明都拿不到。这是**已声明**的现状（是否把 `Skill`
+    // 放进 R1 是一条待裁的产品决定），不是这一行的判断。
+    //
+    // `defaults` is also a **design fact** rather than a scan result: it answers "what can this path do in
+    // a deployment nobody has written a policy for yet". At registration `YudaoAi1ToolGovernor.registerAll`
+    // writes `enabled:false` for every non-read external tool (`GovernancePolicyStore.ensureDisabled`), so
+    // ai1 MCP and SKILL are `writes-off`; MCP tool names come from the far side and cannot be listed
+    // statically, while SKILL's seven names are fixed (`onTools` / `offTools`). The three read tools
+    // (Glob / Grep / ListDirectory) are R1 and get no default entry, so they run. `Skill` — the tool that
+    // only loads `SKILL.md` — is among the seven disabled, so a new deployment cannot read skill content
+    // at all. That is the **declared** state (whether `Skill` belongs in R1 is an open product decision),
+    // not a judgement made by this row.
+    //
     // Every AI path's governance posture — a **design fact** a run can only *confirm*, never derive. The
     // four paths are named by `D57`: `D42`'s upstream resolver, `D44`-B (ai1 MCP), SKILL and ai1 RAG
     // (plus this deployment's governed runtime seam as the baseline). Each entry carries identifiers and
@@ -367,6 +385,7 @@ const boundary = {
         doesNotHold: [],
         gap: 'none',
         actions: ['write-records', 'approve-records'],
+        defaults: 'on',
         sources: [
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoGovernedAgentTools.java:81',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/GovernedToolFaces.java:30',
@@ -379,6 +398,7 @@ const boundary = {
         doesNotHold: ['authorization', 'identity', 'confirmation', 'audit', 'refusal', 'side-effect-ledger'],
         gap: 'one-bean-away',
         actions: ['model-tool-call'],
+        defaults: 'on',
         sources: [
           'scripts/check-ungoverned-tool-beans.mjs:16',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/GovernedToolFaces.java:30',
@@ -391,6 +411,7 @@ const boundary = {
         doesNotHold: ['confirmation', 'side-effect-ledger'],
         gap: 'external-effect-no-ledger',
         actions: ['mcp-read', 'mcp-write'],
+        defaults: 'writes-off',
         sources: [
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:69',
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/mcp/Ai1McpToolFactory.java:99',
@@ -404,6 +425,9 @@ const boundary = {
         doesNotHold: ['confirmation', 'side-effect-ledger'],
         gap: 'external-effect-no-ledger',
         actions: ['shell', 'file-read', 'file-write'],
+        defaults: 'writes-off',
+        onTools: ['Glob', 'Grep', 'ListDirectory'],
+        offTools: ['Bash', 'BashOutput', 'Edit', 'KillShell', 'Read', 'Skill', 'Write'],
         sources: [
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/skill/Ai1SkillToolFactory.java:122',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:69',
@@ -417,6 +441,7 @@ const boundary = {
         doesNotHold: [],
         gap: 'none',
         actions: ['knowledge-search'],
+        defaults: 'on',
         sources: [
           'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/rag/Ai1RagTool.java:227',
           'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/YudaoAi1ToolGovernor.java:93',

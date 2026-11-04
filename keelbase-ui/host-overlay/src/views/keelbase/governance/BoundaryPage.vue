@@ -159,6 +159,28 @@
             <el-tag :type="postureTagType(row.posture)" size="small">{{ t(`keelbase.boundary.posture.${row.posture}`) }}</el-tag>
           </template>
         </el-table-column>
+        <!-- 开箱时：这条路上的工具在「还没人写过策略」的部署里能不能调。取自本行自己的 `defaults`
+             （`on` / `writes-off`）与两个工具名清单 —— 页面不重算，记录里没有的不画。
+             2026-11-04 实测：SKILL 的七个工具（含只读 SKILL.md 的 `Skill`）注册时就写成 `enabled:false`，
+             新部署里模型连技能说明都拿不到；这一列把这件事摆在读者眼前，而不是只留在取证文件里。 -->
+        <!-- Out of the box: whether this path's tools may run in a deployment nobody has written a
+             policy for — taken from the row's own `defaults` and its two tool lists. Nothing is
+             recomputed here, and what the record does not carry is not drawn. -->
+        <el-table-column :label="t('keelbase.boundary.colDefault')" min-width="200">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.defaults === 'on' ? 'success' : 'warning'"
+              size="small"
+              effect="plain"
+            >{{ t(`keelbase.boundary.defaults.${row.defaults}`) }}</el-tag>
+            <div v-if="row.onTools" class="text-12px mt-4px">
+              {{ t('keelbase.boundary.defaultsOnTools', { tools: row.onTools.join(', ') }) }}
+            </div>
+            <div v-if="row.offTools" class="text-12px mt-4px text-[var(--el-text-color-secondary)]">
+              {{ t('keelbase.boundary.defaultsOffTools', { tools: row.offTools.join(', ') }) }}
+            </div>
+          </template>
+        </el-table-column>
         <!-- 路径 × 关卡矩阵：一列一道关，勾只由本行自己的 `holds` 推出（`holds.includes(control)`）。
              原来把这一行的关卡画成标签串，读者要比对好几行才看得出「哪条路少了哪道关」；摆成矩阵后
              横向一读就是答案。页面仍不重算任何东西 —— `stated.paths` 里没有的关卡就不会被打勾。 -->
@@ -197,6 +219,14 @@
           <template #default="{ row }">{{ t(`keelbase.boundary.gap.${row.gap}`) }}</template>
         </el-table-column>
       </el-table>
+      <!-- 「写类关闭」不是缺了功能，也不是它在某次调用上被临时拒绝：注册时写下的默认策略就是这样，
+           每次调用仍到引擎、由策略拒绝并留审计行。要放开就在策略中心逐项启用。 -->
+      <!-- "Writes off" is neither a missing feature nor a one-off refusal: it is what the default policy
+           says at registration, each call still reaches the engine and a refusal row is written, and an
+           administrator lifts it tool by tool in the Policy Center. -->
+      <div class="text-12px text-[var(--el-text-color-secondary)] mt-6px mb-10px">
+        {{ t('keelbase.boundary.defaultsHow') }}
+      </div>
 
       <!-- 它扣不住的：独立成块，读者从上到下走一遍就能读到上游那条路与「只差一个 bean」的告诫。
            内容来自 `stated.notHeld`，路径名来自 `path.<id>` —— 与上面那张表同一份记录，页面不另算。 -->
