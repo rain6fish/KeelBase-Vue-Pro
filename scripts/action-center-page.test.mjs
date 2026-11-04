@@ -142,3 +142,21 @@ test('the page no longer reports "approved" before the server answered', () => {
     'the unconditional "approved" announcement is back',
   )
 })
+
+test('目标那一格问宿主要名字，答不上时说「未登记名称」', () => {
+  // 运行时的 `targetTitle` 只认它自己样例域的跟进记录（`EffectController.target()` 只匹配
+  // `result_type='follow_up'`），故客户、合同这些行的「目标」格过去只剩「— #1」。这一格现在按行问宿主那条
+  // 窄读面（`record-names`）；宿主答不上时**明说**「未登记名称」，而不是把「没问」画成一个破折号。
+  //
+  // The runtime's `targetTitle` recognises only its own sample domain's follow-ups
+  // (`EffectController.target()` matches `result_type='follow_up'` and nothing else), so a customer or
+  // contract row's target cell used to carry `— #1`. The cell now asks the host's narrow read face
+  // (`record-names`) per row, and when the host cannot answer it **says** "name not registered" instead of
+  // drawing a dash over "never asked".
+  assert.match(actionCenter, /import \{ resolveRecordNames \}/, 'the page no longer asks the host for record names')
+  assert.match(actionCenter, /resolveRecordNames\(res\.items\.map/, 'the ledger is drawn without asking the host')
+  assert.match(actionCenter, /\{\{ targetText\(row\) \}\}/, 'the target cell no longer goes through targetText')
+  assert.doesNotMatch(actionCenter, /\{\{ maskTitle\(row\.targetTitle\) \}\}/, 'the dash-only target cell is back')
+  assert.match(patch, /targetUnnamed: '未登记名称'/, 'the Chinese fallback word is gone')
+  assert.match(patch, /targetUnnamed: 'name not registered'/, 'the English fallback word is gone')
+})

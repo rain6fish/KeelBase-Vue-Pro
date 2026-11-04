@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,588 @@
+@@ -1,4 +1,589 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -158,6 +158,7 @@ index 96269a8..2611a9b 100644
 +      colTargetId: 'Record id',
 +      colState: 'Record state',
 +      maskedNote: '(masked — this console does not print what a record is about)',
++      targetUnnamed: 'name not registered',
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
 +      stateGone: 'no longer there',
@@ -595,7 +596,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,582 @@
+@@ -1,4 +1,583 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -751,6 +752,7 @@ index 35f1e1a..856d201 100644
 +      colTargetId: '记录编号',
 +      colState: '记录状态',
 +      maskedNote: '（已掩码 —— 本控制台不打印记录的内容）',
++      targetUnnamed: '未登记名称',
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
 +      stateGone: '已不在',

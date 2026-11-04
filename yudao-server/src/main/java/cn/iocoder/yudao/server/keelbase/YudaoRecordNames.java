@@ -208,8 +208,19 @@ public class YudaoRecordNames {
     /**
      * 这些引用里，写入台账点过名的那些。一条查询每类型；某类型读不出来只少那一批。
      *
+     * <p>主键按**文本**比：`side_effects.result_id` 自运行时 0.1.16（迁移 V18）起是文本列，而
+     * {@link Ref#id()} 是 {@code long}。把 {@code Long} 交给 JDBC，PostgreSQL 会拒绝
+     * `character varying = bigint` 这种比较——错误被下面的 catch 收成「没有名字」，于是这一腿在真栈上
+     * **谁都答不出**（2026-11-04 实测：管理员与审计读者都拿到空表）。
+     *
      * <p>Which of these references the write ledger named. One query per type; a failed read drops only
      * that batch.
+     *
+     * <p>The key is compared **as text**: `side_effects.result_id` is a text column since runtime 0.1.16
+     * (migration V18) while {@link Ref#id()} is a {@code long}. Handing a {@code Long} to JDBC makes
+     * PostgreSQL refuse the `character varying = bigint` comparison — and the catch below turns that error
+     * into "no name", so on a real stack this leg answered **nobody**, not even an administrator
+     * (measured 2026-11-04).
      */
     private Set<String> ledgerRefs(Map<String, Ref> wanted) {
         Set<String> found = new LinkedHashSet<>();
@@ -217,7 +228,9 @@ public class YudaoRecordNames {
             List<Long> ids = group.getValue();
             List<Object> params = new ArrayList<>();
             params.add(group.getKey());
-            params.addAll(ids);
+            for (Long id : ids) {
+                params.add(String.valueOf(id));
+            }
             try {
                 List<Map<String, Object>> rows = jdbc().queryForList(
                         "select result_id from side_effects where result_type = ? and result_id in ("
