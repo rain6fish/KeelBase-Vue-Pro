@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,579 @@
+@@ -1,4 +1,588 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -232,6 +232,15 @@ index 96269a8..2611a9b 100644
 +      pathsWhat: 'The runtime seam is the governed baseline; the four paths below it are the ones D57 names. Each row states which business actions are callable on it, which checks they must pass, what it misses, and the known gap.',
 +      colPath: 'Path',
 +      colPosture: 'Posture',
++      colDefault: 'Out of the box',
++      defaults: {
++        on: 'On',
++        'writes-off': 'Writes off',
++      },
++      defaultsOnTools: 'Runs: {tools}',
++      defaultsOffTools: 'Blocked until an administrator enables them: {tools}',
++      defaultsHow:
++        'A tool that is off is not a missing feature: every call still reaches the engine, the policy refuses it, and the audit chain keeps the refusal row. To enable one, open the Policy Center, tick Enabled on that tool and save. SKILL’s Skill tool — the one that only loads SKILL.md — is among those off, so a new deployment can use no skill at all until someone turns it on; this page declares that rather than leaving it to be discovered on the first call.',
 +      colActions: 'AI actions on this path',
 +      colHolds: 'Checks the action must pass',
 +      colGap: 'Known gap',
@@ -586,7 +595,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,573 @@
+@@ -1,4 +1,582 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -816,6 +825,15 @@ index 35f1e1a..856d201 100644
 +      pathsWhat: '运行时那条缝是受治理的基线；它下面四条是 D57 点名的路径 —— 每一行写明这条路上可被调用哪些业务动作、要过哪些关、漏掉什么、以及已知缺口。',
 +      colPath: '路径',
 +      colPosture: '治理姿态',
++      colDefault: '开箱时',
++      defaults: {
++        on: '可用',
++        'writes-off': '写类关闭',
++      },
++      defaultsOnTools: '可用：{tools}',
++      defaultsOffTools: '管理员启用前被拦住：{tools}',
++      defaultsHow:
++        '被关掉的工具不是缺了功能：每次调用仍到引擎、由策略拒绝，审计链留下那一行拒绝记录。要放开，打开策略中心，勾上该工具的「启用」并保存。SKILL 里只加载 SKILL.md 的 Skill 工具也在被关掉的那批里，故新部署在有人启用之前一个技能都用不了；这一页把它声明出来，而不是等第一次调用才发现。',
 +      colActions: '这条路上的 AI 动作',
 +      colHolds: '动作要过的关卡',
 +      colGap: '已知缺口',

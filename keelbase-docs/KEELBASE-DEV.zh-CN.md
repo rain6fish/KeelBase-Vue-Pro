@@ -102,6 +102,26 @@ bash scripts/run-server.sh
 | `--spring.datasource.dynamic.druid.validation-query="SELECT 1"` | 宿主自己的值是 `SELECT 1 FROM DUAL`，那是 **MySQL**——PostgreSQL 没有 `DUAL` |
 | `--spring.datasource.dynamic.datasource.master.type=com.zaxxer.hikari.HikariDataSource` | **换掉连接池**。见下——用 Druid 时约一半的登录会失败 |
 
+### SKILL 工具：新部署里关着，等管理员启用
+
+一份**从没被人写过策略**的部署，**一个技能也用不了**。装配某个 agent 的 SKILL 工具时，
+`YudaoAi1ToolGovernor` 把每个非只读工具注册进来并写成 `enabled:false`
+（`GovernancePolicyStore.ensureDisabled`）。落在闸后面的有七个：`Bash`、`BashOutput`、`Edit`、
+`KillShell`、`Read`、`Write` 与 `Skill`。`Skill` 那个工具只负责加载 `SKILL.md`，禁掉它意味着模型
+**连技能的说明都读不到**。只有 `Glob`、`Grep`、`ListDirectory` 是 R1 读、直接可用。
+
+这是**策略的默认值**，不是缝的缺陷：每次调用仍然先到 `GovernedExecutionEngine`，被拦的那次留下
+一行 `blocked` 审计（失败项写明是 `tool_enabled`），模型也会被告知这次调用没有执行。边界页在
+ai1 SKILL 那一行的「开箱时」列里如实写着这件事。
+
+要启用某个工具：在治理菜单里打开**策略中心**，勾上该工具的「启用」并保存。
+只启用 `Skill` 只解决「读得到技能说明」；真正让技能**做事**的是 shell 与文件工具，而那些在本机上
+**真有副作用** —— 它们就在这台机器上跑，且外部写没有确认、也没有副作用台账行（已声明的
+`external-effect-no-ledger` 缺口）。
+
+`Skill` 该不该开箱即用，是一条**待裁的产品决定**：把它挪进读集，只会让**新部署**读得到技能说明，
+**已部署**的那些不受影响 —— 它们的策略行早就写下了。
+
 ## 池被换掉了，以及为什么
 
 在 PostgreSQL + **Druid** 上，约一半的登录返回 500：

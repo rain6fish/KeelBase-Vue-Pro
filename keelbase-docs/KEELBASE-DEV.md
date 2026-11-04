@@ -137,6 +137,30 @@ can be pointed at a different stack without editing anything.
 | `--spring.datasource.dynamic.druid.validation-query="SELECT 1"` | the host's own value is `SELECT 1 FROM DUAL`, which is MySQL — PostgreSQL has no `DUAL` |
 | `--spring.datasource.dynamic.datasource.master.type=com.zaxxer.hikari.HikariDataSource` | **the pool.** See below — with Druid, about half of all logins fail |
 
+### SKILL tools: off in a fresh deployment, until an administrator enables them
+
+A deployment that has never had a policy written for it can use **no skill at all**. When an agent's
+SKILL tools are assembled, `YudaoAi1ToolGovernor` registers every non-read tool and writes
+`enabled:false` for it (`GovernancePolicyStore.ensureDisabled`). Seven SKILL tools land behind that
+gate — `Bash`, `BashOutput`, `Edit`, `KillShell`, `Read`, `Write` and `Skill`. `Skill` is the tool that
+only loads `SKILL.md`; disabling it means the model cannot even read a skill's instructions. Only
+`Glob`, `Grep` and `ListDirectory` are R1 reads and run straight away.
+
+This is the policy's default, not a defect in the seam: every call still reaches the
+`GovernedExecutionEngine`, a blocked call leaves one `blocked` audit row (with `tool_enabled` marked as
+the failed check), and the model is told the call did not run. The boundary page states it in its
+"Out of the box" column for the ai1 SKILL row.
+
+To enable a tool: open **Policy Center** in the governance menu, tick **Enabled** on
+that tool and save. Enabling `Skill` alone makes skill descriptions readable; enabling the shell and
+file tools is what lets a skill *do* anything, and those are the ones with real effects on this host —
+they run here, and an external write has no confirmation and no side-effect ledger row (the declared
+`external-effect-no-ledger` gap).
+
+Whether `Skill` should ship enabled is a product decision under review: moving it into the read set
+would make new deployments able to read skill content while leaving existing ones untouched, since
+their policy rows were already written.
+
 ## The pool had to be swapped, and why
 
 On PostgreSQL and **Druid**, about half of all logins answered 500:

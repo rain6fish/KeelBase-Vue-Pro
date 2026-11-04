@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -183,6 +184,45 @@ public class Ai1SkillToolFactoryTest extends BaseMockitoUnitTest {
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> skillToolFactory.buildTools(buildAgent(), null, null));
         assertTrue(error.getMessage().contains("must run through governance"));
+    }
+
+    /**
+     * 默认策略下哪些 SKILL 工具可用、哪些被禁用 —— 钉的是「新部署、还没人写过策略」那一种状态。
+     *
+     * <p>治理器在注册时把**非只读**的每个工具写成 `enabled:false`（`YudaoAi1ToolGovernor.registerAll` →
+     * `GovernancePolicyStore.ensureDisabled`），故这里分出的写类集合就是「默认被关掉的那批」。`Skill`
+     * 只加载 `SKILL.md`，也在里面 —— 新部署里模型连技能说明都读不到。改分类（`readOnlyTool`）、增删
+     * 工具、或换 Spring AI 版本导致工具改名，这条都会红：那正是需要人重新陈述一次的事实。
+     *
+     * <p>Which SKILL tools run and which are disabled by default — the state of a deployment nobody has
+     * written a policy for. The governor writes `enabled:false` for every non-read tool at registration,
+     * so the write set below is exactly "the disabled by default" set. `Skill`, which only loads
+     * `SKILL.md`, is in it. Changing the classification, adding or removing a tool, or a Spring AI
+     * upgrade that renames one turns this test red — which is the point: the fact then needs restating
+     * by a person.
+     */
+    @Test
+    public void testBuildTools_defaultPolicySet() {
+        mockSkill(CommonStatusEnum.ENABLE.getStatus(), LocalDateTime.of(2026, 10, 1, 10, 0));
+        mockSkillFiles("echo hi");
+
+        skillToolFactory.buildTools(buildAgent(), null, governor);
+
+        Map<String, Ai1ToolKind> byName = new LinkedHashMap<>();
+        for (Ai1GovernedTool tool : registered) {
+            byName.put(tool.name(), tool.kind());
+        }
+        List<String> readOnly = byName.entrySet().stream()
+                .filter(entry -> entry.getValue() == Ai1ToolKind.SKILL_READ)
+                .map(Map.Entry::getKey).sorted().toList();
+        List<String> disabled = byName.entrySet().stream()
+                .filter(entry -> entry.getValue() == Ai1ToolKind.SKILL_WRITE)
+                .map(Map.Entry::getKey).sorted().toList();
+
+        assertEquals(List.of("Glob", "Grep", "ListDirectory"), readOnly,
+                "the tools that run in a fresh deployment");
+        assertEquals(List.of("Bash", "BashOutput", "Edit", "KillShell", "Read", "Skill", "Write"), disabled,
+                "the tools the default policy disables — including the one that only reads SKILL.md");
     }
 
     /**
