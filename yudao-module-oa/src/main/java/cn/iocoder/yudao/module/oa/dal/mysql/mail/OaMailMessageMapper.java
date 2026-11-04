@@ -27,13 +27,13 @@ public interface OaMailMessageMapper extends BaseMapperX<OaMailMessageDO> {
 
     default Map<Long, Long> selectCountMapByAccountIdAndReadStatus(Long accountId, Boolean readStatus) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapper<OaMailMessageDO>()
-                .select("folder_id AS FOLDER_ID", "COUNT(*) AS UNREAD_COUNT")
+                .select("folder_id", "COUNT(*) AS unread_count")
                 .eq("account_id", accountId)
                 .eq("read_status", readStatus)
                 .groupBy("folder_id"));
         Map<Long, Long> result = new HashMap<>();
-        rows.forEach(row -> result.put(((Number) row.get("FOLDER_ID")).longValue(),
-                ((Number) row.get("UNREAD_COUNT")).longValue()));
+        rows.forEach(row -> result.put(((Number) row.get("folder_id")).longValue(),
+                ((Number) row.get("unread_count")).longValue()));
         return result;
     }
 
