@@ -185,6 +185,24 @@ test('a held or refused call takes its object from the confirmation record', () 
   assert.match(script, /objectLine\(\{[\s\S]*?\bproposal,/, 'the object column no longer receives the proposal')
 })
 
+test('YD-45: a decision row says its person is the approver or the decliner', () => {
+  // 裁决行上的「谁」是**作裁决的那位**，不是调用方。行为列只说「确认」时说不出这一层，故这一格点名；
+  // 而 `attempted` 的重试行不是裁决，不贴标签。两套词条由 `i18n-key-coverage` 另钉。
+  //
+  // On a decision row the "who" cell is **the decider**, not the caller. The action column only says
+  // "confirmation", so this cell names the distinction; an `attempted` retry is not a decision and gets
+  // no tag. Both language bundles are pinned separately by `i18n-key-coverage`.
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(template, /<el-tag v-if="deciderText\(row\)"/, 'the who cell no longer labels a decision')
+  assert.match(script, /function deciderText\(row: AuditRow\): string/)
+  assert.match(script, /row\.action !== 'tool_confirmation'/, 'the label is no longer limited to confirmation rows')
+  assert.match(script, /row\.outcome === 'approved'/, 'an approval row is no longer labelled')
+  assert.match(script, /row\.outcome === 'declined'/, 'a declined row is no longer labelled')
+  assert.match(script, /keelbase\.audit\.approverTag/)
+  assert.match(script, /keelbase\.audit\.declinerTag/)
+  assert.doesNotMatch(script, /outcome === 'attempted'[\s\S]{0,80}(?:approverTag|declinerTag)/)
+})
+
 test('chainWhat names the coverage statement instead of pointing at where it sits', () => {
   // 页面上这句排在覆盖声明**上面**（`AuditChainPage.vue:41` vs `:69`），2026-11-02 之前它写的是
   // 「上面覆盖声明里的第一条缺口」—— 读者按「上面」往上看，看到的是链结论标签，找不到那句话（M7
