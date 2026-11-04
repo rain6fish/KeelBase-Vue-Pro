@@ -32,9 +32,10 @@
 //      文件」的规矩不改，但 `--all` 会把它们如实数出来。
 //
 // **警告而非失败**：全大写别名（`AS FOLDER_ID`）是**同一种失效**的另一种写法 —— PG 同样折叠成小写，
-// 读 `FOLDER_ID` 同样拿不到。它不在本轮「camelCase」规则内，故只打 `warn:`、不改退出码。建闸时实测到
-// 一处现存的：`OaMailMessageMapper.selectCountMapByAccountIdAndReadStatus`（`row.get("FOLDER_ID")` 在 PG
-// 上会是 null）。修它属于产品码，不在本轮；修掉后这条警告应当升成失败，或把规则扩成全大写一并判红。
+// 读 `FOLDER_ID` 同样拿不到。它不在本轮「camelCase」规则内，故只打 `warn:`、不改退出码。建闸时它在
+// `OaMailMessageMapper.selectCountMapByAccountIdAndReadStatus` 上有一处现存实例，已改掉（2026-11-04，
+// `AS folder_id` / `AS unread_count`，读取端同步）。这条警告保留，用来把后来的同形写法报出来；要把它
+// 升成失败，那是一次有意的规则扩大，不是默认。
 //
 // **边界（写清楚，不假装更大）**：本脚本只认**带 `AS`** 的别名，外加一种可静态判定的隐式形状
 // （`<表达式> <camelCase>` 紧跟 `,` / `FROM` / SQL 结尾）。它**不是** SQL 解析器：跨语句拼接、动态
@@ -84,10 +85,11 @@
 //
 // **A warning, not a failure**: an upper-case-only alias (`AS FOLDER_ID`) is **the same failure** in another
 // spelling — PostgreSQL folds it too, and reading `FOLDER_ID` misses just as well. It is outside this round's
-// "camelCase" rule, so it prints `warn:` and does not change the exit code. One exists today, measured while
-// building the gate: `OaMailMessageMapper.selectCountMapByAccountIdAndReadStatus` (`row.get("FOLDER_ID")` is
-// null on PostgreSQL). Fixing it is product code and out of this round; once fixed, this warning should be
-// raised to a failure, or the rule widened to judge upper-case aliases red as well.
+// "camelCase" rule, so it prints `warn:` and does not change the exit code. When the gate was built it had
+// one live instance, `OaMailMessageMapper.selectCountMapByAccountIdAndReadStatus`; that is fixed as of
+// 2026-11-04 (`AS folder_id` / `AS unread_count`, and the reads follow). The warning stays, to report the
+// next spelling of the same shape; raising it to a failure is a deliberate widening of the rule, not a
+// default.
 //
 // **The boundary, stated rather than implied**: this script recognises aliases written with `AS`, plus one
 // statically decidable implicit shape (`<expression> <camelCase>` followed by `,` / `FROM` / the end of the
