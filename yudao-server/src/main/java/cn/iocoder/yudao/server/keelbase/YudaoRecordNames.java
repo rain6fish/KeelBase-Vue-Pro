@@ -48,6 +48,10 @@ import org.springframework.stereotype.Component;
  * 与各模块 `*Governance` 的声明；`scripts/check-effect-target-existence.mjs` 钉着这条相等）。表外的类型不查、
  * 不答——编一个名字比缺一个更糟。
  *
+ * <p><b>按行收窄。</b>管理员与 `audit_reader` 读得到整个账本；其余已登录调用方只答**出现在他自己账本行里**的
+ * 引用（`side_effects.user_id` 或 `confirmation_requests.operator_id` 是他），不属于他的静默省略。这一层不靠
+ * 角色、不加端点、不改授予：调用方能问到的引用 ⊆ 他本页看得见的行 ⊆ 他本来就读得到的记录。
+ *
  * <p><b>English</b>
  *
  * <p>Puts a name on a ledger's record reference, with **the server doing the join**, so no reader's grant
@@ -63,6 +67,12 @@ import org.springframework.stereotype.Component;
  * ledger returns nothing. Names are **masked server-side** (first character kept), so the wire never
  * carries the record's text, no other field of the record is ever transferred, and `/crm/customer/get` is
  * never forwarded. A failed read narrows — no row simply means no name. It never throws.
+ *
+ * <p>**Row by row.** Administrators and `audit_reader` holders read the whole ledger; every other
+ * signed-in caller is answered only about references that appear in **his own** ledger rows
+ * (`side_effects.user_id` or `confirmation_requests.operator_id` is him), and the rest are silently
+ * omitted. This tier needs no role, no new endpoint and no grant: what a caller can ask about stays
+ * inside the rows he can already see, which stay inside the records he could already read.
  */
 @Component
 @Slf4j
@@ -145,18 +155,24 @@ public class YudaoRecordNames {
     /**
      * 这些引用里，这个调用方**可以**知道名字的那些。名字已掩码。
      *
-     * <p>谁能问：管理员（他本来就读得到这些记录）与持有启用 `audit_reader` 的账号。**其余人得到空表**——
-     * 不是拒绝，是收窄，与 `caller-names` 的 `alex` 那条实测同一口径。
+     * <p>谁能问什么：管理员与持有启用 `audit_reader` 的账号可以问**整个账本**里的引用；其余已登录调用方只问得到
+     * **出现在他自己账本行里**的那些——`side_effects.user_id` 是他，或 `confirmation_requests.operator_id` 是他。
+     * 不属于他的引用**静默省略**：与「账本从没点过名」同一形状的空缺，不是拒绝，也从不回「这条存在但不是你的」，
+     * 故答复面不会越过他本来就读得到的那些行；一次请求里混着自己的与别人的引用时，也只回他自己的那些。
      *
      * <p>能问谁：只在账本里出现过的那几个；类型还须在本类认得名字的表里。
      *
-     * <p>id → name for those of {@code requested} this caller may name, already masked. Administrators and
-     * enabled `audit_reader` holders may ask; everyone else gets an empty list — narrowing, not a refusal,
-     * the same shape measured for `caller-names`. Only references that appear in a ledger, and only types
-     * this class can name.
+     * <p>id → name for those of {@code requested} this caller may name, already masked. An administrator
+     * or an enabled `audit_reader` holder may ask about any reference the ledger named; every other
+     * signed-in caller only about references that appear in **his own** ledger rows — `side_effects.user_id`
+     * is him, or `confirmation_requests.operator_id` is him. A reference that is not his is **silently
+     * omitted**: the same empty gap as "no ledger ever named it", never a refusal and never "this exists
+     * but is not yours", so the answer never reaches past the rows he could already read; a request mixing
+     * his references with someone else's answers only his. Only references that appear in a ledger, and
+     * only types this class can name.
      */
     public List<Named> namesFor(Long callerId, List<Ref> requested) {
-        if (callerId == null || requested == null || requested.isEmpty() || !mayAsk(callerId)) {
+        if (callerId == null || requested == null || requested.isEmpty()) {
             return List.of();
         }
         Map<String, Ref> wanted = new LinkedHashMap<>();
@@ -172,8 +188,11 @@ public class YudaoRecordNames {
         if (wanted.isEmpty()) {
             return List.of();
         }
-        Set<String> allowed = new LinkedHashSet<>(ledgerRefs(wanted));
-        allowed.addAll(proposalRefs(wanted));
+        // 读得到整个账本的人不加属主条件；其余人按行收窄，只认自己的那几行。
+        // Whoever may read the whole ledger adds no owner condition; everyone else is narrowed to his rows.
+        String owner = mayReadAnyLedger(callerId) ? null : String.valueOf(callerId);
+        Set<String> allowed = new LinkedHashSet<>(ledgerRefs(wanted, owner));
+        allowed.addAll(proposalRefs(wanted, owner));
         List<Named> out = new ArrayList<>();
         for (Ref ref : wanted.values()) {
             if (!allowed.contains(ref.type() + "#" + ref.id())) {
@@ -187,8 +206,14 @@ public class YudaoRecordNames {
         return out;
     }
 
-    /** 管理员，或持有启用 `audit_reader` 的调用方。 / An administrator, or an enabled audit-reader holder. */
-    private boolean mayAsk(long callerId) {
+    /**
+     * 管理员，或持有启用 `audit_reader` 的调用方——这两种人读得到整个账本。**其余人按行收窄**，见
+     * {@link #namesFor}。
+     *
+     * <p>An administrator, or an enabled audit-reader holder — these two may read the whole ledger.
+     * Everyone else is narrowed to his own rows; see {@link #namesFor}.
+     */
+    private boolean mayReadAnyLedger(long callerId) {
         return administrators.isAdmin(callerId) || auditReaders.isAuditReader(String.valueOf(callerId));
     }
 
@@ -208,13 +233,16 @@ public class YudaoRecordNames {
     /**
      * 这些引用里，写入台账点过名的那些。一条查询每类型；某类型读不出来只少那一批。
      *
+     * <p>{@code owner} 非空时只认属主是他的行（`user_id` 与主键同按**文本**比）；为空表示读得到整个账本的人。
+     *
      * <p>主键按**文本**比：`side_effects.result_id` 自运行时 0.1.16（迁移 V18）起是文本列，而
      * {@link Ref#id()} 是 {@code long}。把 {@code Long} 交给 JDBC，PostgreSQL 会拒绝
      * `character varying = bigint` 这种比较——错误被下面的 catch 收成「没有名字」，于是这一腿在真栈上
      * **谁都答不出**（2026-11-04 实测：管理员与审计读者都拿到空表）。
      *
      * <p>Which of these references the write ledger named. One query per type; a failed read drops only
-     * that batch.
+     * that batch. A non-null {@code owner} keeps only rows whose `user_id` is his (compared **as text**,
+     * like the key); null means a caller who may read the whole ledger.
      *
      * <p>The key is compared **as text**: `side_effects.result_id` is a text column since runtime 0.1.16
      * (migration V18) while {@link Ref#id()} is a {@code long}. Handing a {@code Long} to JDBC makes
@@ -222,7 +250,7 @@ public class YudaoRecordNames {
      * into "no name", so on a real stack this leg answered **nobody**, not even an administrator
      * (measured 2026-11-04).
      */
-    private Set<String> ledgerRefs(Map<String, Ref> wanted) {
+    private Set<String> ledgerRefs(Map<String, Ref> wanted, String owner) {
         Set<String> found = new LinkedHashSet<>();
         for (Map.Entry<String, List<Long>> group : idsByType(wanted).entrySet()) {
             List<Long> ids = group.getValue();
@@ -231,11 +259,14 @@ public class YudaoRecordNames {
             for (Long id : ids) {
                 params.add(String.valueOf(id));
             }
+            String sql = "select result_id from side_effects where result_type = ? and result_id in ("
+                    + placeholders(ids.size()) + ")";
+            if (owner != null) {
+                sql += " and user_id = ?";
+                params.add(owner);
+            }
             try {
-                List<Map<String, Object>> rows = jdbc().queryForList(
-                        "select result_id from side_effects where result_type = ? and result_id in ("
-                                + placeholders(ids.size()) + ")",
-                        params.toArray());
+                List<Map<String, Object>> rows = jdbc().queryForList(sql, params.toArray());
                 for (Map<String, Object> row : rows) {
                     Long id = asId(row.get("result_id"));
                     if (id != null) {
@@ -254,6 +285,7 @@ public class YudaoRecordNames {
      *
      * <p>提议的参数是 JSON 文本，故读回来之后**在本类里解析**（不依赖某种数据库的 JSON 函数）；两行之间没有键，
      * 这里也不猜时间——只看「这次提议里 `id` 是不是它」。读的是最新的一窗（{@link #PROPOSAL_WINDOW}）。
+     * {@code owner} 非空时只读属主是他的提议（`operator_id`，按文本比）；为空表示读得到整个账本的人。
      *
      * <p>工具到类型的映射取自工具**自己的声明**（`AiTool.resultType()`，经 `ToolRegistry`），不另抄一份表。
      *
@@ -261,10 +293,12 @@ public class YudaoRecordNames {
      * its object lives only here. The arguments are JSON text, so the match is parsed **in this class**
      * (no database-specific JSON function); there is no key between the two trails, so no timestamp is
      * guessed either — only "did this proposal carry that id". The newest window is read
-     * ({@link #PROPOSAL_WINDOW}). The tool-to-type mapping comes from the tool's **own declaration**
-     * (`AiTool.resultType()` through `ToolRegistry`); no second table is kept.
+     * ({@link #PROPOSAL_WINDOW}). A non-null {@code owner} reads only proposals whose `operator_id` is his
+     * (compared as text); null means a caller who may read the whole ledger. The tool-to-type mapping comes
+     * from the tool's **own declaration** (`AiTool.resultType()` through `ToolRegistry`); no second table
+     * is kept.
      */
-    private Set<String> proposalRefs(Map<String, Ref> wanted) {
+    private Set<String> proposalRefs(Map<String, Ref> wanted, String owner) {
         Set<String> found = new LinkedHashSet<>();
         Map<String, List<Long>> byType = idsByType(wanted);
         Map<String, Set<String>> toolsByType = toolsByResultType();
@@ -273,11 +307,16 @@ public class YudaoRecordNames {
             if (toolNames.isEmpty()) {
                 continue;
             }
+            List<Object> params = new ArrayList<>(toolNames);
+            String sql = "select args_json from confirmation_requests where tool_name in ("
+                    + placeholders(toolNames.size()) + ")";
+            if (owner != null) {
+                sql += " and operator_id = ?";
+                params.add(owner);
+            }
+            sql += " order by id desc limit " + PROPOSAL_WINDOW;
             try {
-                List<Map<String, Object>> rows = jdbc().queryForList(
-                        "select args_json from confirmation_requests where tool_name in ("
-                                + placeholders(toolNames.size()) + ") order by id desc limit " + PROPOSAL_WINDOW,
-                        toolNames.toArray());
+                List<Map<String, Object>> rows = jdbc().queryForList(sql, params.toArray());
                 Set<Long> ids = new LinkedHashSet<>(group.getValue());
                 for (Map<String, Object> row : rows) {
                     Long id = idIn(row.get("args_json"));
