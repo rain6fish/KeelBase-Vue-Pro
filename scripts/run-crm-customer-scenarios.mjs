@@ -369,21 +369,32 @@ const ranAs = (tool) =>
 // `SecurityFrameworkUtils` 在那里答不出人（宿主那条接缝 `OperateLogOperatorSource` 正是为此存在）。
 // 这里为空，就是审计的「谁」那一列空着的原因，而审计最需要「谁」的恰恰是 AI 写下的那些行。
 //
-// 读法是**有窗口的**：这一行由宿主**异步**写下（`createOperateLogAsync`），故给它一小段窗口；窗口内该出现，
-// 始终没出现就是**失败**，而不是「读得慢」——窗口只是不让异步把一条真断言读成假红。
+// 读法是**有上限轮询的**：这一行由宿主**异步**写下（`createOperateLogAsync`），故轮询到它出现（默认 30s，
+// `SCENARIO_OPERATE_LOG_TIMEOUT_MS` 可覆盖）；始终没出现就是**失败**，而不是「读得慢」，且读数里带上证据
+// （匹配行数、表里最新一行）。
 //
 // Who: the row the host logged for this write must carry the caller in `user_id`. The caller on this leg
 // can only come from what the runtime publishes — the engine's tool path runs outside the request's
 // security filter chain, where `SecurityFrameworkUtils` answers nobody (that seam exists for exactly
 // this). An empty id here is why an auditor's "who" was blank, and those are the rows that need it most.
+// Poll with a deadline (30s by default; `SCENARIO_OPERATE_LOG_TIMEOUT_MS` overrides) and fail if it never
+// appears, carrying the evidence (matching rows, newest row) in the reading.
+const OPERATE_LOG_WAIT_MS = Number(process.env.SCENARIO_OPERATE_LOG_TIMEOUT_MS || 30000) || 30000;
 async function hostLoggedWho(actionLike) {
-  for (let i = 0; i < 12; i += 1) {
+  const filter = `type = 'CRM 客户' and action like '%${actionLike}%'`;
+  const deadline = Date.now() + OPERATE_LOG_WAIT_MS;
+  while (Date.now() < deadline) {
     const who = psql(`select coalesce(user_id::text, '<null>') from system_operate_log`
-      + ` where type = 'CRM 客户' and action like '%${actionLike}%' order by id desc limit 1`);
+      + ` where ${filter} order by id desc limit 1`);
     if (who) return who;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return '';
+  // 读数带上证据：有几行匹配、表里最新一行是哪条 —— 让「没等到」与「没写」在日志里可分辨。
+  // The reading carries its evidence: how many rows match and the newest operate-log id, so "never
+  // appeared" and "was never written" are distinguishable in the log.
+  const matching = psql(`select count(*) from system_operate_log where ${filter}`);
+  const newest = psql(`select coalesce(max(id)::text, '<none>') from system_operate_log`);
+  return `<no row within ${OPERATE_LOG_WAIT_MS}ms: matching=${matching}, newest operate_log id=${newest}>`;
 }
 
 // ── 0) the stack answers at all ────────────────────────────────────────────────────────────────────
