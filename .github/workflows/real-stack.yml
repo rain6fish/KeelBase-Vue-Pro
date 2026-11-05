@@ -265,6 +265,22 @@ jobs:
           PG_CONTAINER: ${{ env.PG_CONTAINER }}
           PG_DB: ${{ env.PG_DB }}
           PG_USER: ${{ env.PG_USER }}
+          # 旁路审计门会自己再起一个宿主（开关关），它连的是**宿主侧**端口；这些值必须与「起宿主并等应答」
+          # 那一步逐项一致，否则第二个宿主回落到 `run-server.sh` 的默认端口、连不上库并在十几秒内退出。
+          #
+          # The bypass-audit gate starts a second host itself (switch off) and that host dials the **host-side**
+          # ports; these must match the "Start the host" step item for item, or the second host falls back to
+          # `run-server.sh`'s default ports, cannot reach the database and exits within seconds.
+          PG_HOST: 127.0.0.1
+          PG_PORT: ${{ env.PG_HOST_PORT }}
+          PG_PASSWORD: ${{ env.PG_PASSWORD }}
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: ${{ env.REDIS_HOST_PORT }}
+          ACCESS_LOG: 'false'
+          # 第二个宿主的日志落在工作区内，随 artifact 一起上传 —— 下一次红要能自己说明为什么。
+          # The second host's log lands inside the workspace and travels with the artifact, so the next red
+          # explains itself.
+          EVIDENCE_DIR: ${{ github.workspace }}/bypass-audit-evidence
           MVN: mvn
         run: |
           set -uo pipefail
@@ -302,6 +318,7 @@ jobs:
             jar-runtime.txt
             ci-skip-notices.txt
             scenario-logs/
+            bypass-audit-evidence/
           if-no-files-found: warn
 
       - name: Report the host's tail when the run went red
