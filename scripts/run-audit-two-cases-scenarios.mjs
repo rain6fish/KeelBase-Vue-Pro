@@ -27,7 +27,7 @@
 // 而不是悄悄跟着改口。
 //
 // 门禁造的东西：一条临时 `customers` 行（每轮新插，免得写管道把上一轮的 effect 复用掉）；一个第二管理员账号
-// `audit-approver`（幂等创建、**留着不删** —— 审计行按它配名，删了 ① 就只剩一个数字）。收尾删掉 `follow_ups` /
+// `auditapprover`（幂等创建、**留着不删** —— 审计行按它配名，删了 ① 就只剩一个数字）。收尾删掉 `follow_ups` /
 // `customers` / 本条 effect；**审计行与确认行刻意留着** —— 它们就是读数。
 //
 // ---
@@ -57,7 +57,7 @@
 // gets the cell named, rather than having the gate quietly change its story.
 //
 // What it creates: one temporary `customers` row (fresh every run, so the write pipeline cannot reuse the previous
-// run's effect); a second administrator `audit-approver` (created idempotently and **left in place** — audit rows are
+// run's effect); a second administrator `auditapprover` (created idempotently and **left in place** — audit rows are
 // named by it and deleting it would leave ① as a bare number). On the way out it deletes `follow_ups` / `customers` /
 // this run's effect; **audit rows and confirmation rows are deliberately left alone** — they are the reading.
 import { execFileSync } from 'node:child_process';
@@ -88,10 +88,10 @@ const ok = (name) => { console.log(`  ok    ${name}`); pass += 1; };
 const bad = (name, expected, got) => { console.log(`  FAIL  ${name} — expected [${expected}], got [${got}]`); fail += 1; };
 const check = (name, expected, got) => (String(expected) === String(got) ? ok(name) : bad(name, expected, got));
 
-// `-q` matters for `insert … returning id`: without it psql appends the `INSERT 0 1` command tag even under
-// `-tA`, and the id is read as `3\nINSERT 0 1`.
 // `-q` 对 `insert … returning id` 是必要的：不给它，psql 即使在 `-tA` 下也会补上 `INSERT 0 1` 的命令标签，
 // id 会被读成 `3\nINSERT 0 1`。
+// `-q` matters for `insert … returning id`: without it psql appends the `INSERT 0 1` command tag even under
+// `-tA`, and the id is read as `3\nINSERT 0 1`.
 const psql = (sql) => execFileSync(
   'docker',
   ['exec', '-i', '-e', `PGPASSWORD=${PG_PASS}`, PG, 'psql', '-U', PG_USER, '-d', DB, '-q', '-tAc', sql],
