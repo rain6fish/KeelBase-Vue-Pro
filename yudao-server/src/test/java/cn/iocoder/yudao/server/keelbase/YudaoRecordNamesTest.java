@@ -32,18 +32,19 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 /**
  * 台账「哪个业务对象」那一格的**服务端联名**：哪条记录能被叫出名字，哪条不能。
  *
- * <p>这条端点的安全面全在「答到什么范围」上——故这里钉的是六个边界：账本点过名的才有名字、从没进过账本的不给、
- * 被拒那次从**确认记录**里答得出、普通调用方什么都不给、表外的类型不答、账本读不出来时只是少给名字而不抛错。
- * 外加两条纯函数用例：掩码只留首字符；提议里的 `id` **精确**匹配（90040 不是 9004）。
- *
- * <p>英文：
+ * <p>这条端点的安全面全在「答到什么范围」上——故这里钉的是几个边界：账本点过名的才有名字、从没进过账本的不给、
+ * 被拒那次从**确认记录**里答得出、表外的类型不答、账本读不出来时只是少给名字而不抛错。授权分两档：
+ * 管理员与审计读者读得到整个账本；**其余调用方按行收窄**，只答出现在他自己账本行里的引用，别人的静默省略，
+ * 混合请求也只回他自己的。外加两条纯函数用例：掩码只留首字符；提议里的 `id` **精确**匹配（90040 不是 9004）。
  *
  * <p>The **server-side join** behind the ledger's "which business object" cell: which records may be named
- * and which may not. The safety is entirely in how far the answer goes, so these tests pin six bounds —
+ * and which may not. The safety is entirely in how far the answer goes, so these tests pin those bounds —
  * only references the ledger named, nothing for an id that never entered one, the refused call answered
- * from the **confirmation record**, nothing at all for an ordinary caller, no answer for a type outside the
- * closed table, and an unreadable ledger that narrows instead of throwing. Two pure cases sit beside them:
- * the mask keeps only the first character, and the proposal's `id` matches **exactly** (90040 is not 9004).
+ * from the **confirmation record**, and an unreadable ledger that narrows instead of throwing. Authorization
+ * has two tiers: administrators and audit readers read the whole ledger; **every other caller is narrowed
+ * row by row** — only references in his own ledger rows are named, someone else's are silently omitted, and
+ * a mixed request answers only his. Two pure cases sit beside them: the mask keeps only the first
+ * character, and the proposal's `id` matches **exactly** (90040 is not 9004).
  */
 class YudaoRecordNamesTest {
 
@@ -66,7 +67,9 @@ class YudaoRecordNamesTest {
 
         customers = mock(CrmCustomerMapper.class);
         when(customers.selectById(9005L)).thenReturn(CrmCustomerDO.builder().name("万科").build());
+        when(customers.selectById(9006L)).thenReturn(CrmCustomerDO.builder().name("中兴").build());
         when(customers.selectById(9004L)).thenReturn(CrmCustomerDO.builder().name("海康").build());
+        when(customers.selectById(9007L)).thenReturn(CrmCustomerDO.builder().name("比亚迪").build());
 
         tools = new ToolRegistry(List.of(
                 new FakeTool("update_crm_customer", "crm_customer"),
@@ -80,17 +83,22 @@ class YudaoRecordNamesTest {
     private void resetSchema() throws Exception {
         try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.execute("drop all objects");
-            // `result_id` 按真栈的形状建：运行时 0.1.16（迁移 V18）把它改成了文本列。
-            // `result_id` mirrors the real stack: runtime 0.1.16 (migration V18) turned it into a text column.
+            // `result_id` 按真栈的形状建：运行时 0.1.16（迁移 V18）把它改成了文本列；`user_id` / `operator_id`
+            // 同样是文本列（V1 的 DDL），故属主也按文本比。
+            // `result_id` mirrors the real stack: runtime 0.1.16 (migration V18) turned it into a text column;
+            // `user_id` / `operator_id` are text columns too (V1's DDL), so ownership compares as text as well.
             statement.execute("create table side_effects (id bigint auto_increment primary key,"
-                    + " result_type varchar(64), result_id varchar(255))");
+                    + " result_type varchar(64), result_id varchar(255), user_id varchar(255))");
             statement.execute("create table confirmation_requests (id bigint auto_increment primary key,"
-                    + " tool_name varchar(128), args_json varchar(2000))");
-            // 一次真的写落在 9005；一次被拒的调用提议动 9004（没有台账行）。
-            // One real write landed on 9005; one refused call proposed 9004 (no ledger row).
-            statement.execute("insert into side_effects (result_type, result_id) values ('crm_customer', 9005)");
-            statement.execute("insert into confirmation_requests (tool_name, args_json) values"
-                    + " ('update_crm_customer', '{\"id\":9004,\"name\":\"x\"}')");
+                    + " tool_name varchar(128), args_json varchar(2000), operator_id varchar(255))");
+            // 9001（走查读者）自己的一次真写落在 9005，一次被拒的提议动 9004；9003（另一个普通用户）的是 9006 与 9007。
+            // 9001's own real write landed on 9005 and his refused proposal named 9004; 9003 (another ordinary
+            // caller) owns 9006 and 9007.
+            statement.execute("insert into side_effects (result_type, result_id, user_id) values"
+                    + " ('crm_customer', 9005, '9001'), ('crm_customer', 9006, '9003')");
+            statement.execute("insert into confirmation_requests (tool_name, args_json, operator_id) values"
+                    + " ('update_crm_customer', '{\"id\":9004,\"name\":\"x\"}', '9001'),"
+                    + " ('update_crm_customer', '{\"id\":9007,\"name\":\"y\"}', '9003')");
         }
     }
 
@@ -122,22 +130,86 @@ class YudaoRecordNamesTest {
     }
 
     @Test
-    void anOrdinaryCallerLearnsNothing() {
-        // 9003 既不是管理员也不是审计读者——即便这条引用真的在台账里，也不给。
-        // 9003 is neither an administrator nor an audit reader; the reference is in the ledger and it still
-        // must not be named.
+    void anOrdinaryCallerNamesHisOwnLedgerRow() {
+        // 9001 不是管理员也不是审计读者，但 9005 是他自己写下的那一行——按行收窄答得出。
+        // 9001 is neither an administrator nor an audit reader, but 9005 is his own ledger row — the row-by-row
+        // tier answers it.
         List<YudaoRecordNames.Named> named =
-                directory.namesFor(9003L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
+                directory.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
 
-        assertTrue(named.isEmpty(), "an ordinary caller must not be answered: " + named);
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9005", "万****")), named);
+    }
+
+    @Test
+    void anOrdinaryCallerIsNotToldAboutSomeoneElsesLedgerRow() {
+        // 9006 在台账里，但不是 9001 的行：静默省略，与「账本没点过名」同一个形状。
+        // 9006 is in the ledger but not 9001's row: silently omitted, the same shape as "no ledger named it".
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9006)));
+
+        assertTrue(named.isEmpty(), "an ordinary caller must not be answered about someone else's row: " + named);
+    }
+
+    @Test
+    void anOrdinaryCallerNamesHisOwnRefusedProposal() {
+        // 被拒那次没有台账行，属主从确认记录的 `operator_id` 认。
+        // A refused call writes no ledger row; ownership comes from the confirmation's `operator_id`.
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9004)));
+
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9004", "海****")), named);
+    }
+
+    @Test
+    void anOrdinaryCallerIsNotToldAboutSomeoneElsesProposal() {
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9007)));
+
+        assertTrue(named.isEmpty(), "someone else's proposal must not be named: " + named);
+    }
+
+    @Test
+    void anOrdinaryCallerLearnsNothingAboutAReferenceNoLedgerNamed() {
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9003)));
+
+        assertTrue(named.isEmpty(), "a reference no ledger ever named must not be answered: " + named);
+    }
+
+    @Test
+    void aMixedRequestAnswersOnlyTheCallersOwnReferences() {
+        // 一次请求里混着自己的（9005、9004）与别人的（9006、9007）：只回自己的那些，不因有一条自己的就整批放行。
+        // A request mixing his own references (9005, 9004) with someone else's (9006, 9007) answers only his —
+        // one own reference must not open the whole batch.
+        List<YudaoRecordNames.Named> named = directory.namesFor(9001L, List.of(
+                new YudaoRecordNames.Ref("crm_customer", 9005),
+                new YudaoRecordNames.Ref("crm_customer", 9006),
+                new YudaoRecordNames.Ref("crm_customer", 9004),
+                new YudaoRecordNames.Ref("crm_customer", 9007)));
+
+        assertEquals(List.of(
+                new YudaoRecordNames.Named("crm_customer", "9005", "万****"),
+                new YudaoRecordNames.Named("crm_customer", "9004", "海****")), named);
     }
 
     @Test
     void theAdministratorMayAsk() {
+        // 管理员读得到整个账本：9005 是 9001 的行，管理员照样答得出。
+        // The administrator reads the whole ledger: 9005 is 9001's row, and he is answered anyway.
         List<YudaoRecordNames.Named> named =
                 directory.namesFor(1L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
 
         assertEquals(1, named.size(), "the administrator holds this read anyway: " + named);
+    }
+
+    @Test
+    void theAuditReaderMayStillAskAboutAnyLedgerRow() {
+        // 审计读者的口径不变：别人（9003）的行也答。
+        // The audit reader's tier is unchanged: someone else's (9003's) row is answered too.
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_customer", 9006)));
+
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9006", "中****")), named);
     }
 
     @Test
@@ -159,8 +231,11 @@ class YudaoRecordNamesTest {
                 customers, mock(CrmFollowUpRecordMapper.class), mock(Demo01ContactMapper.class),
                 mock(ProductsMapper.class), tools, refusesNumbers(dataSource), administrators, auditReaders);
 
+        // 用普通调用方（9001）：属主条件与主键一样必须按文本绑，否则严格服务器上这一腿同样会空。
+        // Ask as an ordinary caller (9001): the owner predicate must bind text like the key, or this leg goes
+        // empty on the strict server too.
         List<YudaoRecordNames.Named> named =
-                strict.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
+                strict.namesFor(9001L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
 
         assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9005", "万****")), named);
     }
