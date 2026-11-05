@@ -41,6 +41,13 @@ packaged, and one left in the server's dependencies but not in the reactor is â€
 Maven repository, silently, which is how an audit of the first attempt found `report`/`hrm`/`fms`/
 `pms`/`oa` still inside a jar that had "excluded" them.
 
+> **2026-11-04 correction**: "five" is the baseline of the **2026-10-12 build**. Since then the
+> governance line has switched on `fms` (`YD-28`'s fifth module; this deployment seeds none of its tables
+> and shows none of its menus) and M3's `member` / `pay` / `pms` / `oa` in `yudao-server/pom.xml`, and
+> `seed-manifest.txt` loads the `member` / `pms` / `oa` tables accordingly. Which modules this host runs is
+> therefore read from `seed-manifest.txt` and `yudao-server/pom.xml`, with `module-scope.sql` deciding
+> which menus are visible; the 1.6 GB / 580 MB reasoning above still stands for why the set was trimmed.
+
 **The module set is the deployment's, so it belongs here rather than in the repository's own build.**
 A change to which modules this host runs is a change to this file.
 

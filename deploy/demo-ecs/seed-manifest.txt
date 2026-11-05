@@ -162,28 +162,34 @@ skip keelbase-bpm.sql # 已裁：菜单不展示、bpm_* 表不导入；jar 仍�
 # Sample business data: its own header says it is loaded out of band, not by the bootstrap.
 skip keelbase-demo-data.sql # 样例数据，文件头写明带外灌入、不进引导 | sample data; its header says out of band, not in the bootstrap
 
-# 以下模块不在本部署的 jar 里（部署 README：五模块 system/infra/bpm/crm/ai1-springai）。它们的建表
-# 种子不导入；导入了只会种出没有模块的菜单与空表。
-# The modules below are not in this deployment's jar (deployment README: the five modules system,
-# infra, bpm, crm, ai1-springai). Their table seeds are not loaded; loading them would only plant menus
-# and empty tables for modules that are not there.
-#
-# `fms` 单独标一句：roadmap 的 `YD-41` 行曾把它写成第六个模块，而部署 README 与 module-scope 都不含它
-# —— 与 bpm 不同：bpm 在 jar 里、只是不展示，fms 根本不在 jar 里。
-# `fms` gets its own note: the `YD-41` roadmap line once called it a sixth module, while the deployment
-# README and module-scope both exclude it — unlike bpm, which is in the jar but not shown, fms is not in
-# the jar at all.
-skip keelbase-fms.sql # 模块 fms 不在部署 jar 里（与 roadmap 原文冲突，见上） | module fms is not in the deployment jar (conflicts with the roadmap line; see above)
-skip keelbase-hrm.sql # 模块 hrm 不在部署 jar 里 | module hrm is not in the deployment jar
+# 以下模块的建表种子不导入，但**原因不同，要分开读**：
+#   · `hrm` / `report` —— 不在 jar 里（`yudao-server/pom.xml` 里是注释掉的）；导入了只会种出空表。
+#   · `fms` —— **在 jar 里**（`YD-28` 的第五个模块，fms 真栈门需要它的类），但本部署**不展示它的菜单**
+#     （`module-scope.sql` 不含 `/fms`、`features.fms: false`），也**不灌它的 30 张表**；fms 的门自建表。
+# 「本部署跑哪几个模块」以本文件与 `yudao-server/pom.xml` 为准；deploy README 里的「五模块」是
+# 2026-10-12 那次构建的基线，此后 `fms` 与 M3 的 `member` / `pay` / `pms` / `oa` 已进 server pom
+# （README 同日的补正写了这件事）。
+# The table seeds below are not loaded, but **for different reasons — read them apart**:
+#   · `hrm` / `report` — not in the jar (`yudao-server/pom.xml` has them commented out); loading them
+#     would only plant empty tables.
+#   · `fms` — **in the jar** (`YD-28`'s fifth module; the FMS real-stack gates need its classes), but this
+#     deployment **does not show its menus** (`/fms` is not on `module-scope.sql`'s keep list,
+#     `features.fms: false`) and **does not seed its 30 tables**; the FMS gates create their own.
+# Which modules this host runs is read from this file and `yudao-server/pom.xml`; the deploy README's
+# "five modules" is the baseline of the 2026-10-12 build, and since then `fms` and M3's `member` / `pay` /
+# `pms` / `oa` have joined the server pom (the README carries the same-day correction).
+skip keelbase-fms.sql # fms 在 jar 里但不展示、表不灌（YD-28 第五个模块；它的门自建表） | fms is in the jar but not shown and not seeded (YD-28's fifth module; its gates create their own tables)
+skip keelbase-hrm.sql # 模块 hrm 不在 jar 里（server pom 里是注释掉的） | module hrm is not in the jar (commented out in the server pom)
 load keelbase-pms.sql # M3 把 pms 放进了部署 jar，它的 33 张表要落下（没有菜单行） | M3 put pms in the deployment jar; its 33 tables land here (no menus)
 
 skip keelbase-report.sql # 模块 report 不在部署 jar 里 | module report is not in the deployment jar
 
-# 只动 pms 的菜单（pms 不部署），以及厂商外链菜单 —— 后者是顶级路径，`module-scope.sql` 第 5 步已经
-# 按「不在保留清单里」把它停用。
-# Touches only pms menus (pms is not deployed), and the vendor's external-link menus — the latter are
-# top-level paths, already switched off by step 5 of `module-scope.sql` as "not on the keep list".
-skip keelbase-menus-without-pages.sql # 只涉及 pms（不部署）与顶级外链；后者由 module-scope 停用 | only pms (not deployed) and top-level vendor links; module-scope already disables the latter
+# 只动 pms 的菜单（pms 已部署，但本部署不种 pms 的菜单行），以及厂商外链菜单 —— 后者是顶级路径，
+# `module-scope.sql` 第 5 步已经按「不在保留清单里」把它停用。
+# Touches only pms menus (pms is deployed, but this deployment seeds no pms menu rows), and the vendor's
+# external-link menus — the latter are top-level paths, already switched off by step 5 of
+# `module-scope.sql` as "not on the keep list".
+skip keelbase-menus-without-pages.sql # 只涉及 pms 菜单（pms 已部署但不种菜单行）与顶级外链；后者由 module-scope 停用 | only pms menus (pms is deployed but seeds no menu rows) and top-level vendor links; module-scope already disables the latter
 
 # 只改显示名（监控菜单与一条 infra 配置），不决定页面能不能到。
 # Display names only (the monitor menu and one infra config); page reachability does not depend on it.
