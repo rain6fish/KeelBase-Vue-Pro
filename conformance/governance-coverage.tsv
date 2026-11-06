@@ -218,7 +218,7 @@ pms	project-member	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectMemb
 pms	project	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectService	seam	PmsProjectGovernance		@rain	2027-06-30
 pms	project-template	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
 pms	workbench	cn.iocoder.yudao.module.pms.service.pm.workbench.PmsWorkbenchService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
-pms	work-item-activity	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemActivityService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	work-item-activity	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemActivityService	seam	PmsWorkItemActivityGovernance		@rain	2027-06-30
 pms	work-item-board	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemBoardService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
 pms	work-item-comment	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemCommentService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
 pms	work-item-label	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemLabelService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
