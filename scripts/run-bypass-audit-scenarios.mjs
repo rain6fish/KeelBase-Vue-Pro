@@ -44,7 +44,8 @@
 // Everything it creates, it removes again. **Bypass rows and audit rows stay on purpose** — they are the
 // readings this gate exists to leave behind.
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
+import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +65,22 @@ const TENANT = process.env.TENANT_ID || '1';
 // neither a clean machine nor CI should depend on it. CI points `EVIDENCE_DIR` inside the workspace so
 // the second host's log can be uploaded with the run.
 const EVIDENCE = process.env.EVIDENCE_DIR || join(tmpdir(), 'keelbase-bypass-audit-evidence');
+
+// 第二个宿主连的是**宿主侧端口**，而本门自己的断言走 `docker exec`（容器内）。默认值与
+// `scripts/run-server.sh` 逐字一致：解析一次、原样交给子进程，故打印出来的地址就是它真会去连的地址。
+//
+// The second host dials the **host-side** ports while this gate's own assertions go through `docker exec`
+// (inside the container). These defaults match `scripts/run-server.sh` word for word: resolve once, hand the
+// resolved values to the child, so the address printed is the address it will really dial.
+const DATASTORE = {
+  PG_HOST: process.env.PG_HOST || '127.0.0.1',
+  PG_PORT: process.env.PG_PORT || '54329',
+  PG_DB: process.env.PG_DB || DB,
+  PG_USER: process.env.PG_USER || 'root',
+  PG_PASSWORD: process.env.PG_PASSWORD || 'password',
+  REDIS_HOST: process.env.REDIS_HOST || '127.0.0.1',
+  REDIS_PORT: process.env.REDIS_PORT || '56389'
+};
 
 let pass = 0;
 let fail = 0;
@@ -147,17 +164,60 @@ function killTree(child) {
   }
 }
 
-function startOffHost() {
+/** 这个端口上有没有人接（只探 TCP，不发协议）。 / Is anything accepting on this port (TCP only). */
+function reachable(host, port, timeoutMs = 2000) {
+  return new Promise((done) => {
+    const socket = connect({ host, port: Number(port) });
+    const finish = (value) => { socket.destroy(); done(value); };
+    socket.setTimeout(timeoutMs, () => finish(false));
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+  });
+}
+
+/** 失败时把子进程日志的尾巴带出来：下一次红要能自己说明为什么。 / Bring the child's log tail out. */
+function tailOf(path, lines = 30) {
+  try {
+    const text = readFileSync(path, 'utf8').replace(/\s+$/, '');
+    if (text === '') return '(empty)';
+    return text.split(/\r?\n/).slice(-lines).join('\n');
+  } catch (error) {
+    return `(could not read: ${error.message})`;
+  }
+}
+
+async function startOffHost() {
   mkdirSync(EVIDENCE, { recursive: true });
   const log = join(EVIDENCE, 'off-host.log');
-  const out = openSync(log, 'w');
   console.log(`  note  starting the second host (switch off) on ${OFF_HOST}; log ${log}`);
-  console.log(`  note  it shares this gate's datastore: ${process.env.PG_HOST || '127.0.0.1'}:`
-    + `${process.env.PG_PORT || '54329'}/${process.env.PG_DB || DB}`);
+  console.log(`  note  it shares this gate's datastore: ${DATASTORE.PG_HOST}:${DATASTORE.PG_PORT}/${DATASTORE.PG_DB},`
+    + ` redis ${DATASTORE.REDIS_HOST}:${DATASTORE.REDIS_PORT}`);
+  // 先探一次数据存储：缺了端口的环境变量时，子进程会回落到默认值、连一个没人听的端口并在十几秒内退出 ——
+  // 把等待调长不会让它起来。故把「连错了库」变成一句前置失败，而不是一条只有退出码的红。
+  //
+  // Probe the datastore first: without the port variables in its environment the child falls back to the
+  // defaults, dials a port nothing listens on, and exits within seconds — a longer wait cannot fix that. This
+  // turns "pointed at the wrong datastore" into a pre-flight failure instead of a red with only an exit code.
+  const [pgUp, redisUp] = await Promise.all([
+    reachable(DATASTORE.PG_HOST, DATASTORE.PG_PORT),
+    reachable(DATASTORE.REDIS_HOST, DATASTORE.REDIS_PORT)
+  ]);
+  if (!pgUp || !redisUp) {
+    const down = [
+      pgUp ? null : `PostgreSQL ${DATASTORE.PG_HOST}:${DATASTORE.PG_PORT}`,
+      redisUp ? null : `Redis ${DATASTORE.REDIS_HOST}:${DATASTORE.REDIS_PORT}`
+    ].filter(Boolean).join(' / ');
+    console.error(`  note  the second host would dial ${down}, and nothing accepts there`);
+    console.error('  note  this gate asserts through `docker exec`, but the second host needs the host-side'
+      + " ports: set PG_PORT / REDIS_PORT (and PG_HOST / REDIS_HOST) to this stack's published ports");
+    return null;
+  }
+  const out = openSync(log, 'w');
   const child = spawn('bash', ['scripts/run-server.sh'], {
     cwd: ROOT,
     env: {
       ...process.env,
+      ...DATASTORE,
       PORT: OFF_PORT,
       SERVER_ADDRESS: '127.0.0.1',
       // 开关的语义是「不装」；`bypass-audit` 与 `bypassAudit` 在 relaxed binding 下是同一个键。
@@ -372,10 +432,20 @@ check('6. the conversation route leaves no bypass row', before6, countSince());
 // so a write leaves no row and behaves exactly as it does with the switch on. This is the one scenario that
 // needs a second host, so the gate starts one and stops it on every exit path — a leftover listener would
 // block the next run.
-offHost = startOffHost();
-const offUp = await waitForHost(OFF_HOST, offHost);
+offHost = await startOffHost();
+const offUp = offHost !== null && await waitForHost(OFF_HOST, offHost);
 check('7. the second host (switch off) came up', true, offUp);
-if (!offUp) console.error(`  note  the second host did not come up; see ${join(EVIDENCE, 'off-host.log')}`);
+if (!offUp) {
+  if (offHost === null) {
+    console.error('  note  the second host was not started; the pre-flight note above says why');
+  } else {
+    console.error(`  note  the second host did not come up (exit ${offHost.exitCode ?? 'still running'});`
+      + ` see ${join(EVIDENCE, 'off-host.log')}`);
+    for (const line of tailOf(join(EVIDENCE, 'off-host.log')).split(/\r?\n/)) {
+      console.error(`        ${line}`);
+    }
+  }
+}
 try {
   if (offUp) {
     const offToken = await login(OFF_HOST);
