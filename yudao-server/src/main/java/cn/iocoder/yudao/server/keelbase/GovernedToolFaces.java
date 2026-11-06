@@ -123,6 +123,7 @@ public final class GovernedToolFaces {
                 new ToolFace("MemberExperienceRecordTools"),
                 new ToolFace("PmsProjectTools"),
                 new ToolFace("PmsWorkItemActivityTools"),
+                new ToolFace("PmsWorkItemWorkLogTools"),
                 new ToolFace("PayWalletTools"),
                 new ToolFace("PayWalletTransactionTools"),
                 new ToolFace("PayWalletRechargeTools"),

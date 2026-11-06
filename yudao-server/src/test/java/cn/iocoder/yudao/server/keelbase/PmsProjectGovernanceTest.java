@@ -84,6 +84,27 @@ class PmsProjectGovernanceTest {
     }
 
     @Test
+    void theWorkLogSummaryIsHeldToTheActingCaller() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{600L, 7L});
+        when(call.proceed(any(Object[].class))).thenReturn("summary");
+
+        assertEquals("summary", inCaller(CALLER));
+
+        assertArrayEquals(new Object[]{600L, CALLER_ID}, pinnedArgs(),
+                "the work item is left alone; only the person is pinned");
+    }
+
+    @Test
+    void theWorkLogReadByIdIsHeldToTheActingCaller() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{905L, 7L});
+        when(call.proceed(any(Object[].class))).thenReturn("workLog");
+
+        assertEquals("workLog", inCaller(CALLER));
+
+        assertArrayEquals(new Object[]{905L, CALLER_ID}, pinnedArgs());
+    }
+
+    @Test
     void aShapeWithoutATrailingUserIdIsLeftAlone() throws Throwable {
         when(call.getArgs()).thenReturn(new Object[]{9L, "not-a-user"});
         when(call.proceed()).thenReturn("unchanged");

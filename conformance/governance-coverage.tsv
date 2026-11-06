@@ -225,7 +225,7 @@ pms	work-item-label	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemL
 pms	work-item	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService	seam	PmsProjectGovernance		@rain	2027-06-30
 pms	work-item-status	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemStatusService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
 pms	work-item-user-sort	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemUserSortService	exempt		个人排序簿记，无 AI 问题	@rain	2027-06-30
-pms	work-item-work-log	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	work-item-work-log	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService	seam	PmsProjectGovernance		@rain	2027-06-30
 server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
 system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

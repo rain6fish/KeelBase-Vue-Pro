@@ -21,6 +21,8 @@ import org.springframework.stereotype.Component;
  *       收进来，再按成员关系收窄；工作项那条还会先 `validateProjectReadable(projectId, userId)`。</li>
  *   <li><b>按 id 读是否收窄。</b>收窄——`getProjectAndUpdateVisitTime(id, userId)` 与
  *       `getWorkItem(id, userId)` / `getWritableWorkItem(id, userId)` 都以 userId 判定成员关系。
+ *       工时那两条（`getWorkItemWorkLogSummary(workItemId, userId)` / `getWorkItemWorkLog(id, userId)`）同样先把
+ *       userId 交给 `getWorkItem(workItemId, userId)`——可见性仍是一句话：能不能读这个项目。
  *       （`PmsProjectService.getProject(Long)` 是一句裸读，但控制台不用它，本面也不接它。）</li>
  *   <li><b>写查什么权限。</b>`pms:pm:project:*` 与 `pms:pm:work-item:*`；写口不在本面（本面只读）。</li>
  * </ol>
@@ -42,7 +44,9 @@ import org.springframework.stereotype.Component;
  * is answered by the `pms_project_member` table, and a work item's read is still gated by project membership
  * (`validateProjectReadable`: an open project is readable by anyone, a private one needs membership or the super
  * administrator). (2) Both pages take the caller **as an argument** and narrow by membership. (3) The reads by id
- * narrow the same way. (4) Writes sit behind `pms:pm:project:*` / `pms:pm:work-item:*`, and this face is read-only.
+ * narrow the same way; the two work-log reads hand their user id to `getWorkItem(workItemId, userId)` first, so the
+ * same sentence decides them too. (4) Writes sit behind `pms:pm:project:*` / `pms:pm:work-item:*`, and this face is
+ * read-only.
  *
  * <p><b>The seam does exactly one thing: the last argument becomes the person acting.</b> The module already judges
  * visibility; what is missing is who decides that argument. On the tool path a model can fill it, so this advice pins
@@ -78,12 +82,12 @@ public class PmsProjectGovernance implements GovernedModule {
     }
 
     /**
-     * 把最后一个实参钉成行动调用方——六条读口都以 userId 收尾。
+     * 把最后一个实参钉成行动调用方——八条读口都以 userId 收尾。
      *
      * 请求路径（没有行动调用方）原样放行；有行动调用方却指不出本地用户编号时**拒绝**，与 FMS 那两条同一纪律。
      *
-     * Pins the last argument to the acting caller — every one of the six reads ends with the user id. The request path
-     * (no acting caller) passes through; a caller that cannot be read as a local user id is refused, the same
+     * Pins the last argument to the acting caller — every one of the eight reads ends with the user id. The request
+     * path (no acting caller) passes through; a caller that cannot be read as a local user id is refused, the same
      * discipline as the two FMS seams.
      */
     @Around("execution(* cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectService.getProjectPage(..))"
@@ -91,7 +95,9 @@ public class PmsProjectGovernance implements GovernedModule {
             + " || execution(* cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectService.getProjectOverview(..))"
             + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService.getWorkItemPage(..))"
             + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService.getWorkItem(..))"
-            + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService.getWritableWorkItem(..))")
+            + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService.getWritableWorkItem(..))"
+            + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService.getWorkItemWorkLogSummary(..))"
+            + " || execution(* cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService.getWorkItemWorkLog(..))")
     public Object pinTheUserIdArgument(ProceedingJoinPoint call) throws Throwable {
         String caller = ActingCaller.current();
         if (caller == null) {
