@@ -140,6 +140,7 @@ ORDER=(
   run-ai1-crm-scenarios.mjs
   run-assistant-drawer-scenarios.mjs
   run-mcp-governance-scenarios.mjs
+  run-pms-work-item-activity-scenarios.mjs
   run-model-loop-scenarios.mjs
 )
 
