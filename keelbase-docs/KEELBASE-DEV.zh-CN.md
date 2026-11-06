@@ -58,8 +58,8 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 ### 离线构建：备好一份 Maven 本地库
 
 钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉
-0.1.16）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
-**完全离线**的机器上，同一个构建会以「找不到 0.1.16」失败。先把这一层补进本地库：
+0.1.17）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
+**完全离线**的机器上，同一个构建会以「找不到 0.1.17」失败。先把这一层补进本地库：
 
 ```bash
 # 1) 复制基线库（源库只读），缺的版本按根 pom 的镜像解析进目标库
