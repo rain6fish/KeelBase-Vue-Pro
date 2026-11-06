@@ -59,6 +59,7 @@
 // worse act than the untidiness.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { request } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ADMIN_USER, resolveAdminPassword } from './admin-credential.mjs';
@@ -151,16 +152,54 @@ process.on('exit', () => {
   }
 });
 
+// 取数**每个请求一条新连接**（`agent: false`：Node 为这一笔造一个不复用的 agent，响应一结束就丢掉 socket）。
+// 否则连接池会把长命连接留过本门用 `execFileSync` 跑的那次 Maven 投影测试：那段时间事件循环是阻塞的，
+// 而宿主仍按自己的 keep-alive 超时（本机实测 ~60s）关空闲连接。池里那条连接于是落在「对端正在关闭」的窗口里，
+// 下一笔写上去就是 `other side closed` / `ECONNRESET`。这不是重试，也没有放宽任何断言：换的只是**取数方式**，
+// 每一笔请求照旧只发一次、失败照旧算失败。
+//
+// Every request opens **its own connection** (`agent: false`: Node builds a non-reusing agent for that
+// request and drops the socket when the response ends). Otherwise the pool carries long-lived
+// connections past the Maven projection test this gate runs through `execFileSync`: the event loop is
+// blocked for that stretch while the host keeps closing idle connections on its own keep-alive timeout
+// (~60 s measured here). A pooled socket then sits in the window where the peer is closing it, and the
+// next request written onto it dies as `other side closed` / `ECONNRESET`. This is not a retry and no
+// assertion is relaxed: only the way readings are fetched changes, every request is still sent once,
+// and a failure is still a failure.
+function httpJson(url, { method = 'GET', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : (typeof body === 'string' ? body : JSON.stringify(body));
+    const req = request(url, {
+      method,
+      agent: false,
+      headers: { ...headers, ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}) },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        try {
+          resolve({ status: res.statusCode, json: text ? JSON.parse(text) : {} });
+        } catch (e) {
+          reject(new Error(`${method} ${url} -> ${res.statusCode}, body is not JSON: ${text.slice(0, 200)}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 // 宿主答它那个瞬时 500 时**重试一次**、且说出来；业务性拒绝不重试。
 // Retry **once** on the host's transient 500 and say so; a business refusal is not retried.
 async function api(path, { method = 'GET', token, body } = {}) {
   for (let attempt = 1; ; attempt += 1) {
-    const res = await fetch(`${HOST}/admin-api${path}`, {
+    const { json } = await httpJson(`${HOST}/admin-api${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', 'tenant-id': TENANT, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {})
+      body,
     });
-    const json = await res.json();
     if (json.code !== 500 || attempt > 1) {
       return json;
     }
@@ -176,22 +215,20 @@ async function login(username, password) {
 }
 
 async function chat(token, message, extra = {}) {
-  const res = await fetch(`${HOST}/ai/chat`, {
+  const { json } = await httpJson(`${HOST}/ai/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ message, conversationId: `gate-contact-${Date.now()}`, ...extra })
+    body: { message, conversationId: `gate-contact-${Date.now()}`, ...extra },
   });
-  const json = await res.json();
   return json.data || json;
 }
 
 async function confirm(token, confirmationToken, decision) {
-  const res = await fetch(`${HOST}/ai/confirmations/${confirmationToken}`, {
+  const { json } = await httpJson(`${HOST}/ai/confirmations/${confirmationToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ decision })
+    body: { decision },
   });
-  const json = await res.json();
   return json.data || json;
 }
 
@@ -310,7 +347,7 @@ console.log('== 前置 ==');
 // The audit chain is signed with `keelbase.audit.hmac-key`, so rows signed under another key can never
 // verify. Clear the table first and say so.
 psql('truncate table ai_audit_logs');
-check('/app/capabilities 200', '200', (await fetch(`${HOST}/app/capabilities`)).status);
+check('/app/capabilities 200', '200', (await httpJson(`${HOST}/app/capabilities`)).status);
 
 const admin = await login(ADMIN_USER, resolveAdminPassword(psql));
 ok('admin 登录');
@@ -625,7 +662,7 @@ console.log('== 场景 5 · 台账与审计链 ==');
 
   const rows = Number(psql('select count(*) from ai_audit_logs'));
   check('审计行在（>0）', true, rows > 0);
-  const verify = await (await fetch(`${HOST}/audit/verify`, { headers: { Authorization: `Bearer ${admin}` } })).json();
+  const verify = (await httpJson(`${HOST}/audit/verify`, { headers: { Authorization: `Bearer ${admin}` } })).json;
   check('链校验通过', true, verify.data && verify.data.valid);
 }
 
