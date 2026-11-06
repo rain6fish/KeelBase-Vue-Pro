@@ -13,18 +13,18 @@
 //     node scripts/run-audit-two-cases-scenarios.mjs
 //
 // **它回答的不是「能打几分」，是「这两类操作，审计读面能不能照样按名答出六问；答不出的是哪一问」。**
-// 故两条读数如实写成 `5/6`，并把空格子点名：
+// 2026-11-05 第一次跑时两条读数都是 `5/6`；两个空格的缺口在 2026-11-06 各自补上，现在两档都是 `6/6`：
 //
-//   * ① 的 **③ 哪个业务对象** 答不出：被 BLOCK 的调用**什么都没记进系统**，而它的实参也**从未落盘**
-//     （没有台账、没有确认记录，审计行的 `authorization` 只有闸门的裁决、没有 `projectId`）。这是**数据面的缺口** ——
-//     换一个更会读的页面也补不出来。
-//   * ② 的 **⑤ 谁确认** 答不出：写自己那一行只记「要第二个人」，**不记是谁**（读面按设计只读这一行的
-//     `authorization`）。批准人**确实记下来了** —— 在确认行的 `approver_id` 与那条 `tool_confirmation/approved`
-//     审计行的 `user_id` 上，页面以那一行的 **①** 显示，YD-45 在追溯页另配一次。这是**读面组合的缺口**：
-//     数据在，六问的第五格没取到它。
+//   * ① 的 **③ 哪个业务对象** 曾答不出：被 BLOCK 的调用**什么都没记进系统**，而它的实参也**从未落盘**
+//     （没有台账、没有确认记录，审计行的 `authorization` 只有闸门的裁决）。补法在**写**那一侧：引擎的阻断
+//     分支把被拦下那次本来要动的键写在行末（` · intended object #12`），既有 `detail` 列，无新列、无新动作。
+//     读面按工具自己的 `resultType()` 声明给出种类 ⇒ ③ 现在读 `Project · #<key>`。
+//   * ② 的 **⑤ 谁确认** 曾答不出：写自己那一行只记「要第二个人」，**不记是谁**。批准人其实记在同一次
+//     操作的另一行上（`tool_confirmation/approved` 的 `user_id`）。补法是**读面组合**：`approverOf` 按
+//     「同一工具、五秒内、恰好一个候选」把那一行配上，仍只读审计链本身 —— **不问工具清单**。
 //
-// 这两条缺口**被当成断言写死**（`③`、`⑤` 现读为 `answered=false`）。将来谁补上了，这道门会红、点名哪一格，
-// 而不是悄悄跟着改口。
+// 这三条缺口都**被当成断言写死**（当时读 `answered=false`）。补上之后那几条按新读数改写，并各加一条
+// **反向**断言（「不再说是未记录」）；改写时**没有删掉或放宽任何一条既有断言** —— 只把期望翻向，并加新的。
 //
 // 门禁造的东西：一条临时 `customers` 行（每轮新插，免得写管道把上一轮的 effect 复用掉）；一个第二管理员账号
 // `auditapprover`（幂等创建、**留着不删** —— 审计行按它配名，删了 ① 就只剩一个数字）。收尾删掉 `follow_ups` /
@@ -41,20 +41,23 @@
 //      the approver is on `confirmation_requests.approver_id` and on the `tool_confirmation/approved` audit row.
 //
 // **What it answers is not "what score" but "for these two kinds of operation, can the audit read face still answer
-// the six questions by name, and which one does it miss".** Both readings are honestly `5/6`, with the empty cell
-// named:
+// the six questions by name, and which one does it miss".** Both readings were `5/6` on 2026-11-05; each empty cell
+// was closed on 2026-11-06, and both are now `6/6`:
 //
-//   * ①'s **③ which business object** cannot be answered: a BLOCKED call **wrote nothing into the system**, and its
-//     arguments were **never persisted** (no ledger, no confirmation record; the audit row's `authorization` carries
-//     the gate's verdict and no `projectId`). That is a **data-side gap** — a cleverer page cannot recover it.
-//   * ②'s **⑤ who confirmed** cannot be answered: the write's own row records only "a second person is needed",
-//     **not who** (the read face reads that row's `authorization` by design). The approver **is** recorded — on the
-//     confirmation row's `approver_id` and on the `tool_confirmation/approved` audit row's `user_id`; the page shows
-//     it as that row's **①**, and YD-45 shows it again on the trace page. This is a **read-face composition gap**:
-//     the data exists, the fifth cell does not reach it.
+//   * ①'s **③ which business object** was unanswerable: a BLOCKED call **wrote nothing into the system**, and its
+//     arguments were **never persisted** (no ledger, no confirmation row; the audit row's `authorization` carries
+//     the gate's verdict only). The fix is on the **write** side: the engine's block branch records the key the call
+//     meant to touch at the end of the row (` · intended object #12`) — the existing `detail` column, no new column
+//     and no new action. The read face takes the kind from the tool's own `resultType()` declaration, so ③ now reads
+//     `Project · #<key>`.
+//   * ②'s **⑤ who confirmed** was unanswerable: the write's own row records "a second person is needed" and **not
+//     who**. The approver is on another row of the same operation (`tool_confirmation/approved`, whose `user_id` is
+//     the decider). The fix is **read-face composition**: `approverOf` pairs that row by "same tool, within five
+//     seconds, exactly one candidate", and still reads the audit chain alone — **the inventory is not asked**.
 //
-// Both gaps are **asserted** (`③` / `⑤` currently read `answered=false`). Whoever closes one turns this gate red and
-// gets the cell named, rather than having the gate quietly change its story.
+// All three gaps were **asserted** (`answered=false` at the time). Once closed, those assertions were turned to the
+// new reading and each gained a **reverse** check ("it no longer says unrecorded"); **no existing assertion was
+// removed or weakened** — expectations were flipped and new ones added.
 //
 // What it creates: one temporary `customers` row (fresh every run, so the write pipeline cannot reuse the previous
 // run's effect); a second administrator `auditapprover` (created idempotently and **left in place** — audit rows are
@@ -164,6 +167,7 @@ const TOOL_RESULT_TYPES = {
   create_demo01_contact: 'infra_demo01_contact', rename_demo01_contact: 'infra_demo01_contact',
   review_fms_voucher: 'fms_voucher', mark_notify_message_read: 'system_notify_message',
   mark_all_notify_messages_read: 'system_notify_message', create_generated_products: 'products',
+  escalate_customer: 'follow_up', delete_project: 'pm_project',
 };
 const toolResultType = (n) => (n ? TOOL_RESULT_TYPES[n] ?? '' : '');
 const toolEffect = (tool) => {
@@ -424,11 +428,25 @@ async function sixOf(row) {
     if (p) await askRecordName(p.resultType, p.resultId);
   }
   const proposal = e ? null : proposalArgumentOf(row);
+  // 被**闸门拦下**的调用既没有台账行、也没有提议：键写在那一行自己的句末，种类按工具声明查。
+  // A **gate-blocked** call has neither a ledger row nor a proposal: its key is at the end of that row's own
+  // sentence, and the kind comes from the tool's declaration.
+  const recordedId = e || proposal ? null : SIX.recordedObjectIn(row);
+  const recorded = recordedId === null || !row.tool
+    ? null
+    : { resultType: toolResultType(row.tool), resultId: recordedId };
+  // 第五问的**人**只来自这次操作自己的证据链（同工具、五秒内、恰好一行 `tool_confirmation/approved`）。
+  // The fifth question's **person** comes only from this operation's own evidence chain (same tool, within
+  // five seconds, exactly one `tool_confirmation/approved` row).
+  const approver = SIX.approverOf(row, rows);
+  const approverName = approver ? names[String(approver.userId)] ?? String(approver.userId) : '';
   const answers = SIX.composeSix({
     row,
     callerName: row.userId ? names[String(row.userId)] ?? String(row.userId) : '',
     effect: e,
     proposal,
+    recorded,
+    approverName,
     hostNowName: e ? recordName(e) || e.targetTitle || '' : '',
     proposalName: recordName(proposal),
     recordState: e ? recordState(e) : '',
@@ -456,33 +474,41 @@ for (const [label, six] of [['① block', blockSix], ['② approve', approveSix]
   for (const a of six.answers) console.log(`     ${a.answered ? '✔' : '✘'} ${a.key.padEnd(13)} ${a.text}`);
 }
 
-// ① 的五格有答案，③ 没有 —— 被 BLOCK 的调用连它想动哪条记录都没记下来。
-// Five cells of ① have answers; ③ does not — a blocked call never even recorded which record it meant to touch.
+// ① 的六格都有答案 —— 被 BLOCK 的调用把「本来要动哪条记录」记在了那一行自己的句末，六问读得回来。
+// All six cells of ① have answers — a blocked call records which record it meant to touch at the end of
+// its own row's sentence, and the six questions read it back.
 check('① · the reader answers who', true, blockSix.byKey.who.answered);
 check('① · the reader answers when, with a zone', true, blockSix.byKey.when.answered && /UTC[+-]\d{2}:\d{2}/.test(blockSix.byKey.when.text));
-check('① · ③ is unanswered (current reading: the blocked call persisted no arguments)', false, blockSix.byKey.object.answered);
-check('① · the object cell says so explicitly', t('keelbase.sixQ.objectUnrecorded'), blockSix.byKey.object.text);
+check('① · ③ is answered (the blocked call records the key it meant to touch)', true, blockSix.byKey.object.answered);
+check('① · ③ names the kind and the key the call meant to touch', `Project · #${customerId}`, blockSix.byKey.object.text);
+check('① · ③ no longer says the call wrote no record', false,
+  blockSix.byKey.object.text === t('keelbase.sixQ.objectUnrecorded'));
 check('① · the reader answers what changed', true, blockSix.byKey.change.answered);
 check('① · the reader answers who confirmed', true, blockSix.byKey.confirmation.answered);
 check('① · the fifth cell names the blocking gate', t('keelbase.sixQ.confirmBlocked'), blockSix.byKey.confirmation.text);
 check('① · the reader answers the result', true, blockSix.byKey.result.answered);
 check('① · the result reads Blocked, with its meaning',
   `${t('keelbase.vocab.outcome.blocked')} · ${t('keelbase.meaning.blocked')}`, blockSix.byKey.result.text);
-check('① · five of six cells', 5, blockSix.score.cells);
+check('① · six of six cells', 6, blockSix.score.cells);
 check('① · no cell leaks an internal name', '[]', JSON.stringify(blockSix.score.leaked));
 
-// ② 的五格有答案，⑤ 没有 —— 写自己那一行只记「要第二个人」，不记是谁。
-// Five cells of ② have answers; ⑤ does not — the write's own row says "a second person" and not who.
+// ② 的六格都有答案 —— 写自己那一行只记「要第二个人」，批准人由同一次操作自己的证据链（那一行裁决）补上。
+// All six cells of ② have answers — the write's own row says "a second person", and the approver is
+// supplied by this operation's own evidence chain (its decision row).
 check('② · the reader answers who (the initiator, who ran it)', true, approveSix.byKey.who.answered);
 check('② · the reader answers when, with a zone', true, approveSix.byKey.when.answered && /UTC[+-]\d{2}:\d{2}/.test(approveSix.byKey.when.text));
 check('② · the reader answers which object', true, approveSix.byKey.object.answered);
+check('② · ③ names the kind of record, not just its key', 'Follow-up', approveSix.byKey.object.text.split(' · ')[0]);
 check('② · the reader answers what changed', true, approveSix.byKey.change.answered);
-check('② · ⑤ is unanswered on the write row (current reading: the row does not name the approver)', false, approveSix.byKey.confirmation.answered);
-check('② · the fifth cell says the row does not record who', t('keelbase.sixQ.confirmApprovalUnrecorded'), approveSix.byKey.confirmation.text);
+check('② · ⑤ is answered on the write row (the approver comes from the decision row)', true, approveSix.byKey.confirmation.answered);
+check('② · the fifth cell names the second person who approved it',
+  `${names[String(approverId)]} ${t('keelbase.sixQ.confirmSecondPerson')}`, approveSix.byKey.confirmation.text);
+check('② · the fifth cell no longer says the row does not record who', false,
+  approveSix.byKey.confirmation.text === t('keelbase.sixQ.confirmApprovalUnrecorded'));
 check('② · the reader answers the result', true, approveSix.byKey.result.answered);
 check('② · the result reads Executed, with its meaning',
   `${t('keelbase.vocab.outcome.executed')} · ${t('keelbase.meaning.executed')}`, approveSix.byKey.result.text);
-check('② · five of six cells', 5, approveSix.score.cells);
+check('② · six of six cells', 6, approveSix.score.cells);
 check('② · no cell leaks an internal name', '[]', JSON.stringify(approveSix.score.leaked));
 
 // 批准人确实被记下来了，只是在**另一行**上：裁决行的 ① 就是那个人。
