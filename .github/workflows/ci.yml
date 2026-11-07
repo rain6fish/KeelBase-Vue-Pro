@@ -709,16 +709,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # 钉住构建号：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，标签解析漂移时这里会红。
-      # Pin the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a drift turns red here.
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
       - name: Assert the JDK build number
-        run: |
-          set -euo pipefail
-          java -version
-          if ! java -version 2>&1 | grep -q 'Temurin-25\.0\.5+8'; then
-            echo "::error::expected Temurin-25.0.5+8"
-            exit 1
-          fi
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
       # `gen-from-spec.sh` resolves a JDK 25 for the one command; on a runner the toolchain is already
       # 25, so it is handed that home explicitly rather than letting the resolver download its own
       # copy (the download is the fallback, not the preferred path). Both checks are **offline**:
@@ -783,16 +778,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # 钉住构建号：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，标签解析漂移时这里会红。
-      # Pin the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a drift turns red here.
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
       - name: Assert the JDK build number
-        run: |
-          set -euo pipefail
-          java -version
-          if ! java -version 2>&1 | grep -q 'Temurin-25\.0\.5+8'; then
-            echo "::error::expected Temurin-25.0.5+8"
-            exit 1
-          fi
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
       # 本机 JDK 25 实测：20 个类、151 条，0 失败、0 跳过；`~/.m2` 已热时整条命令约 1 分钟。**这一步同时
       # 承担构建与测试**（`conformance` 是拆成两步、由整道 job 兜 45 分钟的），冷 runner 上要先编完
       # reactor、再下载依赖，故上限取 20 分钟而不是沿用那边测试步的 10 分钟。
@@ -861,16 +851,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # 钉住构建号：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，标签解析漂移时这里会红。
-      # Pin the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a drift turns red here.
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
       - name: Assert the JDK build number
-        run: |
-          set -euo pipefail
-          java -version
-          if ! java -version 2>&1 | grep -q 'Temurin-25\.0\.5+8'; then
-            echo "::error::expected Temurin-25.0.5+8"
-            exit 1
-          fi
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
 
       # 宿主的 20 个 Java 测试类是纯 JUnit 5 + Mockito：假 mapper、假服务顶住数据面，故不需要数据库、
       # Redis 或端口。用 JDK 25 在本机实测：151 条，0 失败、0 跳过；构建之后单跑约 16 秒，故这一步的上限
@@ -1108,16 +1093,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
-      # 钉住构建号：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，标签解析漂移时这里会红。
-      # Pin the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a drift turns red here.
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
       - name: Assert the JDK build number
-        run: |
-          set -euo pipefail
-          java -version
-          if ! java -version 2>&1 | grep -q 'Temurin-25\.0\.5+8'; then
-            echo "::error::expected Temurin-25.0.5+8"
-            exit 1
-          fi
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
 
       # 门禁脚本自己会调 Maven（投影那一半在同一次运行里跑同仓测试），故这几个旋钮交给 `GITHUB_ENV` 而不是
       # 每一步重复：宿主的 JDK 是 runner 上那份 25，Maven 用 PATH 上的，仓库用 Maven 默认的 `~/.m2/repository`
