@@ -96,6 +96,16 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，标签解析漂移时这里会红。
+      # Pin the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a drift turns red here.
+      - name: Assert the JDK build number
+        run: |
+          set -euo pipefail
+          java -version
+          if ! java -version 2>&1 | grep -q 'Temurin-25\.0\.5+8'; then
+            echo "::error::expected Temurin-25.0.5+8"
+            exit 1
+          fi
 
       # `-p 127.0.0.1:...`：端口只挂在回环上。就绪判据用各自的客户端（`pg_isready` /
       # `redis-cli ping`），而不是 sleep —— 「容器起了」与「它接得住连接」是两件事。
