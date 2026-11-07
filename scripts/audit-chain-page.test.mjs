@@ -229,3 +229,38 @@ test('chainWhat names the coverage statement instead of pointing at where it sit
     assert.doesNotMatch(message, /\b(?:above|below)\b/i, `chainWhat points by position: ${message}`)
   }
 })
+
+test('a blocked call takes its object from the key its own row recorded', () => {
+  // 被**闸门拦下**的调用既没有台账行、也没有确认记录：运行时把键写在那条审计行自己的句末。这一条钉住接线 ——
+  // 页面真的去读那一段、种类真的取自工具声明，而且读不出来时**不**从别处补一个 id。
+  //
+  // A **gate-blocked** call has neither a ledger row nor a confirmation record: the runtime writes the key at
+  // the end of the audit row's own sentence. This pins the wiring — the page really reads that back, the kind
+  // really comes from the tool declaration, and a missing key is **not** filled in from somewhere else.
+  assert.match(script, /import \{[^}]*\brecordedObjectIn\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
+    'the page does not import the reader for the row-recorded key')
+  assert.match(script, /const recordedId = e \|\| proposal \? null : recordedObjectIn\(row\)/,
+    'the page does not take the recorded key on the road that has neither a ledger row nor a proposal')
+  assert.match(script, /resultType: toolResultType\(row\.tool\)/,
+    'the kind of the blocked object is not taken from the tool declaration')
+  assert.match(script, /composeSix\(\{[\s\S]*?\brecorded,/, 'the six answers no longer receive the recorded key')
+})
+
+test('an approval row takes its approver from the decision row, never from the inventory', () => {
+  // 第二人批准那一行的批准人只在**同一次操作的另一行**上。这一条钉住两件事：页面按「同一工具、五秒内、
+  // 恰好一个候选」把那一行配上（与台账、确认记录、YD-45 追溯步同一条规则），且它**不问工具清单** ——
+  // 清单答的是此刻的闸，而这一行是过去的一次调用。
+  //
+  // The approver of an approval row exists only on **another row of the same operation**. This pins two
+  // things: the page pairs that row by "same tool, within five seconds, exactly one candidate" (the rule the
+  // ledger, the confirmation records and YD-45's trace step already use), and it **does not ask the
+  // inventory** — the inventory answers today's gate, while the row is a past call.
+  assert.match(script, /import \{[^}]*\bapproverOf\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
+    'the page does not import the approver matcher')
+  assert.match(script, /const approver = approverOf\(row, rows\.value\)/,
+    'the page does not pair the decision row from the audit rows it holds')
+  assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? String\(approver\.userId\) : ''/,
+    'the paired approver is not resolved to a name (or the empty answer is not explicit)')
+  assert.match(script, /composeSix\(\{[\s\S]*?\bapproverName:/, 'the six answers no longer receive the approver')
+  assert.doesNotMatch(script, /approverOf\(row, inventory/, 'the approver is being answered from the inventory')
+})

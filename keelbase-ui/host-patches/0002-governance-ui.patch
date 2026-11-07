@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,598 @@
+@@ -1,4 +1,601 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -579,6 +579,7 @@ index 96269a8..2611a9b 100644
 +      confirmWaiting: 'has not answered yet — the write is still waiting',
 +      confirmDeclined: 'refused it, inside the conversation',
 +      confirmApprovalUnrecorded: 'a second person approved it — this row does not record who',
++      confirmSecondPerson: 'approved it — a second person, not the operator',
 +      confirmBlocked: 'no one can — this tool is held at a blocking risk level',
 +      objectUnrecorded: 'not recorded — this call wrote no record',
 +      objectUnnamed: 'a business object this console has no name for',
@@ -596,6 +597,8 @@ index 96269a8..2611a9b 100644
 +    },
 +    record: {
 +      crm_customer: 'Customer',
++      follow_up: 'Follow-up',
++      pm_project: 'Project',
 +    },
 +  },
    common: {
@@ -605,7 +608,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,592 @@
+@@ -1,4 +1,595 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1176,6 +1179,7 @@ index 35f1e1a..856d201 100644
 +      confirmWaiting: '还没有确认 —— 这次写仍在等',
 +      confirmDeclined: '拒绝了这次写（对话内）',
 +      confirmApprovalUnrecorded: '由第二人批准 —— 这一行没有记下批准人是谁',
++      confirmSecondPerson: '批准了这次写（第二人，不是操作者本人）',
 +      confirmBlocked: '不会有人确认 —— 这个工具停在拦截档',
 +      objectUnrecorded: '未记录 —— 这次调用没有写下任何记录',
 +      objectUnnamed: '本控制台没有给它名字的业务对象',
@@ -1193,6 +1197,8 @@ index 35f1e1a..856d201 100644
 +    },
 +    record: {
 +      crm_customer: '客户',
++      follow_up: '跟进记录',
++      pm_project: '项目',
 +    },
 +  },
    common: {

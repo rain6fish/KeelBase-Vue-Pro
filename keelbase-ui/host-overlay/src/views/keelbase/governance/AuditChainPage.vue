@@ -290,7 +290,7 @@ import {
 import { resolveCallerNames } from '@/keelbase/callerNames'
 import { maskTitle } from '@/keelbase/mask'
 import { resolveRecordName, toolResultType } from '@/keelbase/recordNames'
-import { composeSix, objectLine, zonedTime } from '@/keelbase/sixQuestions.mjs'
+import { approverOf, composeSix, objectLine, recordedObjectIn, zonedTime } from '@/keelbase/sixQuestions.mjs'
 import { timeText } from '@/keelbase/time'
 
 defineOptions({ name: 'KeelbaseGovernanceAuditChain' })
@@ -653,11 +653,28 @@ function objectOf(row: AuditRow): string {
 function sixOf(row: AuditRow) {
   const e = recordOf(row)
   const proposal = e ? null : proposalArgumentOf(row)
+  // 被**闸门拦下**的调用既没有台账行、也没有提议：它的键写在那一行自己的句末（见 `recordedObjectIn`），
+  // 种类按工具自己的声明查 —— 与另两条路同一条口径。
+  // A **gate-blocked** call has neither a ledger row nor a proposal: its key is at the end of that row's own
+  // sentence (see `recordedObjectIn`), and the kind comes from the tool's declaration — the same rule as
+  // the other two roads.
+  const recordedId = e || proposal ? null : recordedObjectIn(row)
+  const recorded = recordedId === null || !row.tool
+    ? null
+    : { resultType: toolResultType(row.tool), resultId: recordedId }
+  // 第五问的**人**只来自这次操作自己的证据链：同会话、同工具、五秒内、恰好一行裁决（见 `approverOf`）。
+  // 这一页只拿得到已载入的那些行；配不上就回落到「这一行没有记下」。
+  // The fifth question's **person** comes only from this operation's own evidence chain: same conversation,
+  // same tool, within five seconds, exactly one decision row (see `approverOf`). This page holds only the
+  // rows it has loaded; no match falls back to "this row does not record who".
+  const approver = approverOf(row, rows.value)
   return composeSix({
     row,
     callerName: row.userId ? callerName(row.userId) : '',
     effect: e,
     proposal,
+    recorded,
+    approverName: approver ? names.value[String(approver.userId)] ?? String(approver.userId) : '',
     hostNowName: hostNowNameOf(e),
     proposalName: proposalNameOf(proposal),
     recordState: e ? recordState(e) : '',

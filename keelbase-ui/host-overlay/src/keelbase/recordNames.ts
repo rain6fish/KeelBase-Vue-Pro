@@ -29,18 +29,29 @@ interface NamedRecord {
 
 /**
  * 本宿主每个**写**工具落在哪种记录上 —— 抄自工具自己在 Host Java 侧的 `resultType()` 声明，与
- * `labels.ts` 抄工具名是同一条口径（译它的声明，不从拼写猜）。
+ * `labels.ts` 抄工具名是同一条口径（译它的声明，不从拼写猜）。运行时自带的两个样例工具
+ * （`escalate_customer` / `delete_project`）也在这张表里：它们的声明同样只有一处，而第三问要的正是它。
  *
  * **为什么需要它。** 一次**被扣下或被拒**的调用不写台账（什么都没进系统），运行时只留一条确认记录：
- * 工具名加它当时要用的参数。确认记录答得出「落在哪条记录」，却不说那是**哪种**记录，而线缆上的
- * `/ai/tools` 不发 `resultType`。没有这张表，那一格就只能说「未记录」，尽管运行时其实记着。
+ * 工具名加它当时要用的参数；一次**被闸门拦下**的调用连确认记录都没有，运行时把键写在审计行自己的句末。
+ * 两条路**都**只有工具名与键，却都不说那是**哪种**记录，而线缆上的 `/ai/tools` 不发 `resultType`。
+ * 没有这张表，那一格就只能说「未记录」，尽管运行时其实记着。
  *
  * 表里没有的工具回空串：那一格只画主键、不编一个类型词 —— 编一个比缺一个更糟。
  *
  * Which record type each **write** tool of this host lands on — copied from the tool's own
  * `resultType()` declaration on the host's Java side, the same rule `labels.ts` follows for tool names
- * (translate the declaration, never guess from the spelling). A tool not in the table gets an empty
- * string: the cell draws the key alone rather than inventing a type word.
+ * (translate the declaration, never guess from the spelling). The runtime's own two sample tools
+ * (`escalate_customer` / `delete_project`) are in this table too: their declaration also lives in one
+ * place, and that is exactly what the third question asks for.
+ *
+ * **Why it is needed.** A **held or refused** call writes no ledger row (nothing entered the system) and
+ * leaves only a confirmation record — the tool and the arguments it would have used; a **gate-blocked**
+ * call has not even that, and the runtime writes the key at the end of the audit row's own sentence. Both
+ * roads give a tool name and a key and neither says which **kind** of record it is, while `/ai/tools` on
+ * the wire carries no `resultType`. Without this table the cell could only say 「未记录」 although the
+ * runtime did record it. A tool not in the table gets an empty string: the cell draws the key alone
+ * rather than inventing a type word.
  */
 const TOOL_RESULT_TYPES: Record<string, string> = {
   create_crm_customer: 'crm_customer',
@@ -63,6 +74,8 @@ const TOOL_RESULT_TYPES: Record<string, string> = {
   mark_notify_message_read: 'system_notify_message',
   mark_all_notify_messages_read: 'system_notify_message',
   create_generated_products: 'products',
+  escalate_customer: 'follow_up',
+  delete_project: 'pm_project',
 }
 
 /** 一个工具写的是哪种记录；本控制台认不出这个工具时回空串。 */

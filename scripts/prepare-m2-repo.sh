@@ -11,7 +11,7 @@
 # 退出码：0 = 目标库里钉住的版本齐全；2 = 缺版本且没给 `--fetch`（并打印下一步命令）；
 #         1 = 复制或联网解析失败、或解析后仍缺；64 = 用法错误。
 #
-# 为什么是「复制 + 核对」而不是「让 Maven 自己下」。完全离线时 0.1.16 解析不到（基线库只有 0.1.14），
+# 为什么是「复制 + 核对」而不是「让 Maven 自己下」。完全离线时 0.1.17 解析不到（基线库只有 0.1.14），
 # 冷跑就必须联网。这个脚本把那一层变成**预备动作**：基线库照原样复制（源库一个字不改），缺的版本按
 # 根 pom 自己声明的镜像补齐，然后把「到底补了哪几件」当作断言核一遍——而不是事后说一句「应该够了」。
 #
@@ -29,7 +29,7 @@
 # Exit codes: 0 = every pinned coordinate is present; 2 = missing and `--fetch` was not given (the
 # next command is printed); 1 = copy/fetch failed, or something is still missing; 64 = bad usage.
 #
-# Why copy-and-check rather than "let Maven download". Offline, 0.1.16 cannot be resolved (the
+# Why copy-and-check rather than "let Maven download". Offline, 0.1.17 cannot be resolved (the
 # baseline has only 0.1.14), so a cold run needs the network. This script turns that layer into a
 # preparation step: the baseline is copied as-is (the source is never written), the missing versions
 # are resolved through the mirrors the root pom itself declares, and what was added is then asserted

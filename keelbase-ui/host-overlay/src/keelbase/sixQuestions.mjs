@@ -191,17 +191,21 @@ export function gateFromRow(row) {
  * ⑤ 谁确认 —— 按**这一行记下的那道闸**（见 `gateFromRow`）回答，不按工具当下的设定猜。
  *
  * 自动放行写「无需确认」；要求本人确认的写「本人确认（对话内）」—— 因为那道闸的定义就是「等操作者
- * 本人」；要求第二人批准的工具，本运行时的审计行上**没有**批准人是谁，故这一格如实说没有，而不是拿隔壁那一行
- * 的时间去凑一个人。
+ * 本人」；要求第二人批准的那一档，**这一行只记「要第二个人」、不记是谁**，批准人记在**同一次操作的另一行**
+ * 上（`tool_confirmation/approved` 的 `user_id`）。调用方把**已经按这条证据链配到的**那个人交进来时
+ * （见 `approverOf`），这一格就点名；配不到时如实说没有 —— 不拿隔壁那一行的时间去凑一个人。
  *
  * ⑤ who confirmed — answered from **the gate this row recorded** (see `gateFromRow`), not guessed from
  * the tool's setting today.
  *
  * An auto-allowed call says 「无需确认」. A tool that asks the operator says 「本人确认（对话内）」, because
- * that is what the gate means. A tool that needs a second person carries no approver on this runtime's
- * audit row, so this cell says so rather than pairing the neighbour row by its timestamp.
+ * that is what the gate means. On the second-person tier **this row records that a second person is
+ * needed and not who**; the approver lives on **another row of the same operation** (`tool_confirmation/
+ * approved`, whose `user_id` is the decider). When the caller hands in the person it already matched
+ * through that evidence chain (see `approverOf`), this cell names them; when there is no match it says
+ * so, rather than pairing a neighbour row by its timestamp.
  */
-export function confirmationLine({ gate, outcome, callerName, t }) {
+export function confirmationLine({ gate, outcome, callerName, approverName, t }) {
   if (outcome === 'pending') {
     return { text: `${callerName || t('keelbase.sixQ.someone')} ${t('keelbase.sixQ.confirmWaiting')}`, answered: true }
   }
@@ -215,6 +219,9 @@ export function confirmationLine({ gate, outcome, callerName, t }) {
     return { text: `${callerName || t('keelbase.sixQ.someone')} ${t('keelbase.sixQ.confirmSelf')}`, answered: true }
   }
   if (gate === 'approval') {
+    if (approverName) {
+      return { text: `${approverName} ${t('keelbase.sixQ.confirmSecondPerson')}`, answered: true }
+    }
     return { text: t('keelbase.sixQ.confirmApprovalUnrecorded'), answered: false }
   }
   if (gate === 'blocked') {
@@ -224,13 +231,84 @@ export function confirmationLine({ gate, outcome, callerName, t }) {
 }
 
 /**
+ * 这一行的**批准人**：同一次操作在审计链上另有一行 `tool_confirmation/approved`，它的 `user_id` 就是
+ * 裁决者。两条记录之间没有共同的键，故唯一诚实的配法是**同一会话、同一工具、裁决在五行以内、恰好一个
+ * 候选** —— 与台账、确认记录、YD-45 的追溯步用的是同一条规则。配不上（没有、或不止一个）就回 `null`，
+ * 调用方那一格照旧说「这一行没有记下」。
+ *
+ * 它**只读审计链本身**：不问工具清单（清单答的是**此刻**的闸，而这一行是过去的一次调用），也不越过
+ * 调用方已经读得到的那些行。`rows` 里没有那一行时同样回 `null` —— 收窄，不是错答。
+ *
+ * The **approver** of this row: the same operation has another row on the audit chain,
+ * `tool_confirmation/approved`, whose `user_id` is the decider. The two trails share no key, so the only
+ * honest match is **same conversation, same tool, decision within five seconds, exactly one candidate** —
+ * the rule the ledger, the confirmation records and YD-45's trace step already use. No match (none, or
+ * more than one) returns `null`, and the caller's cell keeps saying this row does not record it.
+ *
+ * It reads **the audit chain alone**: it never asks the tool inventory (which answers today's gate, while
+ * this row is a past call), and it never reaches past the rows the caller already holds. A `rows` array
+ * that does not carry the decision row also answers `null` — narrowing, not a wrong answer.
+ */
+export function approverOf(row, rows, windowMs = 5000) {
+  if (!row || !Array.isArray(rows)) return null
+  const at = Date.parse(row.createdAt)
+  if (Number.isNaN(at)) return null
+  const near = rows.filter(
+    (other) =>
+      other &&
+      other.action === 'tool_confirmation' &&
+      other.outcome === 'approved' &&
+      (other.tool ?? null) === (row.tool ?? null) &&
+      // 两行都带会话时按会话收窄；`/audit/logs` 的投影当前不发会话，故缺了就只按时间与工具 —— 那也是
+      // YD-45 的追溯步一直在用的那条规则。
+      // Narrow by conversation when both rows carry one; `/audit/logs`'s projection does not send it today,
+      // so when it is missing the match rests on tool and time — the rule YD-45's trace step already uses.
+      (!row.conversationId || !other.conversationId
+        ? true
+        : String(other.conversationId) === String(row.conversationId)) &&
+      other.userId !== null &&
+      other.userId !== undefined &&
+      other.userId !== '' &&
+      Math.abs(Date.parse(other.createdAt) - at) <= windowMs,
+  )
+  return near.length === 1 ? near[0] : null
+}
+
+/**
+ * 被拦下的调用**本来要动**哪条记录 —— 运行时在写那一行时把键记在这句话的末尾
+ * （`… blocked (… ) · intended object #12`，见引擎的阻断分支）。只认这一种拼写、只在句末：读不出来就回
+ * `null`，由调用方说「未记录」，**不**从别处猜一个 id 出来。
+ *
+ * 种类**不**从那句话里读 —— 那一段是给人看的句子；种类取自工具自己的 `resultType()` 声明（调用方查，
+ * 见 `recordNames` 的封闭表），与「对象种类永不印运行时表名」是同一条口径。
+ *
+ * Which record a **blocked** call meant to touch — the runtime writes the key at the end of the row's
+ * sentence (`… blocked (…) · intended object #12`, see the engine's block branch). Only that spelling and
+ * only at the end: no match returns `null`, and the caller says 「未记录」 rather than guessing an id from
+ * somewhere else.
+ *
+ * The **kind** is not read out of that sentence — that part is a sentence for a person; the kind comes
+ * from the tool's own `resultType()` declaration (looked up by the caller, see `recordNames`' closed
+ * table), the same rule as "the cell never prints the runtime's table name".
+ */
+export function recordedObjectIn(row) {
+  const hit = String(row?.detail ?? '').match(/intended object #(\d+)\s*$/)
+  if (!hit) return null
+  const id = Number(hit[1])
+  return Number.isSafeInteger(id) ? id : null
+}
+
+/**
  * ③ 哪个业务对象 —— 业务名 + 业务主键，外加宿主自己的那条记录名（**掩码之后**）。
  *
  * 台账里没有这一行，**不等于**运行时没记。被扣下或被拒的调用不写台账（什么都没进系统），但运行时把这次
  * 提议原样记在确认记录里 —— 工具名，以及它当时要用的参数。`proposal` 就是那条记录；有它时这一格答「这次
  * 调用本来落在哪条记录上」，而不是说没有那条记录。
  *
- * 两者都没有时才说「未记录」：既没有台账行、也没有提议，那才是运行时确实没记下它落在哪条记录上。
+ * 被**闸门拦下**的调用连提议也没有（它不落确认记录），运行时把它的键写在那条审计行的句末 —— `recorded`
+ * 就是那一步读出来的键（见 `recordedObjectIn`）。三条来源按这个次序取：台账行 → 提议 → 审计行自己记下的键。
+ *
+ * 三者都没有时才说「未记录」：既没有台账行、也没有提议、行上也没有键，那才是运行时确实没记下它落在哪条记录上。
  *
  * `proposalName` 与 `hostNowName` 是同一件东西的两种来源（提议那条路没有台账行，故名字要单独给）：宿主
  * 窄读面答回来的记录名，**已经掩码**；这里再掩一次是幂等的，且保证没有名字时什么都不补。
@@ -242,20 +320,30 @@ export function confirmationLine({ gate, outcome, callerName, t }) {
  * the arguments it would have run with — in the confirmation row. When `proposal` is that row, this cell
  * answers which record the call **was about** instead of saying there is none.
  *
- * Only with neither does it say 「未记录」: no ledger row and no proposal is the runtime genuinely not
- * having recorded where the call landed.
+ * A **gate-blocked** call has no proposal either (it raises no confirmation row), and the runtime writes
+ * its key at the end of the audit row's own sentence — `recorded` is the key read back from there (see
+ * `recordedObjectIn`). The three sources are taken in this order: ledger row → proposal → the key the
+ * audit row itself recorded.
+ *
+ * Only with none of the three does it say 「未记录」: no ledger row, no proposal and no key on the row is
+ * the runtime genuinely not having recorded where the call landed.
  */
-export function objectLine({ effect, proposal, hostNowName, proposalName, state, mask, t, te }) {
+export function objectLine({ effect, proposal, recorded, hostNowName, proposalName, state, mask, t, te }) {
   if (!effect) {
-    if (!proposal || proposal.resultId === null || proposal.resultId === undefined) {
+    const held = proposal && proposal.resultId !== null && proposal.resultId !== undefined
+      ? { resultType: proposal.resultType, resultId: proposal.resultId, name: proposalName }
+      : recorded && recorded.resultId !== null && recorded.resultId !== undefined
+        ? { resultType: recorded.resultType, resultId: recorded.resultId, name: '' }
+        : null
+    if (!held) {
       return { text: t('keelbase.sixQ.objectUnrecorded'), answered: false }
     }
-    const heldTypeWord = proposal.resultType
-      ? word(te, t, `keelbase.record.${proposal.resultType}`, t('keelbase.sixQ.objectUnnamed'))
+    const heldTypeWord = held.resultType
+      ? word(te, t, `keelbase.record.${held.resultType}`, t('keelbase.sixQ.objectUnnamed'))
       : ''
-    const heldName = proposalName ? mask(proposalName) : ''
+    const heldName = held.name ? mask(held.name) : ''
     return {
-      text: [heldTypeWord, `#${proposal.resultId}`, heldName].filter(Boolean).join(' · '),
+      text: [heldTypeWord, `#${held.resultId}`, heldName].filter(Boolean).join(' · '),
       answered: true,
     }
   }
@@ -274,18 +362,21 @@ export function objectLine({ effect, proposal, hostNowName, proposalName, state,
  * 哪怕那个答案是「被拒了」。
  *
  * ⑤ 的依据**只有**这一行（`gateFromRow`），调用方**不能**从别处塞一个闸进来：那正是「同一条审计行
- * 会随策略改口」的来源。
+ * 会随策略改口」的来源。第二人批准那一档的**人**可以由调用方交进来（`approverName`）—— 那是一个人、
+ * 不是一道闸，而且它只能来自这次操作自己的证据链（见 `approverOf`）。
  *
  * Six lines, all at once. `answered` marks whether the cell **has** an answer, not whether the answer is
  * good news — the sixth question always has one, even when the answer is "it was refused".
  *
  * The fifth question's basis is **the row alone** (`gateFromRow`); a caller cannot hand a gate in from
  * elsewhere — that is exactly what used to make one audit row answer differently after a policy change.
+ * The **person** on the second-person tier may be handed in (`approverName`) — a person is not a gate, and
+ * it can only come from this operation's own evidence chain (see `approverOf`).
  */
-export function composeSix({ row, callerName, effect, proposal, hostNowName, proposalName, recordState, mask, resultWord, resultMeaning, t, te }) {
-  const object = objectLine({ effect, proposal, hostNowName, proposalName, state: recordState, mask, t, te })
+export function composeSix({ row, callerName, effect, proposal, recorded, hostNowName, proposalName, approverName, recordState, mask, resultWord, resultMeaning, t, te }) {
+  const object = objectLine({ effect, proposal, recorded, hostNowName, proposalName, state: recordState, mask, t, te })
   const change = changeLine({ effect, hostNowName, mask, t, te })
-  const confirmation = confirmationLine({ gate: gateFromRow(row), outcome: row?.outcome, callerName, t })
+  const confirmation = confirmationLine({ gate: gateFromRow(row), outcome: row?.outcome, callerName, approverName, t })
   return [
     { key: 'who', label: 'who', text: callerName ? `${callerName}${row?.userId ? `（${t('keelbase.sixQ.account')} #${row.userId}）` : ''}` : t('keelbase.sixQ.someone'), answered: Boolean(callerName) },
     { key: 'when', label: 'when', text: zonedTime(row?.createdAt), answered: Boolean(row?.createdAt) },
