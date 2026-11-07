@@ -167,6 +167,22 @@ jobs:
           KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
           -pl yudao-server -am -DskipTests package 2>&1 | tee build.log
 
+      # 门禁以 `-o` 跑 `mvn ... test`，而 `-DskipTests` 只编译测试、不解析 surefire 的 provider。
+      # pin 一变 pom 就变，setup-java 的 maven 缓存键随之失效；冷库里那一件缺着，测试进程根本起不来，
+      # 报告缺失又被门禁读成「未通过」。这一步在线跑同一个测试类一次，把 provider 解析进本作业用的本地库。
+      #
+      # The gates run `mvn ... test` with `-o`, but `-DskipTests` only compiles the tests and never
+      # resolves surefire's provider. A pin bump changes the pom, which rotates setup-java's maven
+      # cache key; on the cold repository that artifact is absent, the test process cannot start at
+      # all, and the missing reports are read as "not passing". This step runs one test class online
+      # so the provider lands in the same local repository this job builds against.
+      - name: Warm the offline test provider
+        timeout-minutes: 10
+        run: >-
+          KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
+          -pl yudao-server -am -Dtest=FmsReportingToolsTest -DfailIfNoTests=false
+          -Dsurefire.failIfNoSpecifiedTests=false test 2>&1 | tee warm-test-provider.log
+
       # `repackage` 没跑时产物是个普通 jar：起它时会以「no main manifest attribute」失败，而这句
       # 让失败发生在**构建这一步**、并说出是哪个文件。顺手记下 jar 里三个 `keelbase4j-*` 的版本，
       # 好把「跑的是不是钉住的那一版」变成一条读数。
