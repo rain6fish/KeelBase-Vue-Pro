@@ -128,6 +128,7 @@ ORDER=(
   run-crm-product-scenarios.mjs
   run-flagship-crm-scenarios.mjs
   run-bypass-audit-scenarios.mjs
+  run-audit-two-cases-scenarios.mjs
   run-bpm-oa-leave-scenarios.mjs
   run-bpm-task-scenarios.mjs
   run-bpm-process-instance-scenarios.mjs
