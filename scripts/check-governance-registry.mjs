@@ -4,6 +4,7 @@
 // 本宿主上每一条 AI 执行路径都登记，且它报的种类就是它自己那种。
 //
 //   node scripts/check-governance-registry.mjs
+//   KEELBASE_ROOT=<另一份检出> node scripts/check-governance-registry.mjs   # 反向可证用 / for the reverse proof
 //
 // 登记处（`GovernedModuleRegistry`）收的是 Spring 看得见的那些声明，故一台跑着的宿主可以被问到「这里被数到的是什么」。
 // 它**做不到**的是：分出「不受治理」与「被忘了」——载体没自报的路径，**就是不在**集合里。本检查堵的就是那个洞，而它堵在
@@ -54,6 +55,10 @@
 //
 // **为什么工具也守「反向」**：目录里列了一个**没有**对应形状的类名 ⇒ 那也是红（一条过期的登记，读起来像治理、其实是幽灵）。
 // 故本检查两个方向都读：形状 ⇒ 有登记，登记 ⇒ 有形状。
+//
+// **空树 / 根缺失是红，不是绿。** 射程的两半（下面两个目录）哪一半读不到 `.java`，都说明**读脚本**出了错、
+// 而不是「这里没有路径」——真检出两半都有文件。空读会让下面每条判据空着成立，于是一棵错的检出读成「全部
+// 已登记」。读到了文件、却一条路径也没读出来同理：那也是读脚本的错。
 //
 // Every AI execution path on this host is declared, and the kind it declares is the one it is.
 //
@@ -120,11 +125,19 @@
 //
 // **Why tools are read both ways**: a name listed in the catalogue with no matching shape is also red — a
 // stale declaration that reads like governance but is a ghost. So both directions are read.
+//
+// **An empty tree or a missing root is red, not green.** Whichever half of the scope (the two directories
+// below) reads no `.java` means the **reader** is wrong, not that "there are no paths here" — a real
+// checkout has files in both. An empty reading makes every criterion below hold vacuously, so a wrong
+// checkout reads as "everything declared". Reading files but not one path is red for the same reason.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+// `KEELBASE_ROOT` 让看门测试把本脚本指向一棵临时铺出来的树（与 `check-trigger-uniqueness.mjs` 同一个约定）。
+// `KEELBASE_ROOT` lets the keeper test point this script at a temporary tree (the same convention as
+// `check-trigger-uniqueness.mjs`).
+const ROOT = process.env.KEELBASE_ROOT || join(dirname(fileURLToPath(import.meta.url)), '..')
 const OWN = 'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase'
 // The other half of the scope — this module's own `harness` tree. Only its **assembling** end carries a
 // shape (see the scope note and sub-shape ⑤ below): that is the inbound half, the one whose tools run on
@@ -162,7 +175,7 @@ const DECLARES_BUILD_TOOLS = /\bpublic\s+List<[^>]+>\s+buildTools\s*\(/
 const IS_COMMENT_LINE = /^\s*(\*|\/\/|\/\*)/
 
 const javaFiles = []
-const walk = (dir) => {
+const walk = (dir, tally) => {
   let entries
   try {
     entries = readdirSync(dir)
@@ -171,12 +184,37 @@ const walk = (dir) => {
   }
   for (const e of entries) {
     const p = join(dir, e)
-    if (statSync(p).isDirectory()) walk(p)
-    else if (e.endsWith('.java')) javaFiles.push(p)
+    if (statSync(p).isDirectory()) walk(p, tally)
+    else if (e.endsWith('.java')) {
+      javaFiles.push(p)
+      tally.count += 1
+    }
   }
 }
-walk(join(ROOT, OWN))
-walk(join(ROOT, AI1_HARNESS))
+const ownScope = { scope: OWN, root: join(ROOT, OWN), count: 0 }
+const harnessScope = { scope: AI1_HARNESS, root: join(ROOT, AI1_HARNESS), count: 0 }
+walk(ownScope.root, ownScope)
+walk(harnessScope.root, harnessScope)
+
+// 射程的一半读不到任何 `.java`（目录不存在、路径写错、树是空的）：这与「读成空表」是同一件事 —— 下面每条判据
+// 都会**空着成立**，于是一棵错误的检出会读成「全部已登记」。这不是通过，判读脚本自己读错了。真检出两半都有
+// 文件；要撤掉一份树，必须同时改上面的射程，否则这里就是红。
+// Half the scope reads no `.java` at all (a missing directory, a wrong path, an empty tree): that is the same
+// thing as reading an empty list — every criterion below would hold vacuously, so a wrong checkout reads as
+// "everything is declared". That is not a pass; this reader is what is wrong. A real checkout has files in
+// both halves; to retire a tree, the scope above has to change with it, or this goes red.
+const unreadable = [ownScope, harnessScope].filter((s) => s.count === 0)
+if (unreadable.length > 0) {
+  console.error('✗ 读不到受治理的源码 —— 空树 / 根缺失不是通过：')
+  console.error('  cannot read the governed source — an empty tree or a missing root is not a pass:')
+  for (const s of unreadable) {
+    console.error(`    UNREADABLE  ${s.scope} (${s.root}) — 0 .java read`)
+  }
+  console.error('')
+  console.error(`  ${unreadable.length} root(s) read nothing; every criterion would hold vacuously`)
+  console.log(`${javaFiles.length} file(s) read / ${unreadable.length} root(s) unreadable`)
+  process.exit(1)
+}
 
 /** The class a file primarily declares, as the check names it: the file's base name. */
 const classNameOf = (file) => file.split(/[\\/]/).pop().replace(/\.java$/, '')
@@ -285,6 +323,24 @@ for (const id of catalogueIds) {
   }
 }
 
+const total = declared.module.length + declared.tool.length + declared.workflow.length
+  + declared.scheduledTask.length
+
+// 读到了文件、却一条路径也没读出来：同样是空输入（形状的判据读坏了、源码被整体换成空壳），不能让
+// 「0 AI execution path(s) declared」读成绿。真宿主今天有 32 条 module 与 45 条 tool，0 恒为错。
+// Files were read but not one path came out: empty input again (the shape criteria broke, or the sources were
+// replaced by empty shells). "0 AI execution path(s) declared" must not read as green. The real host has 32
+// modules and 45 tools today; zero is always wrong.
+if (total === 0 && offenders.length === 0) {
+  console.error('✗ 读到了文件，却没读出任何一条 AI 执行路径 —— 空读数不是通过：')
+  console.error('  read files but not one AI execution path — an empty reading is not a pass:')
+  console.error(`    UNREADABLE  ${javaFiles.length} .java under ${OWN} + ${AI1_HARNESS}, 0 path(s) declared`)
+  console.error('')
+  console.error('  the shapes, not the tree, are what needs fixing')
+  console.log(`0 path(s) declared / ${javaFiles.length} file(s) read`)
+  process.exit(1)
+}
+
 // ---- report, grouped by kind ---------------------------------------------------------------------
 const line = (kind, id, file) => console.log(`  ${kind.padEnd(14)} ${id.padEnd(24)} ${file}`)
 for (const m of declared.module.sort((a, b) => a.id.localeCompare(b.id))) line('module', m.id, m.file)
@@ -293,9 +349,6 @@ for (const w of declared.workflow) line('workflow', w.id, w.file)
 for (const s of declared.scheduledTask) line('scheduled-task', s.id, s.file)
 if (declared.workflow.length === 0) line('workflow', '(none)', '— no such path on this host today')
 if (declared.scheduledTask.length === 0) line('scheduled-task', '(none)', '— none on this host today')
-
-const total = declared.module.length + declared.tool.length + declared.workflow.length
-  + declared.scheduledTask.length
 
 if (offenders.length > 0) {
   console.error()
