@@ -41,7 +41,7 @@
         <!-- 监控相关 -->
         <skywalking.version>9.7.0</skywalking.version>
         <spring-boot-admin.version>4.1.2</spring-boot-admin.version>
-        <opentelemetry.version>1.66.0</opentelemetry.version>
+        <opentelemetry.version>1.67.0</opentelemetry.version>
         <!-- Test 测试相关 -->
         <h2.version>2.3.232</h2.version>
         <podam.version>8.0.2.RELEASE</podam.version>
