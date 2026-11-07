@@ -150,6 +150,12 @@ export const GATES = [
     prereq: 'node',
     cmd: ['node', 'scripts/check-governance-coverage.mjs', '--require-full'],
   },
+  {
+    id: 'exempt-claims',
+    job: 'governance-registry',
+    prereq: 'node',
+    cmd: ['node', 'scripts/check-exempt-claims.mjs'],
+  },
   { id: 'console-pages', job: 'governance-registry', prereq: 'node', cmd: ['node', 'scripts/check-console-pages.mjs'] },
   {
     id: 'trigger-uniqueness',
