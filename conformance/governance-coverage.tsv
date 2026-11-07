@@ -210,7 +210,7 @@ pms	knowledge-library-member	cn.iocoder.yudao.module.pms.service.kb.library.PmsK
 pms	knowledge-library	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
 pms	knowledge-library-template	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
 pms	knowledge-recycle	cn.iocoder.yudao.module.pms.service.kb.recycle.PmsKnowledgeRecycleService	exempt		本批未接；同族（库成员判定），下一批	@rain	2027-06-30
-pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
+pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	seam	PmsProjectGovernance		@rain	2027-06-30
 pms	project-announcement	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectAnnouncementService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
 pms	project-favorite	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectFavoriteService	exempt		本批未接；同族（项目成员判定），下一批	@rain	2027-06-30
 pms	project-group	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectGroupService	exempt		个人视图配置，无跨人问题	@rain	2027-06-30

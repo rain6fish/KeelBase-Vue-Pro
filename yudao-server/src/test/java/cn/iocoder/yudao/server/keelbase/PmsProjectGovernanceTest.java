@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import cn.com.keelbase.runtime.authz.RuleDeniedException;
 import cn.com.keelbase.runtime.identity.ActingCaller;
+import cn.iocoder.yudao.module.pms.controller.admin.pm.iteration.vo.PmsIterationPageReqVO;
 import cn.iocoder.yudao.module.pms.controller.admin.pm.project.vo.project.PmsProjectPageReqVO;
 import cn.iocoder.yudao.module.pms.controller.admin.pm.workitem.vo.workitem.PmsWorkItemPageReqVO;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -102,6 +103,31 @@ class PmsProjectGovernanceTest {
         assertEquals("workLog", inCaller(CALLER));
 
         assertArrayEquals(new Object[]{905L, CALLER_ID}, pinnedArgs());
+    }
+
+    @Test
+    void theIterationOverviewIsHeldToTheActingCaller() throws Throwable {
+        when(call.getArgs()).thenReturn(new Object[]{710L, 7L});
+        when(call.proceed(any(Object[].class))).thenReturn("overview");
+
+        assertEquals("overview", inCaller(CALLER));
+
+        assertArrayEquals(new Object[]{710L, CALLER_ID}, pinnedArgs(),
+                "the iteration is left alone; only the person is pinned");
+    }
+
+    @Test
+    void theIterationPageIsHeldToTheActingCaller() throws Throwable {
+        PmsIterationPageReqVO query = new PmsIterationPageReqVO();
+        query.setProjectId(9L);
+        when(call.getArgs()).thenReturn(new Object[]{query, 7L});
+        when(call.proceed(any(Object[].class))).thenReturn("iterations");
+
+        assertEquals("iterations", inCaller(CALLER));
+
+        Object[] pinned = pinnedArgs();
+        assertEquals(query, pinned[0], "the query is left alone");
+        assertEquals(CALLER_ID, pinned[1], "the module must check the acting caller, not a user id it was handed");
     }
 
     @Test
