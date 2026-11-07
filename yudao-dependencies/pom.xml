@@ -90,6 +90,21 @@
     <dependencyManagement>
         <dependencies>
             <!-- 统一依赖管理 -->
+            <!-- OpenTelemetry 整族对齐：BOM 兜住 api / sdk / exporter 及其传递依赖；缺了它，未显式管理的
+                 同族件会回落到 Spring Boot 所管的旧版本，同一族里出现两个版本可能直接 NoSuchMethodError。
+                 放在 Spring Boot BOM 之前：Maven 的导入按声明顺序取第一个，晚声明的管不住它。
+                 Align the whole OpenTelemetry family: the BOM covers api / sdk / exporters and their
+                 transitive siblings. Without it, unmanaged siblings fall back to the older version
+                 Spring Boot manages, and two versions of one family can fail with NoSuchMethodError.
+                 Declared before the Spring Boot BOM: imported management is first-declaration-wins, so a
+                 later import cannot override it. -->
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-bom</artifactId>
+                <version>${opentelemetry.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
