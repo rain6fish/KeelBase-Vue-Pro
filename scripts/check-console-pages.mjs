@@ -19,14 +19,17 @@
 // unreachable here — the console answers 「模块已禁用」. Measured on 2026-10-24: 12 of the 31 routes are
 // exactly that. Turning those red would be true and useless (what to do about them is a product
 // decision, not something this gate can change), so they are **declared** in `SWITCHED_OFF`, one page at
-// a time and with why. The criterion is then falsifiable in three directions, and all three are red: a
+// a time and with why. The "why" is not a second copy of a fact that lives elsewhere: a `not-in-jar`
+// class is checked against `yudao-server/pom.xml`, where the module's live dependency decides whether
+// the jar carries it. The criterion is then falsifiable in four directions, and all four are red: a
 // new page in a switched-off branch that is not declared; a declaration whose branch has since been
-// switched back on; a declaration naming a page that is gone. The gap stays countable, and it can
-// neither grow nor quietly heal without this file saying so.
+// switched back on; a declaration naming a page that is gone; a declaration whose class contradicts the
+// pom. The gap stays countable, and it can neither grow nor quietly heal without this file saying so.
 //
 // Scope is stated rather than implied: it reads our own `ConsolePages.java` for the routes, the
-// PostgreSQL seed plus our own `sql/*.sql` for the trees, and `deploy/demo-ecs/module-scope.sql` for
-// the keep list. The other dialects carry the same menus in other spellings; reading them would add
+// PostgreSQL seed plus our own `sql/*.sql` for the trees, `deploy/demo-ecs/module-scope.sql` for
+// the keep list, and `yudao-server/pom.xml` for which modules the jar carries. The other dialects carry
+// the same menus in other spellings; reading them would add
 // nothing but time. What it does **not** check is whether a caller may open the page — that is the
 // console's own menu permission and is deliberately not second-guessed here (see `ConsolePages`'s class
 // comment).
@@ -45,11 +48,14 @@
 // `deploy/demo-ecs/module-scope.sql` 决定这台机器显示哪几支——它把保留清单之外的顶级路径整支停掉。于是一条路径
 // 可以拼得完全正确、在这台机器上却**到不了**：控制台会答「模块已禁用」。2026-10-24 实测：31 条里有 12 条正是如此。
 // 把它们直接判红对错都对、却没有用（拿它们怎么办是**产品决定**，不是这道闸能改的事），所以改成在 `SWITCHED_OFF` 里
-// **逐页声明**并写明缘由。判据于是在三个方向上可证伪，且**三个方向都红**：落停用支的新页面没声明；声明的那支后来又被
-// 启用；声明点了一个已经不存在的页面。缺口于是**可数**，既不会悄悄变大，也不会悄悄愈合——除非这个文件自己说明。
+// **逐页声明**并写明缘由。缘由不是把别处的事实再抄一份：`not-in-jar` 这一类要对着 `yudao-server/pom.xml` 核——
+// 模块的依赖没被注释，jar 里就有它。判据于是在**四个**方向上可证伪，且**四个方向都红**：落停用支的新页面没声明；
+// 声明的那支后来又被启用；声明点了一个已经不存在的页面；声明的类别与 pom 相矛盾。缺口于是**可数**，既不会悄悄变大，
+// 也不会悄悄愈合——除非这个文件自己说明。
 //
 // 射程是**写明**的：路径读我们自己那份 `ConsolePages.java`，菜单树读 PostgreSQL 种子加上我们自己的 `sql/*.sql`，
-// 保留清单读 `deploy/demo-ecs/module-scope.sql`。别的方言用别的拼法带着同一批菜单，读它们只会多花时间。它**不**
+// 保留清单读 `deploy/demo-ecs/module-scope.sql`，jar 里带哪些模块读 `yudao-server/pom.xml`。别的方言用别的拼法带着
+// 同一批菜单，读它们只会多花时间。它**不**
 // 查的一件事是：某个调用方能不能打开那一页——那是控制台自己的菜单权限，且**刻意**不在这里替它猜（见 `ConsolePages`
 // 的类注释）。
 import { readFileSync, readdirSync } from 'node:fs'
@@ -59,6 +65,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const SOURCE = 'yudao-server/src/main/java/cn/iocoder/yudao/server/keelbase/ConsolePages.java'
 const SCOPE = join('deploy', 'demo-ecs', 'module-scope.sql')
+const POM = join('yudao-server', 'pom.xml')
 const PG_SEED = join('sql', 'postgresql', 'ruoyi-vue-pro.sql')
 
 /** `new Page("key", "name", "route", "description")` — one line each, so a line-wise read is enough. */
@@ -69,40 +76,46 @@ const MENU_ROW = /\((\d+),\s*'[^']*',\s*'[^']*',\s*(\d+),\s*(\d+),\s*(\d+),\s*'(
 
 /**
  * Pages this deployment switches off, and why — one entry per page, keyed by the key `ConsolePages`
- * uses. Two classes:
+ * uses. Two classes, and the first half of each is a fact `yudao-server/pom.xml` owns, so the gate
+ * reads it there rather than trusting a second list here:
  *
- * - `not-in-jar`: the module is not among the five this host's jar carries (`system` · `infra` · `bpm` ·
- *   `crm` · `ai1-springai`), so the branch could not run here even if the menus were shown.
- * - `in-jar-menus-off`: the module **is** in the jar but is deliberately not shown. `bpm` is the one
- *   case: `yudao-module-crm` depends on it at build time — CRM's contract and receivable approvals run
- *   through its engine — so it cannot be dropped from the jar even though none of its pages is offered
- *   here. Its menus are switched off and its tables are skipped (`seed-manifest.txt`); see
- *   `deploy/demo-ecs/README.md`.
+ * - `not-in-jar`: the module's `yudao-module-*` dependency is commented out (or absent) in
+ *   `yudao-server/pom.xml`, so its classes are not packaged and the branch could not run here even if
+ *   the menus were shown.
+ * - `in-jar-menus-off`: the module **is** in the jar, but this deployment deliberately does not show
+ *   it. Three cases, for three different reasons: `bpm` (`yudao-module-crm` depends on it at build
+ *   time — CRM's contract and receivable approvals run through its engine — so it cannot be dropped
+ *   from the jar even though none of its pages is offered; its menus are switched off and its tables
+ *   are skipped in `seed-manifest.txt`); `fms` (`YD-28`'s fifth module — this host seeds none of its
+ *   tables and shows none of its menus); `ai` (`D52 ①` deprecates the surface but keeps the code, so
+ *   its tables are not seeded and `/admin-api/ai/**` answers 404). See `deploy/demo-ecs/README.md`.
  *
- * 本部署停掉的页面及缘由——逐页一条，键就是 `ConsolePages` 用的那个键。两类：
+ * 本部署停掉的页面及缘由——逐页一条，键就是 `ConsolePages` 用的那个键。两类，而每一类的前半句是
+ * `yudao-server/pom.xml` 拥有的事实，故这道闸从那里读、不在这里再存一份：
  *
- * - `not-in-jar`：该模块不在本机 jar 的五个里（`system` · `infra` · `bpm` · `crm` · `ai1-springai`），
- *   所以即便把菜单显出来，这一支在这里也跑不起来。
- * - `in-jar-menus-off`：模块**在** jar 里，但**刻意**不展示。只有 `bpm` 这一例：`yudao-module-crm` 在构建期
- *   依赖它——CRM 的合同与回款审批走它的引擎——所以它不能从 jar 里裁掉，尽管它的页面在这里一个都不提供。它的菜单
- *   被停用、表被跳过（`seed-manifest.txt`）；见 `deploy/demo-ecs/README.md`。
+ * - `not-in-jar`：模块的 `yudao-module-*` 依赖在 `yudao-server/pom.xml` 里被注释掉（或根本不存在），
+ *   类因此不进 jar；即便把菜单显出来，这一支在这里也跑不起来。
+ * - `in-jar-menus-off`：模块**在** jar 里，但本部署**刻意**不展示。三例、三种缘由：`bpm`
+ *   （`yudao-module-crm` 在构建期依赖它——CRM 的合同与回款审批走它的引擎——所以不能从 jar 里裁掉，
+ *   尽管它的页面一个都不提供；菜单停用、表在 `seed-manifest.txt` 里跳过）；`fms`（`YD-28` 的第五个模块——
+ *   本机不灌它的表、不显示它的菜单）；`ai`（`D52 ①` 弃用应用面但保留代码，故表不灌、
+ *   `/admin-api/ai/**` 答 404）。见 `deploy/demo-ecs/README.md`。
  */
 const SWITCHED_OFF = [
-  ['report', '/report', 'not-in-jar'],
   ['report', '/report', 'not-in-jar'],
   ['bpm', '/bpm', 'in-jar-menus-off'],
   ['approval-tasks', '/bpm/task', 'in-jar-menus-off'],
   ['hrm', '/hrm', 'not-in-jar'],
   ['hrm-dept', '/hrm/dept', 'not-in-jar'],
-  ['fms', '/fms', 'not-in-jar'],
-  ['ai', '/ai', 'not-in-jar'],
-  ['ai-chat', '/ai/chat', 'not-in-jar'],
-  ['ai-knowledge', '/ai/knowledge', 'not-in-jar'],
+  ['fms', '/fms', 'in-jar-menus-off'],
+  ['ai', '/ai', 'in-jar-menus-off'],
+  ['ai-chat', '/ai/chat', 'in-jar-menus-off'],
+  ['ai-knowledge', '/ai/knowledge', 'in-jar-menus-off'],
 ]
 
 /** How each class reads in the report. */
 const OFF_LABEL = {
-  'not-in-jar': 'not in the five-module jar',
+  'not-in-jar': 'not in the jar (module dependency commented out)',
   'in-jar-menus-off': 'in the jar, menus switched off',
 }
 
@@ -173,6 +186,26 @@ const menuTree = () => {
   return { rows, routes, branchOf }
 }
 
+/**
+ * The modules this host's jar carries, read from the file that decides it. `yudao-server/pom.xml`
+ * names every upstream module; the ones whose `<dependency>` sits inside an XML comment are not
+ * packaged. Stripping comments first is what separates the two — a commented dependency still spells
+ * its artifactId, so a plain grep would read every module as live.
+ *
+ * 本机 jar 带哪些模块，从决定这件事的文件读。`yudao-server/pom.xml` 点名了每个上游模块；`<dependency>`
+ * 落在 XML 注释里的那几个不打包。先剥注释才分得开这两种——被注释的依赖照样写着 artifactId，直接 grep 会把
+ * 每个模块都读成生效的。
+ */
+const jarModules = () => {
+  const artifact = /<artifactId>\s*yudao-module-([a-z0-9-]+)\s*<\/artifactId>/g
+  const ids = (text) => new Set([...text.matchAll(artifact)].map((m) => m[1]))
+  const xml = readFileSync(join(ROOT, POM), 'utf8')
+  return { listed: ids(xml), live: ids(xml.replace(/<!--[\s\S]*?-->/g, '')) }
+}
+
+/** The module a branch belongs to: `/fms` → `fms`, `/bpm/task` → `bpm`. */
+const moduleOf = (branch) => branch.replace(/^\/+/, '').split('/')[0]
+
 /** The keep list in `module-scope.sql`: `coalesce(path, '') not in ('', '/system', …)`. */
 const keepList = () => {
   const sql = readFileSync(join(ROOT, SCOPE), 'utf8')
@@ -217,6 +250,7 @@ if (pages.length === 0) {
 
 const tree = menuTree()
 const keep = keepList()
+const jar = jarModules()
 const declared = new Map(SWITCHED_OFF.map(([key, branch, kind]) => [key, { branch, kind }]))
 const failures = []
 
@@ -269,6 +303,23 @@ for (const [key, { branch, kind }] of declared) {
     continue
   }
   const state = stateOf(page)
+  const module = moduleOf(branch)
+  if (!jar.listed.has(module)) {
+    failures.push(
+      `SWITCHED_OFF: '${key}' sits in ${branch}, but ${POM} names no yudao-module-${module} — ` +
+        'the branch-to-module reading is wrong',
+    )
+  } else if (kind === 'not-in-jar' && jar.live.has(module)) {
+    failures.push(
+      `SWITCHED_OFF declares '${key}' as not-in-jar, but ${POM} has yudao-module-${module} uncommented — ` +
+        'pom says it is in the jar, the declaration says it is not',
+    )
+  } else if (kind === 'in-jar-menus-off' && !jar.live.has(module)) {
+    failures.push(
+      `SWITCHED_OFF declares '${key}' as in-jar-menus-off, but ${POM} has yudao-module-${module} commented out — ` +
+        'pom says it is not in the jar, the declaration says it is',
+    )
+  }
   if (state === 'ok') {
     failures.push(
       `SWITCHED_OFF declares '${key}' (${page.route}) as off, but ${branch} is on this deployment's keep list — ` +
