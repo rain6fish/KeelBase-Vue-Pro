@@ -96,6 +96,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
 
       # `-p 127.0.0.1:...`：端口只挂在回环上。就绪判据用各自的客户端（`pg_isready` /
       # `redis-cli ping`），而不是 sleep —— 「容器起了」与「它接得住连接」是两件事。

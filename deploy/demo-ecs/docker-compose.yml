@@ -25,7 +25,9 @@ name: keelbase-yudao
 
 services:
   server:
-    image: eclipse-temurin:25-jre
+    # 按摘要钉死：该摘要实测为 Temurin-25.0.5+8，含 JSSE 两个 CVE 的修复；浮动 tag 会漂移。
+    # Pinned by digest: it resolves to Temurin-25.0.5+8, the build carrying both JSSE CVE fixes; a floating tag drifts.
+    image: eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
     container_name: yudao-server
     restart: unless-stopped
     command:
