@@ -36,6 +36,9 @@
 #                        scope carries a posture in `conformance/governance-coverage.tsv`, a `seam`
 #                        posture is falsified against the sources when no aspect names that service, and
 #                        the ledger must hold **zero gaps** — one service falling back to `gap` is red (M0);
+#   exempt-claims        *a step inside `governance-registry`* — every `exempt` reason is itself an
+#                        assertion: dispatched by its first clause and falsified against the declaration
+#                        that defines the fact (deployment / seed manifests, controllers, DOs, mappers);
 #   console-pages        *a step inside `governance-registry`* — every page the assistant offers is a
 #                        route the menus we ship compose, so a curated list cannot quietly point at a
 #                        page that moved;
@@ -104,6 +107,8 @@
 #   coverage-ledger      *`governance-registry` 里的一个 step* —— 部署范围里每个业务 service 都在
 #                        `conformance/governance-coverage.tsv` 里有一个姿态；标 `seam` 的若没有切面点名它，
 #                        源码当场证伪（M0）；
+#   exempt-claims        *`governance-registry` 里的一个 step* —— 每条 `exempt` 理由本身就是一句断言：按首句
+#                        分派，并对**定义该事实的那个声明**（部署/种子清单、控制器、DO、Mapper）逐条证伪；
 #   console-pages        *`governance-registry` 里的一个 step* —— 助手提供的每一页，都是**我们发布的菜单**
 #                        解得出来的一条路径，策展清单因而不会悄悄指向一个已经挪走的页面；
 #   identity-matrix      *`governance-registry` 里的一个 step* —— 九页身份矩阵（哪个角色能开哪一页治理页）
@@ -586,6 +591,21 @@ jobs:
       # not contain each other. Pure Node, no stack.
       - name: Every business service is onboarded — no gaps
         run: node scripts/check-governance-coverage.mjs --require-full
+
+      # 账本里每一行 `exempt` 的理由都必须是一句**机器能证伪的断言**：这道检查按理由首句分派断言，读的是
+      # **定义该事实的那个声明**（部署清单、种子清单、控制器、DO、Mapper、工具类），而不是拿 grep 去猜形状。
+      # 覆盖门只验「理由非空、负责人非空、日期未过期」，验不了理由是否为真——2026-11-06 的复核据此发现 19 条
+      # 与源码冲突。红时逐行点名：服务 FQCN、理由首句、违反了哪条断言、该看哪处源码。纯 Node，不起栈。
+      #
+      # Every `exempt` reason must be an assertion a machine can falsify: this check dispatches on the
+      # reason's first clause and reads the declaration that **defines** the fact (deployment manifest, seed
+      # manifest, controller, DO, mapper, tool class) rather than guessing its shape with grep. The coverage
+      # gate checks only that a reason is non-empty, its owner is named and its date has not passed; it cannot
+      # check that the reason is still true — the 2026-11-06 review found 19 rows that contradict the sources.
+      # On red it names the service FQCN, the reason's first clause, the assertion violated, and where to look.
+      # Pure Node, no stack.
+      - name: Every exempt reason survives the assertion it declares
+        run: node scripts/check-exempt-claims.mjs
 
       # The assistant's page list is curated, and a curated list is a second place to forget: each
       # route it names is looked up in the menu tree the SQL we ship defines, composed the way the
