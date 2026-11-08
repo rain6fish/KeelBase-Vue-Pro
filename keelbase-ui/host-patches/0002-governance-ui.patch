@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,626 @@
+@@ -1,4 +1,640 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -119,6 +119,20 @@ index 96269a8..2611a9b 100644
 +      approvedNoResult: 'Approved, but no execution result came back.',
 +      readOnlyNote: 'Your role is read-only, so there is no approve or decline here. Ask a colleague with write permission to decide it.',
 +      notHereNote: 'An action the governance blocked outright does not appear here — it has no confirmation record; a reader with audit access can see why on the Audit chain page.',
++      approvalTitle: 'Waiting for a second person',
++      approvalCount: '{n} awaiting a second approver',
++      approvalHint: 'These writes were proposed by someone else. Only an administrator can decide them, and approving runs the write as the person who proposed it.',
++      initiatorLabel: 'Proposed by: {who}',
++      initiatorNamed: '{name} · #{id}',
++      initiatorIdOnly: 'User #{id}',
++      initiatorUnknown: 'not determinable from the audit window read',
++      approvalOwnRow: 'You proposed this one — a second administrator has to decide it.',
++      approvalExecuted: 'Approved and executed as the person who proposed it.',
++      approvalDeclined: 'Declined.',
++      approvalRefused: 'The approval did not run the write: {reason}',
++      approvalUnknown: 'The server answered with a status this page does not know: {status}',
++      approvalFailed: 'The approval did not go through',
++      approvalScanBound: 'The queue read hit its bound — older waiting rows were not read.',
 +    },
 +    effects: {
 +      colId: 'ID',
@@ -633,7 +647,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,620 @@
+@@ -1,4 +1,634 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -750,6 +764,20 @@ index 35f1e1a..856d201 100644
 +      approvedNoResult: '已批准，但没有拿到执行结果。',
 +      readOnlyNote: '你的角色只有读权限，所以这里没有批准或拒绝按钮。需要裁决时，请交给有写权限的同事。',
 +      notHereNote: '被治理直接拦下的动作不会出现在这里 —— 它们没有确认记录；原因由有审计权限的读者在「审计链」页查看。',
++      approvalTitle: '等待第二人批准',
++      approvalCount: '{n} 笔等待第二人',
++      approvalHint: '这些写是别人发起的。只有管理员能裁决；批准后，这笔写会以发起人的身份执行。',
++      initiatorLabel: '发起人：{who}',
++      initiatorNamed: '{name} · #{id}',
++      initiatorIdOnly: '用户 #{id}',
++      initiatorUnknown: '这一窗审计里定不出来',
++      approvalOwnRow: '这一笔是你自己发起的 —— 需要另一位管理员来裁决。',
++      approvalExecuted: '已批准，并已按发起人的身份执行。',
++      approvalDeclined: '已拒绝。',
++      approvalRefused: '已批准，但那次写没有跑成：{reason}',
++      approvalUnknown: '服务端答了一个本页不认识的结局：{status}',
++      approvalFailed: '批准没有通过',
++      approvalScanBound: '队列已读到上限 —— 更早的待批行没有读到。',
 +    },
 +    effects: {
 +      colId: '编号',
