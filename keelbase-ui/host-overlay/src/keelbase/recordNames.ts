@@ -84,6 +84,18 @@ export function toolResultType(toolName: string | null | undefined): string {
   return (toolName ? TOOL_RESULT_TYPES[toolName] : '') ?? ''
 }
 
+/**
+ * 本控制台认得出的记录种类，去重、保持声明次序。审计检索的种类下拉由它生成 —— 一种记录可不可查，
+ * 取决于消息表里有没有它的**业务词**（`keelbase.record.*`），而不是取决于另一张手写的清单：
+ * 加一个词，就多一种可查的对象，不必改代码。
+ *
+ * The record kinds this console can place, deduplicated, in declaration order. The audit search's kind
+ * select is built from it — whether a kind is searchable depends on the message tree having a **business
+ * word** for it (`keelbase.record.*`), not on a second hand-written list: add a word and that kind
+ * becomes searchable, with no code change.
+ */
+export const RECORD_TYPES: string[] = [...new Set(Object.values(TOOL_RESULT_TYPES))]
+
 const ROUTE = '/keelbase/record-names'
 
 const cache = new Map<string, string>()
