@@ -217,7 +217,7 @@ pms	knowledge-library-member	cn.iocoder.yudao.module.pms.service.kb.library.PmsK
 pms	knowledge-library	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryService	exempt		REST 端点按 pms:kb:library:query 与 pms:kb:library:update 收（PmsKnowledgeLibraryController），服务内判库管理员与创建人；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
 pms	knowledge-library-template	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
 pms	knowledge-recycle	cn.iocoder.yudao.module.pms.service.kb.recycle.PmsKnowledgeRecycleService	exempt		REST 端点按 pms:kb:library:delete 收（PmsKnowledgeRecycleController），回收站内容经库成员与内容权限校验；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
-pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	exempt		REST 端点按 pms:pm:iteration:query 与 pms:pm:iteration:update 收（PmsIterationController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	seam	PmsProjectGovernance		@rain	2027-06-30
 pms	project-announcement	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectAnnouncementService	exempt		REST 端点按 pms:pm:project:query 与 pms:pm:project:update 收（PmsProjectAnnouncementController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
 pms	project-favorite	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectFavoriteService	exempt		REST 端点按 pms:pm:project:query 收（PmsProjectFavoriteController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
 pms	project-group	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectGroupService	exempt		个人视图配置，无跨人问题	@rain	2027-06-30
