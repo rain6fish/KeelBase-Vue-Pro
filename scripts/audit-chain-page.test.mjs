@@ -230,6 +230,21 @@ test('chainWhat names the coverage statement instead of pointing at where it sit
   }
 })
 
+test('a tool the console has no word for still answers the 做了什么 column, without its registered name', () => {
+  // 「做了什么」这一列在有工具时走 `toolText`：认得的工具给业务词，不认识的给一句读者能据以判断的话，
+  // **不印注册名**（YD-42 的反向可证）。词表是否收全了宿主供出的工具，由 `tool-vocabulary.test.mjs`
+  // 拿源码对账；这一条钉的是接线 —— 列真的从 `toolText` 取，而不是绕过去拿 `row.tool`。
+  //
+  // The 做了什么 column goes through `toolText` whenever a row names a tool: a known tool gets its business
+  // word, an unknown one gets a sentence a reader can act on, and the **registered name is not printed**
+  // (YD-42's reverse proof). Whether the vocabulary covers every tool the host serves is held against the
+  // sources by `tool-vocabulary.test.mjs`; this pins the wiring — the column really takes its text from
+  // `toolText` instead of going around it to `row.tool`.
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(script, /function whatText\(row: AuditRow\): string \{\s*return row\.tool \? toolText\(row\.tool\)/)
+  assert.match(template, /\{\{ whatText\(row\) \}\}/, 'the 做了什么 cell no longer goes through whatText')
+})
+
 test('a blocked call takes its object from the key its own row recorded', () => {
   // 被**闸门拦下**的调用既没有台账行、也没有确认记录：运行时把键写在那条审计行自己的句末。这一条钉住接线 ——
   // 页面真的去读那一段、种类真的取自工具声明，而且读不出来时**不**从别处补一个 id。
