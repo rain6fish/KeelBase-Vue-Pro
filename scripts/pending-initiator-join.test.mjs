@@ -73,6 +73,15 @@ test('U2: a row that is not a held tool call is not the initiator row', () => {
   assert.equal(join2.initiatorOf(CONFIRMATION, [{ ...PENDING_ROW, action: 'tool_confirmation' }]), null)
 })
 
+test('U2: the immediate tier is not taken for the second-person tier', () => {
+  // 同一个端点也会为「等本人」写 `<工具> pending confirmation`；把它配进来，就是把「等你本人」说成
+  // 「某人请你批」。
+  // The same endpoint also writes `<tool> pending confirmation` for a hold that waits for the caller
+  // himself; pairing it in would report a "waiting for you" row as "someone asks you to approve this".
+  const immediate = { ...PENDING_ROW, detail: 'update_crm_customer pending confirmation' }
+  assert.equal(join2.initiatorOf(CONFIRMATION, [immediate]), null)
+})
+
 test('U2: a row outside the five-second window is not the same proposal', () => {
   const late = { ...PENDING_ROW, createdAt: '2026-11-08T05:49:49.913463Z' }
   assert.equal(join2.initiatorOf(CONFIRMATION, [late]), null)
