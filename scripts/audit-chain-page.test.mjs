@@ -239,10 +239,23 @@ test('a blocked call takes its object from the key its own row recorded', () => 
   // really comes from the tool declaration, and a missing key is **not** filled in from somewhere else.
   assert.match(script, /import \{[^}]*\brecordedObjectIn\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
     'the page does not import the reader for the row-recorded key')
-  assert.match(script, /const recordedId = e \|\| proposal \? null : recordedObjectIn\(row\)/,
-    'the page does not take the recorded key on the road that has neither a ledger row nor a proposal')
+  assert.match(
+    script,
+    /function recordedObjectOf\([\s\S]*?const recordedId = effect \|\| proposal \? null : recordedObjectIn\(row\)/,
+    'there is no single reader for the row-recorded key on the road that has neither a ledger row nor a proposal',
+  )
   assert.match(script, /resultType: toolResultType\(row\.tool\)/,
     'the kind of the blocked object is not taken from the tool declaration')
+  assert.match(
+    script,
+    /function objectOf\(row: AuditRow\): string \{[\s\S]*?recorded: recordedObjectOf\(row, e, proposal\)/,
+    'the object column does not take the row-recorded key — it and the expansion would answer ③ differently',
+  )
+  assert.match(
+    script,
+    /function sixOf\(row: AuditRow\)[\s\S]*?const recorded = recordedObjectOf\(row, e, proposal\)/,
+    'the six answers no longer take the recorded key from the same place as the object column',
+  )
   assert.match(script, /composeSix\(\{[\s\S]*?\brecorded,/, 'the six answers no longer receive the recorded key')
 })
 

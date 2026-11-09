@@ -28,7 +28,9 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>调用方**自己**——任何已登录用户都可以知道自己的名字；</li>
  *   <li>持有启用的 `audit_reader` 角色时，**账本里出现过的**调用方——`ai_audit_logs.user_id`（运行时那条
- *       审计链）与 `system_operate_log.user_id`（宿主自己的操作审计）的并集，且限同一租户。</li>
+ *       审计链）与 `system_operate_log.user_id`（宿主自己的操作审计）的并集，且限同一租户；</li>
+ *   <li>本宿主的管理员（{@link YudaoAdministrator} 认的那一位）与审计读者**同一范围**——最常打开审计页的
+ *       正是管理员，而过去只有读者读得出姓名、管理员看到的是裸 id（2026-11-08 走查 G-3）。</li>
  * </ul>
  *
  * <p>于是这条端点**当不了名录用**：它答不出一个从未在台账里出现过的 id，也答不出别的租户的人。读不出来时
@@ -49,9 +51,12 @@ import org.springframework.stereotype.Component;
  * the ledger: the caller themselves (any signed-in user may know their own name), and — when the caller
  * holds an enabled `audit_reader` role — the callers that appear in `ai_audit_logs.user_id` (the
  * runtime's audit chain) or `system_operate_log.user_id` (the host's own operation audit), within the
- * same tenant. The endpoint therefore cannot be used as a directory: it will not name an id that never
- * appeared in a ledger, nor anyone in another tenant. A failed read narrows — no row simply means no
- * name, and the page falls back to the id exactly as before. It never throws.
+ * same tenant. The host's administrator (the one {@link YudaoAdministrator} answers for) gets that same
+ * range: the administrator is the person who opens the audit page most, yet used to see bare ids where
+ * the reader saw names (G-3, measured 2026-11-08). The endpoint therefore cannot be used as a directory:
+ * it will not name an id that never appeared in a ledger, nor anyone in another tenant. A failed read
+ * narrows — no row simply means no name, and the page falls back to the id exactly as before. It never
+ * throws.
  */
 @Component
 @Slf4j
@@ -67,14 +72,17 @@ public class YudaoCallerDirectory {
 
     private final DataSource dataSource;
     private final YudaoAuditReaderRules auditReaders;
+    private final YudaoAdministrator administrators;
 
     /** 与 `Ai1RagTool` 一样按需构建一个、全局复用 —— 不额外向容器要一个 `JdbcTemplate` bean。 */
     /** Built once on first use and reused, as `Ai1RagTool` does — no separate `JdbcTemplate` bean. */
     private volatile JdbcTemplate jdbc;
 
-    public YudaoCallerDirectory(DataSource dataSource, YudaoAuditReaderRules auditReaders) {
+    public YudaoCallerDirectory(DataSource dataSource, YudaoAuditReaderRules auditReaders,
+                                YudaoAdministrator administrators) {
         this.dataSource = dataSource;
         this.auditReaders = auditReaders;
+        this.administrators = administrators;
     }
 
     /**
@@ -103,7 +111,12 @@ public class YudaoCallerDirectory {
         if (ids.contains(callerId)) {
             allowed.add(callerId);
         }
-        if (auditReaders.isAuditReader(String.valueOf(callerId))) {
+        // 管理员与审计读者同一范围：账本里出现过的人。最常打开审计页的正是管理员，而过去只有读者读得出
+        // 姓名、管理员看到的是裸 id（G-3）。这一条只决定「能认出谁」，不是一份名录。
+        // An administrator gets the same range as an audit reader: the people who appear in a ledger. The
+        // administrator opens the audit page most, yet used to see bare ids where the reader saw names
+        // (G-3). This decides whom it may name, not a directory.
+        if (auditReaders.isAuditReader(String.valueOf(callerId)) || administrators.isAdmin(callerId)) {
             allowed.addAll(ledgerCallers(ids, tenantId));
         }
         allowed.retainAll(ids);

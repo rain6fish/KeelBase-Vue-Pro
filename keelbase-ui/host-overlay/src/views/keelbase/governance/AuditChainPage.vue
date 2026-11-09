@@ -740,12 +740,39 @@ function objectOf(row: AuditRow): string {
   return objectLine({
     effect: e,
     proposal,
+    recorded: recordedObjectOf(row, e, proposal),
     hostNowName: hostNowNameOf(e),
     proposalName: proposalNameOf(proposal),
     mask: maskTitle,
     t,
     te,
   }).text
+}
+
+/**
+ * 被**闸门拦下**的调用既没有台账行、也没有提议时，它本来落在哪条记录上 —— 读运行时写在那条审计行
+ * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。
+ *
+ * 表格那一列与展开的六问**都从这里取**：同一条审计行的第三问只该有一个答案。两处各拼一份，正是它们
+ * 会给出两个答案的方式（2026-11-08 走查实测：列上说「未记录」、展开说「项目 · #1」）。
+ *
+ * Which record a **gate-blocked** call was about when it has neither a ledger row nor a proposal — the key
+ * the runtime wrote at the end of that audit row's own sentence (see `recordedObjectIn`), with the kind
+ * taken from the tool's own declaration.
+ *
+ * The table column and the expanded six answers **both take it from here**: one audit row must answer its
+ * third question one way. Composing it twice at the two call sites is exactly how they came to disagree
+ * (measured on a real stack, 2026-11-08: the column read 「未记录」 while the expansion read 「项目 · #1」).
+ */
+function recordedObjectOf(
+  row: AuditRow,
+  effect: EffectRow | null,
+  proposal: { resultType: string; resultId: number | string } | null,
+): { resultType: string; resultId: number } | null {
+  const recordedId = effect || proposal ? null : recordedObjectIn(row)
+  return recordedId === null || !row.tool
+    ? null
+    : { resultType: toolResultType(row.tool), resultId: recordedId }
 }
 
 /**
@@ -757,15 +784,10 @@ function objectOf(row: AuditRow): string {
 function sixOf(row: AuditRow) {
   const e = recordOf(row)
   const proposal = e ? null : proposalArgumentOf(row)
-  // 被**闸门拦下**的调用既没有台账行、也没有提议：它的键写在那一行自己的句末（见 `recordedObjectIn`），
-  // 种类按工具自己的声明查 —— 与另两条路同一条口径。
-  // A **gate-blocked** call has neither a ledger row nor a proposal: its key is at the end of that row's own
-  // sentence (see `recordedObjectIn`), and the kind comes from the tool's declaration — the same rule as
-  // the other two roads.
-  const recordedId = e || proposal ? null : recordedObjectIn(row)
-  const recorded = recordedId === null || !row.tool
-    ? null
-    : { resultType: toolResultType(row.tool), resultId: recordedId }
+  // 与表格那一列同一份（见 `recordedObjectOf`），故同一行的第三问不会两处两个答案。
+  // The same value the table column takes (see `recordedObjectOf`), so one row cannot answer its third
+  // question two ways.
+  const recorded = recordedObjectOf(row, e, proposal)
   // 第五问的**人**只来自这次操作自己的证据链：同会话、同工具、五秒内、恰好一行裁决（见 `approverOf`）。
   // 这一页只拿得到已载入的那些行；配不上就回落到「这一行没有记下」。
   // The fifth question's **person** comes only from this operation's own evidence chain: same conversation,
