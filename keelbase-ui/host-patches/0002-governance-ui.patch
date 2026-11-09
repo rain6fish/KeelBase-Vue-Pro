@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,759 @@
+@@ -1,4 +1,760 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -514,6 +514,7 @@ index 96269a8..2611a9b 100644
 +      get_fms_cash_flow_statement: 'Read the cash flow statement',
 +      get_fms_subject_balances: 'Read subject balances',
 +      find_members: 'Find members',
++      get_iteration_overview: 'Read an iteration overview',
 +      get_member: 'Read a member',
 +      list_member_point_records: 'List a member’s point records',
 +      list_member_sign_in_records: 'List a member’s sign-in records',
@@ -596,6 +597,7 @@ index 96269a8..2611a9b 100644
 +      get_fms_cash_flow_statement: 'Read the caller’s own account set’s cash flow statement for a period range (read-only).',
 +      get_fms_subject_balances: 'Read the caller’s own account set’s subject balance table for a period range (read-only), one row per subject.',
 +      find_members: 'Find this tenant’s members by nickname (read-only); contact fields are not projected.',
++      get_iteration_overview: 'Read the overview of one project iteration: work-item counts by status, overall progress, status trends, a burndown and recent activity (read-only).',
 +      get_member: 'Read one member of this tenant by id (read-only); contact fields are not projected, and a member that does not exist reads as a failure.',
 +      list_member_point_records: 'List one member’s point records by member id, newest first (read-only); a member id is required.',
 +      list_member_sign_in_records: 'List one member’s sign-in records by member id, newest first (read-only); a member id is required.',
@@ -766,7 +768,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,752 @@
+@@ -1,4 +1,753 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1274,6 +1276,7 @@ index 35f1e1a..856d201 100644
 +      get_fms_cash_flow_statement: '查现金流量表',
 +      get_fms_subject_balances: '查科目余额',
 +      find_members: '查找会员',
++      get_iteration_overview: '查迭代概览',
 +      get_member: '读一个会员',
 +      list_member_point_records: '查会员积分记录',
 +      list_member_sign_in_records: '查会员签到记录',
@@ -1354,6 +1357,7 @@ index 35f1e1a..856d201 100644
 +      get_fms_cash_flow_statement: '读调用方自己账套在一定期间内的现金流量表（只读）。',
 +      get_fms_subject_balances: '读调用方自己账套在一定期间内的科目余额表（只读），每个科目一行。',
 +      find_members: '按昵称查找本租户的会员（只读）；不投影联系方式。',
++      get_iteration_overview: '按 id 读一个项目迭代的概览：按状态的工作项数、整体进度、状态趋势、燃尽与最近动态（只读）。',
 +      get_member: '按 id 读本租户的一个会员（只读）；不投影联系方式，不存在的会员读作失败。',
 +      list_member_point_records: '按会员 id 列出其积分记录，最新的在前（只读）；必须给出会员 id。',
 +      list_member_sign_in_records: '按会员 id 列出其签到记录，最新的在前（只读）；必须给出会员 id。',

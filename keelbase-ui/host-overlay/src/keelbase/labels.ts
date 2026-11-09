@@ -202,7 +202,7 @@ const TOOLS = [
   'list_my_fms_vouchers', 'review_fms_voucher', 'get_fms_closing_overview', 'get_fms_closing_schemes',
   'get_fms_trial_balance', 'get_fms_balance_sheet', 'get_fms_income_statement',
   'get_fms_cash_flow_statement', 'get_fms_subject_balances',
-  'find_members', 'get_member', 'list_member_point_records', 'list_member_sign_in_records',
+  'find_members', 'get_iteration_overview', 'get_member', 'list_member_point_records', 'list_member_sign_in_records',
   'list_member_level_records', 'list_member_experience_records',
   'get_my_pay_wallet', 'get_my_pay_wallet_transaction', 'get_my_pay_wallet_recharge',
   'get_my_pay_order', 'get_my_pay_refund', 'get_my_pay_transfer',
