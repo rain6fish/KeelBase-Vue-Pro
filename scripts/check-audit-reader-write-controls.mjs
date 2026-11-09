@@ -52,6 +52,11 @@ const actionCenter = read(join(VIEWS, 'ActionCenterPage.vue'))
 require(actionCenter, /useConsoleWriteAllowed/, 'ActionCenterPage 没有用共享角色判断')
 require(actionCenter, /c\.mode === 'immediate' && canWrite/, '行动中心的批准/拒绝没有受角色判断管')
 require(actionCenter, /row\.revocable && canWrite/, '行动中心的撤销没有受角色判断管')
+// U2：全局确认队列只有管理员够得到，故那张卡只在管理员登录时取数；它的批准/拒绝按钮同样受 `canWrite`。
+// U2: the global confirmation queue is administrator-only, so that card is fetched only for an administrator,
+// and its approve/decline buttons obey `canWrite` like every other write control.
+require(actionCenter, /isAdmin && approvalVisible/, '行动中心的「等待第二人批准」卡没有管理员判据')
+require(actionCenter, /v-else-if="canWrite"[\s\S]{0,500}decideApproval\(/, '行动中心的第二人批准按钮没有受角色判断管')
 
 const tools = read(join(VIEWS, 'ToolsPage.vue'))
 require(tools, /useConsoleWriteAllowed/, 'ToolsPage 没有用共享角色判断')

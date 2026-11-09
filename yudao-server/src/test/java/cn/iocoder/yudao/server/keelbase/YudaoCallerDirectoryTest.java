@@ -20,22 +20,24 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 /**
  * 台账「谁」那一列的**服务端联名**：谁能被叫出名字，谁不能。
  *
- * <p>这条端点的安全面全在「答到什么范围」上——故这里钉的是四个边界：自己总有名字、普通调用方只知道自己、
- * 审计读者能叫出**账本里出现过**的人、别的租户与从没在账本里出现过的 id 一律不给。外加一条：账本读不出来时
- * 只是少给名字，绝不抛错。
+ * <p>这条端点的安全面全在「答到什么范围」上——故这里钉的是五个边界：自己总有名字、普通调用方只知道自己、
+ * 审计读者能叫出**账本里出现过**的人、管理员与审计读者同一范围（G-3）、别的租户与从没在账本里出现过的 id
+ * 一律不给。外加一条：账本读不出来时只是少给名字，绝不抛错。
  *
  * <p>英文：
  *
  * <p>The **server-side join** behind the ledger's "who" column: who may be named and who may not. The
- * endpoint's safety is entirely in how far the answer goes, so these tests pin four bounds — the caller
+ * endpoint's safety is entirely in how far the answer goes, so these tests pin five bounds — the caller
  * always gets their own name, an ordinary caller learns nobody else, an audit reader may name the people
- * who appear in a ledger, and another tenant's user or an id that never appeared in a ledger is never
- * named. One more: an unreadable ledger drops names and never throws.
+ * who appear in a ledger, an administrator gets that same range (G-3), and another tenant's user or an id
+ * that never appeared in a ledger is never named. One more: an unreadable ledger drops names and never
+ * throws.
  */
 class YudaoCallerDirectoryTest {
 
     private DataSource dataSource;
     private YudaoAuditReaderRules auditReaders;
+    private YudaoAdministrator administrators;
     private YudaoCallerDirectory directory;
 
     @BeforeEach
@@ -44,7 +46,9 @@ class YudaoCallerDirectoryTest {
         resetSchema();
         auditReaders = mock(YudaoAuditReaderRules.class);
         when(auditReaders.isAuditReader("9002")).thenReturn(true); // 审计读者 / the audit reader
-        directory = new YudaoCallerDirectory(dataSource, auditReaders);
+        administrators = mock(YudaoAdministrator.class);
+        when(administrators.isAdmin(1L)).thenReturn(true); // 宿主管理员 / the host administrator
+        directory = new YudaoCallerDirectory(dataSource, auditReaders, administrators);
         TenantContextHolder.setTenantId(1L);
     }
 
@@ -96,6 +100,19 @@ class YudaoCallerDirectoryTest {
         Map<String, String> names = directory.namesFor(9002L, List.of(1L, 9001L, 9002L, 777L));
 
         assertEquals(Map.of("9001", "走查读者", "9002", "审计读者"), names);
+    }
+
+    @Test
+    void aHostAdministratorNamesThePeopleInTheLedgers() {
+        // 管理员与审计读者同一范围：账本里出现过的人。过去只有读者读得出姓名，而最常打开审计页的正是
+        // 管理员，他看到的是裸 id（2026-11-08 走查 G-3）。1 是调用方本人，故总有名字；777 与 42 不在账本里。
+        //
+        // An administrator gets the same range as an audit reader: the people who appear in a ledger. The
+        // administrator used to see bare ids where the reader saw names (G-3, measured 2026-11-08). 1 is
+        // the caller, so they are always named; 777 and 42 do not appear in a ledger.
+        Map<String, String> names = directory.namesFor(1L, List.of(1L, 9001L, 777L, 42L));
+
+        assertEquals(Map.of("1", "管理员", "9001", "走查读者"), names);
     }
 
     @Test

@@ -26,8 +26,14 @@
 /** The six questions, in the order an auditor asks them. */
 export const SIX_QUESTIONS = ['who', 'when', 'object', 'change', 'confirmation', 'result']
 
-/** Anything that is not one of these six is not an answer. */
-const BLANK = '—'
+/**
+ * 不属于这六问的都不是答案。导出成 CSV 时用的也是这同一个记号 —— 控制台答不出的一格，在屏幕上和在
+ * 文件里必须读起来一样。
+ *
+ * Anything that is not one of these six is not an answer. Exported because the CSV export writes the
+ * same marker: a cell the console could not answer must read the same on screen and in the file.
+ */
+export const BLANK = '—'
 
 /**
  * 一个时刻，**带时区**。接受运行时那种 UTC ISO 串，按本地时区渲染，并把偏移量直接写出来 ——
