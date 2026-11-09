@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,760 @@
+@@ -1,4 +1,761 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -768,7 +768,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,753 @@
+@@ -1,4 +1,754 @@
  export default {
 +  keelbase: {
 +    common: {
