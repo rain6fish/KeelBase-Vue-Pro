@@ -400,6 +400,18 @@ export const NOT_GATES = [
     reason: 'setup: loads the seed the stack-bound gates read.',
   },
   {
+    id: 'jdk-build-floor',
+    key: 'bash scripts/check-jdk-build.sh 25.0.5+8',
+    reason:
+      'setup：断言跑这道 job 的机器上 JDK 构建号不低于 25.0.5+8（JSSE 两个 CVE 的修复构建）—— 它读的是机器，' +
+      '不是这棵树。本机是 Temurin 25.0.4.1+1，低于这条线，把它当门禁只会给本地清单多一道与树无关的红。' +
+      'CI 在四个 job 里各跑一次；清单按调用形状记账，一条记录覆盖四处。' +
+      'setup: asserts the machine running the job carries a JDK build at or above the 25.0.5+8 line (the JSSE ' +
+      'CVE fixes) — it reads the runner, not the tree. This box reports Temurin 25.0.4.1+1, below that line, ' +
+      'so as a gate it would be a local red that says nothing about the tree. CI runs it in four jobs; the ' +
+      'manifest keys on the invocation, so one entry covers all four.',
+  },
+  {
     id: 'missing-checkout-keeper-parse',
     key: `node scripts/check-rendered-copy.mjs ${MISSING_UI_VAR}`,
     reason: 'keeper: asserts the gate exits 2 on a missing checkout; it is not a reading of the tree.',
