@@ -27,7 +27,7 @@ class YudaoBypassAuditJdbcSinkTest {
 
     private static final YudaoBypassAuditRow ROW = new YudaoBypassAuditRow(
             Instant.parse("2026-10-30T12:00:00Z"), "POST", "/admin-api/crm/contract/create",
-            "crm", "contract", 100L, 1L, 200, 0, 12L);
+            "crm", "contract", 100L, 1L, 200, 0, 12L, 44, "0123456789ab", "customerId,note");
 
     @Test
     void aBrokenDatabaseIsLoggedRatherThanThrown() throws SQLException {

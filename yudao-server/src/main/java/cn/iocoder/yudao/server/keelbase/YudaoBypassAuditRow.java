@@ -31,6 +31,15 @@ import java.time.Instant;
  *
  * <p>`module` and `object` are parsed off the path; both are null when the path does not name them —
  * null means "not known", not "no object".
+ *
+ * <p><b>请求体只留三样：长度、摘要前 12 位、顶层字段名。</b>值一个都不进库（见 {@link YudaoBypassAuditBody}）。
+ * 三列同时为 null 是「正文没读」—— 超过上限、非 JSON、声明长度未知，或这是一条流式答复的请求；它们与
+ * 「读出来是个空对象」是两件事。
+ *
+ * <p><b>The body keeps three things only: length, the first 12 digits of a digest, and top-level field
+ * names.</b> No value enters the table (see {@link YudaoBypassAuditBody}). All three columns null means
+ * "the body was not read" — over the cap, not JSON, unknown declared length, or the request of a
+ * streaming answer; that is a different fact from "read and empty".
  */
 public record YudaoBypassAuditRow(
         Instant occurredAt,
@@ -42,5 +51,8 @@ public record YudaoBypassAuditRow(
         Long tenantId,
         int httpStatus,
         Integer resultCode,
-        long durationMs) {
+        long durationMs,
+        Integer bodyLength,
+        String bodySha256,
+        String bodyFields) {
 }

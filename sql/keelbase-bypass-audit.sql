@@ -51,8 +51,28 @@ create table if not exists keelbase_bypass_log (
     -- null is "the host answered no business code", not 0 and not success.
     http_status integer       not null,
     result_code integer,
-    duration_ms bigint        not null
+    duration_ms bigint        not null,
+    -- **正文只记形状，不记内容。** 长度、摘要前 12 位、顶层字段名 —— 值一个都不在这里。
+    -- 三列同时为空 = 「正文没读」：非 JSON、超过 64 KiB、声明长度未知，或这是一条流式答复的请求。
+    --
+    -- **The body keeps its shape, never its content.** Length, the first 12 hex digits of a SHA-256, and
+    -- top-level field names; not one value is here. All three null = "the body was not read": not JSON,
+    -- over 64 KiB, unknown declared length, or the request of a streaming answer.
+    body_length integer,
+    body_sha256 varchar(16),
+    body_fields varchar(512)
 );
+
+-- 本文件也跑在**已经有这张表**的库上，故三列另以 `add column if not exists` 补 —— 否则 `create table if not
+-- exists` 会安静地跳过，而读面与写入端都会因为缺列而失败（写入端只少一行，读面会答一个 500）。
+--
+-- This file also runs against a database that already has the table, so the three columns are added with
+-- `add column if not exists`; without it `create table if not exists` would skip quietly and both the
+-- writer and the read face would fail on the missing columns (the writer loses a row, the read face
+-- answers a 500).
+alter table keelbase_bypass_log add column if not exists body_length integer;
+alter table keelbase_bypass_log add column if not exists body_sha256 varchar(16);
+alter table keelbase_bypass_log add column if not exists body_fields varchar(512);
 
 comment on table keelbase_bypass_log is
     '上游 REST 写的旁路留痕：有痕，不代表受治理、有确认。 / Bypass trail for upstream REST writes: a trace is not governance and not a confirmation.';

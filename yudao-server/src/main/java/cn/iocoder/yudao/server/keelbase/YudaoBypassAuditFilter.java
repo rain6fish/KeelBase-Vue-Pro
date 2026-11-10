@@ -4,6 +4,7 @@ package cn.iocoder.yudao.server.keelbase;
 import cn.iocoder.yudao.framework.common.pojo.CommonResult;
 import cn.iocoder.yudao.framework.security.core.util.SecurityFrameworkUtils;
 import cn.iocoder.yudao.framework.tenant.core.context.TenantContextHolder;
+import cn.iocoder.yudao.framework.common.util.servlet.ServletUtils;
 import cn.iocoder.yudao.framework.web.core.util.WebFrameworkUtils;
 import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
@@ -15,6 +16,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,6 +35,10 @@ import org.slf4j.LoggerFactory;
  * <p><b>两个码。</b>本宿主把业务拒绝包在 HTTP 200 里，故一行只记线缆状态会被读成「写成功了」；旁路行同时记
  * `http_status` 与信封的 `result_code`（取自 `WebFrameworkUtils.getCommonResult`，与访问日志同一处），
  * 前者说线缆上是什么，后者说实际发生了什么。
+ *
+ * <p><b>正文只记形状，不记内容。</b>非流式的 JSON 写，一行带 `{长度, sha256 前 12 位, 顶层字段名}`；值一个都
+ * 不进库，故没有「哪个模块的哪个字段是口令」要逐个去认。包的是**请求**（把缓存字节回放给下游），响应不经这里
+ * —— 流式答复因此不受影响，是形状上不受影响。细则在 {@link YudaoBypassAuditBody}。
  *
  * <p><b>Why a plain {@link Filter}, not {@code OncePerRequestFilter}.</b>那层基类会在**嵌套派发**上短路
  * （它按一次请求记过名就不再进），而这一层要的是**每个请求恰一行**、且不想被错误派发再记一遍：普通过滤器只
@@ -59,6 +65,12 @@ import org.slf4j.LoggerFactory;
  * no side-effect ledger. Mixed into the audit chain, a trace would read as "a human approved this", so it
  * is **another table** with its own read face (see `sql/keelbase-bypass-audit.sql`). Pages and copy must
  * say so apart from the chain, or an outside reader will read "traced" as "governed".
+ *
+ * <p><b>The body keeps its shape, never its content.</b> A non-streaming JSON write carries
+ * `{length, first 12 digits of a SHA-256, top-level field names}`; not one value enters the table, so there
+ * is no per-module hunt for "which field is a password". What is wrapped is the **request** (cached bytes
+ * replayed downstream); the response does not pass through here — so a streaming answer is undisturbed by
+ * shape. Details in {@link YudaoBypassAuditBody}.
  *
  * <p><b>Why a plain {@link Filter} and not {@code OncePerRequestFilter}.</b> That base class short-circuits
  * nested dispatches (it marks a request as seen), and what this layer wants is **exactly one row per
@@ -101,6 +113,9 @@ public class YudaoBypassAuditFilter implements Filter {
     static final int PATH_MAX = 512;
     static final int SEGMENT_MAX = 64;
 
+    /** 流式答复在 HTTP 上的那句表态：调用方要的是它，正文就不读。 / What a streaming answer asks for. */
+    static final String TEXT_EVENT_STREAM = "text/event-stream";
+
     private final YudaoBypassAuditSink sink;
 
     public YudaoBypassAuditFilter(YudaoBypassAuditSink sink) {
@@ -116,10 +131,19 @@ public class YudaoBypassAuditFilter implements Filter {
             chain.doFilter(request, response);
             return;
         }
+        // 正文摘要只包**非流式**的 JSON 写：包的是**请求**（把缓存的字节回放给下游），响应一个字节都不经
+        // 这里 —— 故它按形状就不可能打断一条流式答复。
+        // The body summary wraps **non-streaming** JSON writes only, and it wraps the **request** (replaying
+        // cached bytes downstream); not a byte of the response passes through, so by shape it cannot disturb
+        // a streaming answer.
+        HttpServletRequest passing = capturesBody(httpRequest)
+                ? YudaoBypassAuditBody.capture(httpRequest)
+                : httpRequest;
         long started = System.nanoTime();
+        YudaoBypassAuditBody body = YudaoBypassAuditBody.summaryOf(passing);
         int resultCode;
         try {
-            chain.doFilter(request, response);
+            chain.doFilter(passing, response);
             resultCode = httpResponse.getStatus();
         } catch (IOException | ServletException | RuntimeException failed) {
             // 一次失败的写也是一次尝试：先留一行（码取 500 —— 走到这里说明没有正常的结果码），再把失败
@@ -127,10 +151,40 @@ public class YudaoBypassAuditFilter implements Filter {
             // A failed write is still an attempt: leave the row (500 — reaching here means there was no
             // ordinary result code), then rethrow the failure as itself. The trail must never replace the
             // exception, so nothing but hand-over happens here.
-            trace(httpRequest, httpResponse, 500, started);
+            trace(httpRequest, httpResponse, 500, started, body);
             throw failed;
         }
-        trace(httpRequest, httpResponse, resultCode, started);
+        trace(httpRequest, httpResponse, resultCode, started, body);
+    }
+
+    /**
+     * 这次请求的正文要不要读。四条同时成立才读：是一次要记的写、是 JSON、**不是**流式答复（调用方要的是
+     * `text/event-stream`，或路径以 `-stream` 结尾）。后两条是「只包非流式」这句话的可执行形态。
+     *
+     * <p>为什么连路径也看：有的客户端发流式请求时不带 `Accept`，而 `/admin-api/ai1/session/message/send-stream`
+     * 与 `.../resume-stream` 的响应由 `SseEmitter` 写，正文里的内容是用户的提问。读**请求**不会打断它，
+     * 但一条流式请求的正文不该被当成「一次管理端写的正文」来记 —— 那会把「留痕读 WHAT」变成「留痕读对话」。
+     *
+     * <p>Whether to read this request's body. Four things must hold: it is a write the trail records, it is
+     * JSON, and it is **not** a streaming answer (the caller asked for `text/event-stream`, or the path ends
+     * in `-stream`). The last two are the executable form of "non-streaming only".
+     *
+     * <p>Why the path too: some clients send a streaming request without an `Accept` header, and
+     * `/admin-api/ai1/session/message/send-stream` and `.../resume-stream` answer through an `SseEmitter`
+     * whose body is the user's question. Reading the **request** does not disturb it, but a streaming
+     * request's body should not be recorded as "the body of a console write" — that would turn "the trail
+     * reads WHAT" into "the trail reads the conversation".
+     */
+    static boolean capturesBody(HttpServletRequest request) {
+        if (!ServletUtils.isJsonRequest(request)) {
+            return false;
+        }
+        String uri = request.getRequestURI();
+        if (uri != null && uri.endsWith("-stream")) {
+            return false;
+        }
+        String accept = request.getHeader("Accept");
+        return accept == null || !accept.toLowerCase(Locale.ROOT).contains(TEXT_EVENT_STREAM);
     }
 
     /**
@@ -149,7 +203,7 @@ public class YudaoBypassAuditFilter implements Filter {
      * body (that would break `/admin-api/ai1/**`'s streaming answers). Null when no envelope was produced.
      */
     private void trace(HttpServletRequest request, HttpServletResponse response, int httpStatus,
-                       long started) {
+                       long started, YudaoBypassAuditBody body) {
         try {
             String[] subject = subjectOf(request.getRequestURI());
             CommonResult<?> answered = WebFrameworkUtils.getCommonResult(request);
@@ -163,7 +217,10 @@ public class YudaoBypassAuditFilter implements Filter {
                     TenantContextHolder.getTenantId(),
                     httpStatus,
                     answered == null ? null : answered.getCode(),
-                    (System.nanoTime() - started) / 1_000_000L));
+                    (System.nanoTime() - started) / 1_000_000L,
+                    body == null ? null : body.length(),
+                    body == null ? null : body.sha256(),
+                    body == null ? null : body.fields()));
         } catch (RuntimeException failed) {
             LOG.warn("bypass trail row not handed over ({} {}): {}", request.getMethod(),
                     request.getRequestURI(), failed.toString());

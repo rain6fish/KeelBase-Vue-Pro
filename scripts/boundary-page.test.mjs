@@ -426,3 +426,63 @@ test('the checks are drawn as a path × control matrix, ticked only by each row\
   // break mid-word without it (measured in the running stack).
   assert.match(vue, /\.boundary-matrix :deep\(th \.cell\)\s*\{[^}]*font-size:\s*12px/, 'the matrix header lost its 12px size');
 });
+
+test('the two write trails are drawn side by side, each fed by its own endpoint', () => {
+  const vue = read(PAGE);
+  const tpl = templateOf(vue);
+
+  // 左边旁路行、右边治理行：两张表各自吃**自己的**数据源，页面上没有一处把它们合成一行。
+  // Left is the bypass trail, right the governed rows: each table eats **its own** source, and nothing on
+  // the page merges them into one row.
+  assert.match(tpl, /:data="bypass\?\.items \?\? \[\]"/, 'the bypass table lost its rows');
+  assert.match(tpl, /:data="governed \?\? \[\]"/, 'the governed table lost its rows');
+  assert.match(vue, /url: '\/keelbase\/bypass-log'/, 'the bypass rows no longer come from the read endpoint');
+  assert.match(vue, /auditApi\.logs\(/, 'the governed rows no longer come from the audit chain');
+  assert.match(vue, /Promise\.allSettled\(/, 'one failing trail would now take the other down with it');
+
+  // 读不到就**说出来**：一张空表会被读成「没有任何写」，那正是这一节最不该给出的误读。
+  // A failed read says so: an empty table would be read as "nothing was written", the one misreading this
+  // section must never produce.
+  assert.match(tpl, /v-if="bypassError"/, 'the bypass table no longer distinguishes failure from empty');
+  assert.match(tpl, /v-if="governedError"/, 'the governed table no longer distinguishes failure from empty');
+  assert.match(vue, /keelbase\.boundary\.trailsUnreadable/, 'the unreadable case has no words');
+});
+
+test('the two trails speak in two postures, and both languages carry them', () => {
+  const { en, zh } = boundaryMessages();
+  const tpl = templateOf(read(PAGE));
+
+  // 两个姿态词必须**不同**，且都在两种语言里：同一个词会让「并列」失去意义 —— 读者分不出哪一边没被治理。
+  // The two posture words must **differ**, in both languages: one word for both would empty the juxtaposition
+  // — a reader could not tell which side is not governed.
+  for (const [lang, block] of [['en', en], ['zh', zh]]) {
+    assert.ok(block.trailsTitle, `${lang} names the trails section`);
+    assert.ok(block.bypassTitle, `${lang} names the bypass trail`);
+    assert.ok(block.governedTitle, `${lang} names the governed trail`);
+    assert.ok(block.postureRecorded, `${lang} labels the recorded-only posture`);
+    assert.ok(block.postureGoverned, `${lang} labels the governed posture`);
+    assert.notEqual(block.postureRecorded, block.postureGoverned, `${lang} uses one word for both postures`);
+  }
+  assert.match(tpl, /keelbase\.boundary\.postureRecorded/, 'the bypass table no longer says "recorded only"');
+  assert.match(tpl, /keelbase\.boundary\.postureGoverned/, 'the governed table no longer says "governed"');
+});
+
+test('the body column speaks in shape, and says which shape it has', () => {
+  const { en, zh } = boundaryMessages();
+
+  // 正文那一列只有三种说法：没读、读了（长度 + 摘要 + 字段名）、读了但字段名不可用。值不在任何一条里。
+  // The body column has three things to say: not read, read (length + digest + names), read without names.
+  // No value is in any of them.
+  for (const [lang, block] of [['en', en], ['zh', zh]]) {
+    for (const key of ['bodyNone', 'bodyParts', 'bodyNoFields']) {
+      assert.equal(typeof block[key], 'string', `${lang} lost ${key}`);
+      assert.ok(block[key].length > 0, `${lang} left ${key} empty`);
+    }
+  }
+  assert.match(en.bodyParts, /\{length\}/, 'the English body line no longer states the length');
+  assert.match(en.bodyParts, /\{digest\}/, 'the English body line no longer states the digest');
+  for (const key of ['bodyNone', 'bodyParts', 'bodyNoFields']) {
+    assert.doesNotMatch(en[key], /\{value\}|\{body\}|\{content\}/, `${key} interpolates a body value`);
+    assert.doesNotMatch(zh[key], /\{value\}|\{body\}|\{content\}/, `${key} interpolates a body value`);
+  }
+});
