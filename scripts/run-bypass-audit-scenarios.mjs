@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 // 上游 REST 写旁路审计（「丁」）的门禁：**一次写恰一行**、**读与登录零行**、**失败照样留行且两个码对得上**、
-// **受治理的那条路不重行**、**开关关闭 ⇒ 零行且行为不变**。
+// **受治理的那条路不重行**、**正文只有形状没有值**、**流式写恰一行且无业务码**、**开关关闭 ⇒ 零行且行为不变**。
 //
 //   bash scripts/run-server.sh &
 //   node scripts/run-bypass-audit-scenarios.mjs
@@ -15,6 +15,9 @@
 // 端口取 `BYPASS_AUDIT_OFF_PORT`（默认 48098），日志落在 `EVIDENCE_DIR`（默认系统临时目录）。那条宿主把
 // `keelbase.bypass-audit.enabled` 关掉，故过滤器**根本不装** —— 一次写零行，而响应与业务行与开着时一样。
 //
+// **场景 8 是流式端点。** `/admin-api/ai1/session/message/send-stream` 的答复由 `SseEmitter` 写、不产出信封，
+// 故它的行**恰一行**且 `result_code` 为 null —— 而它的**正文不读**（那是用户的提问，不是一次控制台写的正文）。
+//
 // **本轮的唯一标记是 `occurred_at`。** 表里没有一列可以写标记（也不该为门禁加一列），故每条断言都按
 // `occurred_at >= 本轮开始` 收窄 —— 重跑、并跑都不会互相干扰，而这是本线每道门禁写法的那一条（按名字收窄，
 // 不按整表计数）。
@@ -22,8 +25,9 @@
 // 它造的每一样都拆掉；**旁路行与审计行刻意留着** —— 它们就是这道门禁要留下的读数。
 //
 // The gate for the upstream-REST bypass trail ("丁"): **one write, one row**; **reads and logins leave none**;
-// **a failure keeps its row with both codes agreeing**; **the governed path leaves no second row**;
-// **switch off ⇒ zero rows and unchanged behaviour**.
+// **a failure keeps its row with both codes agreeing**; **the governed path leaves no second row**; **the body
+// keeps its shape and no value**; **a streaming write is one row with no business code**; **switch off ⇒ zero
+// rows and unchanged behaviour**.
 //
 // What it proves is not "something is recorded" but "the shape of what is recorded is right". The two easy
 // mistakes for a trail row are recording the wire status alone (so this host's business refusals, wrapped in
@@ -37,6 +41,10 @@
 // `keelbase.bypass-audit.enabled` off, so the filter is **not installed** — one write leaves no row, while
 // the response and the business row are the same as with it on.
 //
+// **Scenario 8 is the streaming endpoint.** `/admin-api/ai1/session/message/send-stream` answers through an
+// `SseEmitter` and produces no envelope, so its row is **exactly one** with `result_code` null — and its
+// **body is not read** (that is the user's question, not the body of a console write).
+//
 // **This run's marker is `occurred_at`.** No column exists to write a marker into (and none should be added for
 // a gate's sake), so every assertion is scoped to `occurred_at >= this run's start` — reruns and concurrent runs
 // do not interfere, which is the rule every gate on this line follows (scope by a name, never count the table).
@@ -44,6 +52,7 @@
 // Everything it creates, it removes again. **Bypass rows and audit rows stay on purpose** — they are the
 // readings this gate exists to leave behind.
 import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -102,28 +111,52 @@ const startedAt = new Date().toISOString();
 const bypassRows = () => {
   const out = psql(`select method || '|' || path || '|' || coalesce(module, '') || '|' || coalesce(object_name, '')`
     + ` || '|' || http_status || '|' || coalesce(result_code::text, 'null') || '|' || coalesce(caller_id::text, 'null')`
+    + ` || '|' || coalesce(body_length::text, 'null') || '|' || coalesce(body_sha256, 'null')`
+    + ` || '|' || coalesce(body_fields, 'null')`
     + ` from keelbase_bypass_log where occurred_at >= '${startedAt}' order by id`);
   return out === '' ? [] : out.split('\n').map((line) => {
-    const [method, path, module, object, httpStatus, resultCode, callerId] = line.split('|');
-    return { method, path, module, object, httpStatus, resultCode, callerId };
+    const [method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields] =
+      line.split('|');
+    return { method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields };
   });
 };
 const countSince = () => Number(psql(
   `select count(*) from keelbase_bypass_log where occurred_at >= '${startedAt}'`));
 
-async function api(path, { method = 'GET', token, body, base = '/admin-api', host = HOST } = {}) {
+/** 本轮每一行的整行文本：用来断言正文里的值**没有一个**落进库里。 / Whole rows, to prove no body value landed. */
+const rowTextSince = () => psql(
+  `select coalesce(string_agg(t::text, E'\\n'), '') from keelbase_bypass_log t where occurred_at >= '${startedAt}'`);
+
+const sha256Prefix = (text) => createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex').slice(0, 12);
+
+async function api(path, { method = 'GET', token, body, base = '/admin-api', host = HOST, accept } = {}) {
+  const payload = body ? JSON.stringify(body) : undefined;
   const res = await fetch(`${host}${base}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
       'tenant-id': TENANT,
+      ...(accept ? { Accept: accept } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     },
-    ...(body ? { body: JSON.stringify(body) } : {})
+    ...(payload ? { body: payload } : {})
   });
   let json = null;
-  try { json = await res.json(); } catch { /* a non-JSON answer is itself a reading */ }
-  return { status: res.status, json };
+  let text = null;
+  // 按 content-type 选**一种**读法：`json()` 解析失败时正文已经被吃掉，再去 `text()` 只会抛，把一次真正的读
+  // 变成一句误导的异常。
+  // Pick **one** way to read by content-type: a failed `json()` has already consumed the body, so a later
+  // `text()` only throws and turns a real reading into a misleading exception.
+  const contentType = String(res.headers.get('content-type') ?? '');
+  if (contentType.includes('json')) {
+    try { json = await res.json(); } catch { /* a non-JSON body behind a JSON header is itself a reading */ }
+  } else {
+    try { text = await res.text(); } catch { /* nothing to read */ }
+  }
+  // 原样交回送出去的正文：摘要那一条断言必须对**线上那些字节**成立，而不是对一份重新序列化的副本。
+  // Hand back the exact payload sent: the digest assertion has to hold for the bytes on the wire, not for a
+  // re-serialised copy.
+  return { status: res.status, json, text, sent: payload };
 }
 
 async function login(host = HOST) {
@@ -311,11 +344,15 @@ let offCreatedId = null;
 
 // 字典数据必须挂在一个**已存在**的字典类型下（模块自己校验，`当前字典类型不存在` 就是它的拒绝）。库里有就借一个，
 // 没有就造一个、收尾时拆掉 —— 门禁不该要求某种种子恰好存在。
+//
+// `deleted = 0`（不是 `= false`）：本仓的库是从 MySQL **机器转换**来的，`deleted` 是 `smallint`，
+// `= false` 在这里报 `operator does not exist: smallint = boolean`（2026-10-31 在空库上实测）。
+//
 // Dict data must hang off an **existing** dict type (the module checks it; "当前字典类型不存在" is its own
 // refusal). Borrow one when the database has one, otherwise create one and remove it on the way out — a gate
-// must not require some particular seed to be present.
-// `deleted` 在 PostgreSQL 里是 int2（0/1），不是 boolean；`= false` 会让整句失败。
-// `deleted` is int2 (0/1) in PostgreSQL, not boolean; `= false` makes the statement fail.
+// must not require some particular seed to be present. `deleted = 0` (not `= false`): this repository's schema
+// is machine-converted from MySQL and `deleted` is a `smallint`; `= false` answers `operator does not exist:
+// smallint = boolean` (measured 2026-10-31 on a freshly bootstrapped database).
 let dictType = psql('select type from system_dict_type where deleted = 0 limit 1');
 
 const token = await login();
@@ -371,6 +408,12 @@ check('2. a console write adds exactly one bypass row', before1 + 1, countSince(
   check('2. the row carries the wire status', 200, row?.httpStatus);
   check('2. the row carries the envelope code', 0, row?.resultCode);
   check('2. the row names the caller', true, row !== undefined && row.callerId !== 'null');
+  // 正文只有形状：长度按**送出去的字节**、摘要同样，字段名按顶层、按文序。值一个都不该出现在任何一列（场景 9）。
+  // The body is shape only: length and digest over the **bytes sent**, names top-level and in document order.
+  // Not one value should appear in any column (scenario 9).
+  check('2. the row records the body length', Buffer.byteLength(created.sent, 'utf8'), row?.bodyLength);
+  check('2. the row records the digest of the bytes sent', sha256Prefix(created.sent), row?.bodySha256);
+  check('2. the row records the top-level field names', 'dictType,label,value,sort,status', row?.bodyFields);
 }
 
 // ── 3 · 业务拒绝藏在 HTTP 200 里 ────────────────────────────────────────────────────────────────────
@@ -468,10 +511,39 @@ try {
   await stopOffHost();
 }
 
+// ── 8 · 流式端点：恰一行、无信封码、正文不读 ─────────────────────────────────────────────────────────
+// `/admin-api/ai1/session/message/send-stream` answers through an SseEmitter: no envelope is ever produced, so
+// `result_code` is null — and the request body is the user's question, so it is not read. A session id that
+// does not exist is enough: the service answers an error event on the stream, which is exactly the shape
+// this scenario is about (a streamed answer, not an envelope).
+const before8 = countSince();
+const streamed = await api('/ai1/session/message/send-stream', {
+  method: 'POST', token, accept: 'text/event-stream',
+  body: { sessionId: 999999999, content: marker }
+});
+check('8. the streaming write answered 200 on the wire', 200, streamed.status);
+check('8. the answer is an event stream, not an envelope', true,
+  (streamed.text ?? '').includes('event:') || (streamed.text ?? '').includes('data:'));
+check('8. a streaming write leaves exactly one row', before8 + 1, countSince());
+{
+  const row = bypassRows().find((r) => r.path === '/admin-api/ai1/session/message/send-stream');
+  check('8. the row is a POST', 'POST', row?.method);
+  check('8. the row has no business code: no envelope was produced', 'null', row?.resultCode);
+  check('8. the streaming request body was not read', 'null', row?.bodyLength);
+  check('8. so it has no digest either', 'null', row?.bodySha256);
+  check('8. and no field names', 'null', row?.bodyFields);
+}
+
+// ── 9 · 值不进库 ────────────────────────────────────────────────────────────────────────────────────
+// The marker is a field value in the write of scenario 2. If it appears anywhere in this run's rows, a value
+// reached a table that is meant to hold shape only.
+check('9. no body value reached any column', false, rowTextSince().includes(marker));
+
 // ── 汇总 ───────────────────────────────────────────────────────────────────────────────────────────
-// Three writes were sent to the recording host (one accepted, one refused, one unserved); the switch-off
-// host's write is a fourth and leaves nothing — **three rows is the whole reading**.
-check('8. the run left exactly the three writes it made', 3, countSince());
+// Three writes were sent to the recording host (one accepted, one refused, one unserved), the streaming write
+// is a fourth, and the dict type is one more when the database had none; the switch-off host's write leaves
+// nothing — that many rows is the whole reading.
+check('10. the run left exactly the writes it made', 4 + (createdType !== null ? 1 : 0), countSince());
 
 runPutBack();
 psql('select 1'); // 收尾之后再碰一次库：删不掉时这里会抛，而不是悄悄留一行。

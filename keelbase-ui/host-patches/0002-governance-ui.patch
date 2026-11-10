@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,761 @@
+@@ -1,4 +1,784 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -321,6 +321,29 @@ index 96269a8..2611a9b 100644
 +      offendersTitle: 'Beans that would escape it',
 +      colFile: 'File',
 +      colLine: 'Line',
++      trailsTitle: 'Two write trails, side by side',
++      trailsWhat:
++        'Left: writes made through the upstream console REST API, recorded only. Right: writes that went through the AI governance engine. They are different facts and are never shown as one row. An empty side means none in this view, not that the reading failed.',
++      bypassTitle: 'Upstream console writes (recorded only)',
++      governedTitle: 'AI writes (governed)',
++      bypassEmpty: 'No upstream write has been recorded yet',
++      governedEmpty: 'No governed write has been recorded yet',
++      trailsUnreadable: 'This trail could not be read: the read failed, or this account may not read it',
++      colTime: 'Time',
++      colRequest: 'Request',
++      colAction: 'Action',
++      colWho: 'Caller',
++      colResult: 'Result',
++      colBody: 'Request body (no values)',
++      bodyNone: 'not read',
++      bodyParts: '{length} bytes · sha256 {digest} · {fields}',
++      bodyNoFields: '{length} bytes · sha256 {digest} · no top-level names',
++      resultBoth: 'HTTP {http} · code {code}',
++      resultNoCode: 'HTTP {http} · no business code',
++      resultOk: 'answered',
++      resultError: 'failed',
++      postureRecorded: 'Recorded only',
++      postureGoverned: 'Governed',
 +      none: 'none',
 +      missing: 'This build carries no boundary record — the UI was laid down without it',
 +      loadFailed: 'The boundary could not be read',
@@ -768,7 +791,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,754 @@
+@@ -1,4 +1,776 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1087,6 +1110,28 @@ index 35f1e1a..856d201 100644
 +      offendersTitle: '会绕过它的 bean',
 +      colFile: '文件',
 +      colLine: '行',
++      trailsTitle: '两条写痕，并列看',
++      trailsWhat: '左边是经上游控制台 REST 发出的写，只留痕；右边是经 AI 治理引擎的写。它们是两类事实，永不合成一行。一边为空表示这一视图里没有，不是读失败。',
++      bypassTitle: '上游控制台写（只记不改）',
++      governedTitle: 'AI 写（受治理）',
++      bypassEmpty: '还没有记下任何上游写',
++      governedEmpty: '还没有记下任何受治理的写',
++      trailsUnreadable: '这一条写痕读不到：读取失败，或本账号无权读它',
++      colTime: '时间',
++      colRequest: '请求',
++      colAction: '动作',
++      colWho: '调用方',
++      colResult: '结果',
++      colBody: '请求体（不含值）',
++      bodyNone: '未读取',
++      bodyParts: '{length} 字节 · sha256 {digest} · {fields}',
++      bodyNoFields: '{length} 字节 · sha256 {digest} · 顶层字段名未读',
++      resultBoth: '线缆 {http} · 业务码 {code}',
++      resultNoCode: '线缆 {http} · 无业务码',
++      resultOk: '已答复',
++      resultError: '失败',
++      postureRecorded: '仅留痕',
++      postureGoverned: '受治理',
 +      none: '无',
 +      missing: '本构建没有带边界记录 —— 界面是没带它铺下去的',
 +      loadFailed: '读不到这条边界',
