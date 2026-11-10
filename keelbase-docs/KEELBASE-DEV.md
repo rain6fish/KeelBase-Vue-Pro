@@ -60,6 +60,25 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 that are not wired into the server. The artifact is a fat jar under `yudao-server/target/`. This
 assumes `mvn` is on `PATH`; the datastore below additionally needs Docker.
 
+**Check what the build actually resolved.** The host pins a *released* runtime, and a released
+coordinate is one Maven will not re-fetch once a local copy is present — so an `mvn install` of the same
+version on this machine silently shadows the published jar, and every reading stays green. Measured
+2026-10-26: `0.1.11` pinned and published, the artefact embedding a locally rebuilt `4b203bb3…` instead
+of the published `8a2c34dc…`. Those two were equivalent only because nobody had changed the sources,
+and nothing in the build would have said so either way.
+
+```bash
+node scripts/check-runtime-pin-bytes.mjs --jar yudao-server/target/yudao-server.jar
+```
+
+It reads the pin from the POMs, hashes the three jars inside the artefact, and compares each against
+the `.sha1` the publishing repository serves. A mismatch is red and names both hashes; being unable to
+read the published hash is red too — that is "cannot decide", not "fine". `scripts/run-server.sh` runs
+it before every stack start, and CI runs the repository-surface form right after building. When it is
+red, move the locally installed copies aside and resolve again — they are under
+`~/.m2/repository/cn/com/keelbase/<artifact>/<version>/`, and the shadowing entries are the ones whose
+`_remote.repositories` reads `artifact>=` with no `.md5`/`.sha1` sidecars.
+
 ### A prepared Maven repository, for building with no network — 离线构建：备好一份 Maven 本地库
 
 **中文块在前、英文块在后 —— 本仓的块顺序与其它仓相反。**

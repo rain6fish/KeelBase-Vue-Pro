@@ -71,7 +71,28 @@ fi
 # 那个 `keelbase` profile 带着**本部署是什么** —— 它的业务模块与它们的名字 —— 而它是一份**我们自己的文件**、
 # 不是这里的一个取值，理由只有一条：那些 label 是中文，而 argv 正是中文串**不再是那个串**的地方
 # （平台参数编码说了算）。
-exec bash "$HERE/jdk25.sh" java -jar "$ROOT/yudao-server/target/yudao-server.jar" \
+JAR="$ROOT/yudao-server/target/yudao-server.jar"
+
+# 起栈之前先核一件本仓从前没人核的事：这件产物里带的运行时，是不是**发布的那一份字节**。
+# 2026-10-26 实测：POM 钉着 `0.1.11`、Central 上也有、tag 也对得上，而产物里嵌的却是本机 `mvn install`
+# 装进去的同版本重编产物（`4b203bb3…` 对 `8a2c34dc…`）。内容等价，所以构建、发布、CI 全绿，没有一处会报。
+# 于是这道检查放在**真正要跑的那一刻**：跑的东西不是发布版，这一次读数就不该被当成「发布版跑过了」。
+# 不联网、或发布库上没有这个坐标，一律红 —— 那是「判不了」，不读成「没事」。要显式跳过用下面的开关。
+# Before the stack starts, check the one thing nobody in this repository checked: whether the runtime inside this
+# artefact is **the published bytes**. Measured 2026-10-26: the POM pinned `0.1.11`, Central carried it, the tag
+# matched — and the artefact embedded an identical-version local `mvn install` (`4b203bb3…` against `8a2c34dc…`).
+# The contents are equivalent, so the build, the release and CI all stayed green and nothing reported it. The check
+# therefore sits **at the moment it is actually used**: if what runs is not the published copy, this reading must not
+# be taken as "the published runtime was run". No network, or the coordinate is not published, is red too — that is
+# "cannot decide", never "fine". The switch below skips it, out loud.
+if [ "${KEELBASE_SKIP_RUNTIME_BYTES:-0}" = "1" ]; then
+  echo "⚠ 跳过运行时字节核对（KEELBASE_SKIP_RUNTIME_BYTES=1）—— 本次读数不能说明跑的是发布版。" >&2
+  echo "⚠ skipped the runtime-bytes check — this run does not say it ran the published runtime." >&2
+else
+  node "$HERE/check-runtime-pin-bytes.mjs" --jar "$JAR" || exit $?
+fi
+
+exec bash "$HERE/jdk25.sh" java -jar "$JAR" \
   --server.port="$PORT" \
   --spring.profiles.active=local,keelbase \
   --spring.flyway.baseline-on-migrate=true --spring.flyway.baseline-version=0 \

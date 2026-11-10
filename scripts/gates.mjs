@@ -25,6 +25,9 @@
 //   stack  要一个**跑着的**宿主（CI 用 service containers 起 PG/Redis 再起宿主）。本地没有栈时这些门禁
 //          是 SKIP，不是 PASS —— 它们的读数只在真栈上才有意义。
 //
+// 另有一档**要网络**：`check-runtime-pin-bytes` 要读发布库给出的 `.sha1`。离线时它以 exit 2「判不了」
+// 收场，于是这道门是红的 —— 判不了不读成绿，这是它自己的约定，不是这里另加的。
+//
 // 用法：
 //
 //   node scripts/gates.mjs                 # 跑得动的都跑；跑不了的逐条 SKIP + 原因 + 补法
@@ -69,6 +72,10 @@
 //   stack  A **running** host (CI brings up PostgreSQL/Redis as service containers, then the host).
 //          Without a stack these gates are SKIP, never PASS — their readings only mean something on a
 //          real stack.
+//
+// One class more — **network**: `check-runtime-pin-bytes` reads the `.sha1` the publishing repository
+// serves. Offline it exits 2 ("cannot decide") and this gate is therefore red; "cannot decide" is never
+// read as green, by that gate's own contract rather than by anything added here.
 //
 //   node scripts/gates.mjs                 # run what can run; SKIP the rest with reason + fix
 //   node scripts/gates.mjs --require-all   # a missing prerequisite is red (= CI's full condition)
@@ -298,6 +305,16 @@ export const GATES = [
       'test',
       '-Dtest=cn.iocoder.yudao.module.ai1.**.*Test',
     ],
+  },
+
+  // ── needs the publishing repository (network) ────────────────────────────────
+  // The host's three pinned runtime jars must be the published bytes. Exits 2 when the published
+  // `.sha1` cannot be read (offline, unpublished coordinate) — a red, never a quiet pass.
+  {
+    id: 'runtime-pin-bytes',
+    job: 'conformance',
+    prereq: 'node',
+    cmd: ['node', 'scripts/check-runtime-pin-bytes.mjs'],
   },
 
   // ── a running stack ───────────────────────────────────────────────────────────

@@ -55,6 +55,21 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 `-pl yudao-server -am` 构建服务端及其依赖，跳过那十五个没接进服务端的业务模块。产物是
 `yudao-server/target/` 下的 fat jar。这一步假定 `mvn` 在 `PATH` 上；下面的数据存储另需 Docker。
 
+**核一下构建到底解析到了什么。** 宿主钉的是**已发布**的运行时，而**已发布的版本坐标一旦本机有副本，Maven 就不会再去取**
+—— 于是本机对同一版本做一次 `mvn install`，就**静默遮蔽**了发布的那份 jar，而所有读数照样是绿的。2026-10-26 实测：
+`0.1.11` 既钉了也发了，产物里嵌的却是本机重编的 `4b203bb3…`，不是发布的 `8a2c34dc…`。那两份之所以等价，只是因为
+当时没人改过源码 —— 而构建里没有任何东西会说这件事，改没改都是。
+
+```bash
+node scripts/check-runtime-pin-bytes.mjs --jar yudao-server/target/yudao-server.jar
+```
+
+它从 POM 读出 pin，算产物里那三件 jar 的 sha1，逐个与发布库给出的 `.sha1` 比。不等即红，并把两个 sha1 都打出来；
+**取不到发布的 sha1 也是红** —— 那是「判不了」，不是「没事」。`scripts/run-server.sh` 每次起栈前都会跑它，CI 在构建之后
+跑仓库面那一形态。红了就把本机装的那几份移开再解析一次 —— 它们在
+`~/.m2/repository/cn/com/keelbase/<artifact>/<version>/`，遮蔽的那几份是 `_remote.repositories` 写 `artifact>=`、
+且没有 `.md5`/`.sha1` sidecar 的。
+
 ### 离线构建：备好一份 Maven 本地库
 
 钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉

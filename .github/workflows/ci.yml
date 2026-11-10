@@ -854,14 +854,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 宿主钉的是**已发布**的运行时 `0.1.17`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
-      # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。抬运行时版本时，
-      # 宿主 pom 的坐标与这里一起改。
+      # 宿主钉的是**已发布**的运行时（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
+      # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。**版本号这里不写** ——
+      # 它只在 pom 的 pin 里，写在这里就会漂（这句从前写着 `0.1.9`，而 pin 早已走到 `0.1.17`）。
       #
-      # The host pins the **released** runtime `0.1.17` (available on Central), so CI resolves it
-      # directly instead of building the public repository at a SHA: a SNAPSHOT lives only in a
-      # developer's `~/.m2`, which left this job missing artifacts on the runner. When the runtime
-      # version is bumped, the host pom's coordinate moves with it.
+      # The host pins a **released** runtime (available on Central), so CI resolves it directly instead
+      # of building the public repository at a SHA: a SNAPSHOT lives only in a developer's `~/.m2`,
+      # which left this job missing artifacts on the runner. **The version is not written here** — it
+      # lives only in the POM's pin, and a copy here drifts (this line said `0.1.9` long after the pin
+      # had moved on).
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -907,6 +908,24 @@ jobs:
         run: >-
           KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
           -pl yudao-server -am -DskipTests install
+
+      # 构建解析到的那三件运行时，必须是**发布的那一份字节**。2026-10-26 实测：pom 钉着 `0.1.11`、Central 上也有、
+      # tag 也对得上，而宿主产物里嵌的是本机 `mvn install` 装进去的同版本重编产物（core `4b203bb3…` 对
+      # `8a2c34dc…`）。内容等价（同 POM、同源码、同 API），所以构建、发布、本 job 全绿，没有一处会报。
+      # 在 runner 上 `~/.m2` 只由 Central 填充，故这一步抓的是另两类事实：**pin 指向一个还没发布的版本**
+      # （解析失败或 `.sha1` 404 ⇒ 红，而不是「查不了就算过」），以及**发布那份在版本号不变的情况下换了字节**。
+      # 开发机上的本机遮蔽它抓不到 —— 那由 `scripts/run-server.sh` 每次起栈前跑同一个脚本去挡。
+      #
+      # The three runtime artefacts the build resolved must be **the published bytes**. Measured 2026-10-26: the POM
+      # pinned `0.1.11`, Central carried it and the tag matched — while the host artefact embedded an identical-version
+      # local `mvn install` (core `4b203bb3…` against `8a2c34dc…`). The contents are equivalent (same POM, same
+      # sources, same API), so the build, the release and this job all stayed green and nothing reported it. On a
+      # runner `~/.m2` is filled from Central alone, so what this step catches is two other facts: **a pin pointing at
+      # a version not yet published** (resolution or the `.sha1` 404s ⇒ red, never "cannot check, so pass"), and **a
+      # published copy whose bytes changed under a fixed version number**. The developer-machine shadowing it cannot
+      # see — that is the same script run by `scripts/run-server.sh` before every stack start.
+      - name: The runtime the build resolved is the published one
+        run: node scripts/check-runtime-pin-bytes.mjs
 
       - name: Run the host's Java tests
         timeout-minutes: 10
