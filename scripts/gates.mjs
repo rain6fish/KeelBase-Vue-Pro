@@ -103,6 +103,7 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -794,10 +795,26 @@ export function resolveUiDir() {
     : path.join(ROOT, 'target', 'yudao-ui-admin-vue3');
 }
 
-const UI_PACKAGES = ['vue', 'vue-i18n', '@vue/compiler-sfc', '@vue/compiler-dom'];
+// `vue` 与 `vue-i18n` 必须落在检出顶层的 `node_modules`：两道渲染闸按**字面路径**读
+// `node_modules/vue-i18n/dist/vue-i18n.mjs`，模块解析救不了这种读法。
+// `vue` and `vue-i18n` must sit in the checkout's top-level `node_modules`: both render gates read
+// `node_modules/vue-i18n/dist/vue-i18n.mjs` by that literal path, which module resolution cannot rescue.
+const UI_PACKAGES = ['vue', 'vue-i18n'];
 
-export function detectUi() {
-  const dir = resolveUiDir();
+// 三个工具包从 `vue` 自己的 `package.json` 起解析 —— 与两道闸门同一处解析。查顶层会漏掉 pnpm：
+// `build-host-ui.sh` 用 pnpm 装，`vue` 是直接依赖、`@vue/compiler-*` 与 `@babel/parser` 是传递依赖，
+// 只存在 `node_modules/.pnpm/…/node_modules/…` 下，顶层没有。2026-11-11 实测：按该脚本铺好检出后，
+// 这里按顶层判「缺包」，四道渲染门因此一直 SKIP，而它们当时全绿。
+//
+// The three toolchain packages resolve from `vue`'s own `package.json` — the same base the two gates
+// use. A top-level check misses pnpm: `build-host-ui.sh` installs with pnpm, where `vue` is a direct
+// dependency and `@vue/compiler-*` plus `@babel/parser` are transitive, living only under
+// `node_modules/.pnpm/…/node_modules/…`. Measured 2026-11-11: with that script's checkout in place the
+// top-level check called the packages missing, so all four render gates stayed SKIP while they were
+// in fact green.
+const UI_TOOLCHAIN = ['@vue/compiler-sfc', '@vue/compiler-dom', '@babel/parser'];
+
+export function detectUi(dir = resolveUiDir()) {
   if (!fs.existsSync(dir)) {
     return {
       ok: false,
@@ -807,10 +824,21 @@ export function detectUi() {
     };
   }
   const missing = UI_PACKAGES.filter((p) => !fs.existsSync(path.join(dir, 'node_modules', p)));
+  const vuePkg = path.join(dir, 'node_modules', 'vue', 'package.json');
+  if (fs.existsSync(vuePkg)) {
+    const requireFromVue = createRequire(pathToFileURL(fs.realpathSync(vuePkg)));
+    for (const p of UI_TOOLCHAIN) {
+      try {
+        requireFromVue.resolve(p);
+      } catch {
+        missing.push(p);
+      }
+    }
+  }
   if (missing.length > 0) {
     return {
       ok: false,
-      detail: `checkout at ${dir} has no ${missing.join(', ')} in node_modules`,
+      detail: `checkout at ${dir} is missing ${missing.join(', ')}`,
       fix: 'bash scripts/build-host-ui.sh  (installs the packages the render gates resolve from the checkout)',
       dir,
     };
