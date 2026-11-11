@@ -44,8 +44,13 @@ function fakeJdkHome() {
 }
 
 // `unset` names env vars this machine may already carry, so each case starts from the script's default.
+// `KEELBASE_SKIP_RUNTIME_BYTES` is on because this file asserts the command line, not the artefact: the
+// script's runtime-bytes check needs a built jar, which a clean checkout does not have (and CI's script
+// tests run without one). The skip says so on stderr; nothing below reads it.
+// `KEELBASE_SKIP_RUNTIME_BYTES` 开着，因为本文件断言的是命令行、不是产物：脚本里的运行时字节核对需要一枚
+// 已构建的 jar，而干净检出没有（CI 的脚本测试也没有）。跳过开关会在 stderr 明说；下面不读它。
 function startArgs(env) {
-  const childEnv = { ...process.env, ...env };
+  const childEnv = { ...process.env, KEELBASE_SKIP_RUNTIME_BYTES: '1', ...env };
   for (const name of env.UNSET ?? []) delete childEnv[name];
   delete childEnv.UNSET;
   const home = fakeJdkHome();
