@@ -55,9 +55,9 @@ const MESSAGES = {
   'keelbase.sixQ.account': 'account',
   'keelbase.sixQ.someone': 'Someone',
   'keelbase.sixQ.confirmNotNeeded': 'No confirmation needed — this tool is set to run on its own',
-  'keelbase.sixQ.confirmSelf': 'confirmed it themselves, inside the conversation',
+  'keelbase.sixQ.confirmSelf': 'confirmed it themselves (in-band; client not recorded)',
   'keelbase.sixQ.confirmWaiting': 'has not answered yet — the write is still waiting',
-  'keelbase.sixQ.confirmDeclined': 'refused it, inside the conversation',
+  'keelbase.sixQ.confirmDeclined': 'refused it (in-band; client not recorded)',
   'keelbase.sixQ.confirmApprovalUnrecorded': 'a second person approved it — this row does not record who',
   'keelbase.sixQ.confirmBlocked': 'no one can — this tool is held at a blocking risk level',
   'keelbase.sixQ.objectUnrecorded': 'not recorded — this call wrote no record',
@@ -248,6 +248,35 @@ test('the confirmed write names who confirmed, and the refused one says a person
   assert.match(confirmed.text, /KeelBase confirmed it themselves/)
   const refused = answersFor(OPERATIONS[2]).find((a) => a.key === 'confirmation')
   assert.match(refused.text, /KeelBase refused it/)
+})
+
+test('an in-band confirmation does not claim which client the confirmation came from', () => {
+  // 2026-11-11 第六位读者复验（D-9）：同一次写的宿主操作日志 UA 是 `curl/8.19.0`，而审计链写着
+  // 「本人，对话内」。审计行没有记客户端，那句「对话内」是没有依据的断言。这一格只许说带内确认、
+  // 客户端未记；问「是不是在对话里点的」不归这一格回答。
+  //
+  // The sixth reader's recheck (D-9, 2026-11-11): the host's own operation-log row for the same write
+  // carried UA `curl/8.19.0` while the audit chain said "inside the conversation". The audit row records
+  // no client, so that phrase is an unsupported claim. This cell may say in-band and client-not-recorded;
+  // it may not answer "was it clicked in a conversation".
+  for (const op of [OPERATIONS[1], OPERATIONS[2]]) {
+    const cell = answersFor(op).find((a) => a.key === 'confirmation')
+    assert.doesNotMatch(cell.text, /inside the conversation|in the conversation|对话内/i, `got "${cell.text}"`)
+    assert.match(cell.text, /in-band; client not recorded/)
+  }
+})
+
+test('both locale dictionaries drop the unverified client claim', () => {
+  // 词条本身也钉住：只改模块里的测试词表不够，`0002-governance-ui.patch` 里的中英两份必须一起改。
+  // The dictionaries are pinned too: updating the test's own vocabulary is not enough — both copies in
+  // `0002-governance-ui.patch` have to change together.
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8')
+  assert.doesNotMatch(patch, /inside the conversation/)
+  assert.doesNotMatch(patch, /（本人，对话内）|（对话内）/)
+  assert.match(patch, /confirmSelf: 'confirmed it themselves \(in-band; client not recorded\)'/)
+  assert.match(patch, /confirmSelf: '确认了这次写（本人确认；客户端未记）'/)
+  assert.match(patch, /confirmDeclined: 'refused it \(in-band; client not recorded\)'/)
+  assert.match(patch, /confirmDeclined: '拒绝了这次写（本人拒绝；客户端未记）'/)
 })
 
 test('the time carries a zone', () => {

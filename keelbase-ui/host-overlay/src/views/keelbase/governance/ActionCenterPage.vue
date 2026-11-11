@@ -161,10 +161,14 @@
               <span>
                 {{ maskTitle(row.targetTitle) }}
                 <!-- The masking note belongs to a title that exists. Where the runtime answers none,
-                     saying "masked" would describe an act nobody performed. -->
+                     saying "masked" would describe an act nobody performed. Here the note also names
+                     the business leg below it: that table is the host's own log, shown under the
+                     host's read permission, so this sentence must not claim the console prints
+                     nothing. -->
                 <!-- 掩码那句话属于**真有过标题**的情形。运行时没答内容时说「已掩码」，是在描述一件没人
-                     做过的事。 -->
-                <span v-if="row.targetTitle" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
+                     做过的事。这里那句话也点了下方那条业务腿：那张表是**宿主自己的日志**、按宿主的读
+                     权限显示，故这句话不能声称本控制台什么都不打印。 -->
+                <span v-if="row.targetTitle" class="muted">{{ t('keelbase.effects.maskedNoteHostLog') }}</span>
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>

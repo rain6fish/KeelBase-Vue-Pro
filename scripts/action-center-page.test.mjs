@@ -101,6 +101,7 @@ test('both locale dictionaries carry every F-18 key', () => {
     'approvedNotRun', 'approvedNotRunUnknown', 'unknownReason', 'executedOk', 'approvedNoResult',
     'readOnlyNote', 'notHereNote',
     'colChecks', 'checkPassed', 'checkFailed', 'checksNote',
+    'maskedNote', 'maskedNoteHostLog',
     'risk_policy', 'tool_enabled', 'role_allowed', 'feature_flag', 'admin_only', 'agent_read_only',
     'detailLine',
   ]
@@ -108,6 +109,36 @@ test('both locale dictionaries carry every F-18 key', () => {
     assert.ok(enKeys.has(key), `en.ts is missing ${key}`)
     assert.ok(zhKeys.has(key), `zh-CN.ts is missing ${key}`)
   }
+})
+
+test('the masking note does not contradict the host leg beside it', () => {
+  // 2026-11-11 第六位读者复验（D-10）：目标格写「本控制台不打印记录的内容」，同一个抽屉下方的业务腿
+  // 却把全名 `SixthReaderFormal 20261111` 印了出来。业务腿是**宿主自己的日志**（`YD-T18` / `D50`），
+  // 谁能读由宿主说；故目标格那句话只能说自己：记录名已掩码，下方宿主日志按宿主的读权限显示。
+  //
+  // The sixth reader's recheck (D-10, 2026-11-11): the target cell said "this console does not print what
+  // a record is about" while the business leg in the same drawer printed the full name. That leg is the
+  // host's own log (`YD-T18` / `D50`) and its scope is the host's, so the note may only speak for itself:
+  // the record name is masked, and the host log below is shown under the host's read permission.
+  assert.doesNotMatch(actionCenter, /keelbase\.effects\.maskedNote'/, 'the action center still uses the leg-blind note')
+  assert.match(actionCenter, /keelbase\.effects\.maskedNoteHostLog/, 'the action center no longer names the host leg')
+  assert.match(actionCenter, /maskTitle\(row\.targetTitle\)/, 'the record name is no longer masked')
+  assert.match(actionCenter, /prop="action"/, 'the business leg no longer draws the host row it is describing')
+
+  assert.doesNotMatch(patch, /does not print what a record is about/, 'the English note still promises the console prints nothing')
+  assert.doesNotMatch(patch, /本控制台不打印记录的内容/, 'the Chinese note still promises the console prints nothing')
+  assert.match(
+    patch,
+    /maskedNoteHostLog: '\(record name masked; the host log below is shown under the host\\'s read permission\)'/,
+    'the English host-leg note is gone',
+  )
+  assert.match(
+    patch,
+    /maskedNoteHostLog: '（记录名已掩码；下方宿主业务日志按宿主的读权限显示）'/,
+    'the Chinese host-leg note is gone',
+  )
+  assert.match(patch, /maskedNote: '\(record name masked\)'/, 'the ledger page lost its neutral note')
+  assert.match(patch, /maskedNote: '（记录名已掩码）'/, 'the ledger page lost its neutral Chinese note')
 })
 
 test('a failed runtime envelope is an error, not data', () => {

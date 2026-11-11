@@ -190,15 +190,17 @@ export function gateFromRow(row) {
 /**
  * ⑤ 谁确认 —— 按**这一行记下的那道闸**（见 `gateFromRow`）回答，不按工具当下的设定猜。
  *
- * 自动放行写「无需确认」；要求本人确认的写「本人确认（对话内）」—— 因为那道闸的定义就是「等操作者
- * 本人」；要求第二人批准的工具，本运行时的审计行上**没有**批准人是谁，故这一格如实说没有，而不是拿隔壁那一行
+ * 自动放行写「无需确认」；要求本人确认的写「本人确认；客户端未记」—— 那道闸只说明这次确认是**本人、
+ * 带内**完成的，审计行没有记下它来自哪个客户端（浏览器、命令行还是内嵌面板），故这一格不写「对话内」。
+ * 要求第二人批准的工具，本运行时的审计行上**没有**批准人是谁，故这一格如实说没有，而不是拿隔壁那一行
  * 的时间去凑一个人。
  *
  * ⑤ who confirmed — answered from **the gate this row recorded** (see `gateFromRow`), not guessed from
  * the tool's setting today.
  *
- * An auto-allowed call says 「无需确认」. A tool that asks the operator says 「本人确认（对话内）」, because
- * that is what the gate means. A tool that needs a second person carries no approver on this runtime's
+ * An auto-allowed call says 「无需确认」. A tool that asks the operator says 「本人确认；客户端未记」: the
+ * gate says the caller confirmed in-band, and this row does not record which client they used, so this
+ * cell claims no conversation. A tool that needs a second person carries no approver on this runtime's
  * audit row, so this cell says so rather than pairing the neighbour row by its timestamp.
  */
 export function confirmationLine({ gate, outcome, callerName, t }) {
