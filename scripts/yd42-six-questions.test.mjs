@@ -59,6 +59,7 @@ const MESSAGES = {
   'keelbase.sixQ.confirmWaiting': 'has not answered yet — the write is still waiting',
   'keelbase.sixQ.confirmDeclined': 'refused it (in-band; client not recorded)',
   'keelbase.sixQ.confirmApprovalUnrecorded': 'a second person approved it — this row does not record who',
+  'keelbase.sixQ.confirmSecondPerson': 'approved it — a second person, not the operator',
   'keelbase.sixQ.confirmBlocked': 'no one can — this tool is held at a blocking risk level',
   'keelbase.sixQ.objectUnrecorded': 'not recorded — this call wrote no record',
   'keelbase.sixQ.objectUnnamed': 'a business object this console has no name for',
@@ -74,6 +75,8 @@ const MESSAGES = {
   'keelbase.sixQ.fieldDealStatus': 'Deal closed',
   'keelbase.sixQ.fieldFollowUpStatus': 'Followed up',
   'keelbase.record.crm_customer': 'Customer',
+  'keelbase.record.follow_up': 'Follow-up',
+  'keelbase.record.pm_project': 'Project',
 }
 
 const t = (key) => MESSAGES[key] ?? key
@@ -478,4 +481,190 @@ test('the caller name comes from the audit read face, not from the user administ
   assert.match(code, /'\/keelbase\/caller-names'/, 'the caller name no longer comes from the caller-name read face')
   assert.doesNotMatch(code, /getUserList/, 'the caller name is read from the user administration again')
   assert.doesNotMatch(code, /\/system\/user\//, 'the caller name is read from a /system/user endpoint again')
+})
+
+// ── G1：被闸门拦下的调用把「本来要动哪条记录」记在行末 ────────────────────────────────────────────────
+// ── G1: a gate-blocked call records which record it meant to touch at the end of its own row ──────────
+test('a blocked row reads back the key the runtime recorded, and nothing when it did not', () => {
+  assert.equal(
+    six.recordedObjectIn({ detail: 'delete_project blocked (risk_policy) · intended object #12' }),
+    12,
+    'the key the engine appends is not read back',
+  )
+  assert.equal(
+    six.recordedObjectIn({ detail: 'delete_project blocked (risk_policy)' }),
+    null,
+    'a row that recorded no key must not yield one',
+  )
+  assert.equal(
+    six.recordedObjectIn({ detail: 'x · intended object #12 · later' }),
+    null,
+    'the key is only read at the end of the sentence, where the engine writes it',
+  )
+  assert.equal(six.recordedObjectIn({}), null)
+  assert.equal(six.recordedObjectIn(null), null)
+})
+
+test('a blocked operation answers ③ from its own row, in business words', () => {
+  const answers = six.composeSix({
+    row: {
+      id: 36,
+      userId: '1',
+      action: 'tool_call',
+      detail: 'delete_project blocked (risk_policy) · intended object #12',
+      isError: true,
+      createdAt: '2026-11-05T11:11:18.774211Z',
+      outcome: 'blocked',
+      tool: 'delete_project',
+      authorization:
+        '{"riskLevel":"R5","riskStrategy":"block","requiresConfirmation":true,"checks":[{"name":"risk_policy","ok":false}]}',
+    },
+    callerName: 'KeelBase',
+    effect: null,
+    proposal: null,
+    recorded: { resultType: 'pm_project', resultId: 12 },
+    hostNowName: '',
+    recordState: '',
+    mask,
+    resultWord: 'Blocked',
+    resultMeaning: 'A risk policy stopped it before anyone was asked',
+    t,
+    te,
+  })
+  const object = answers.find((a) => a.key === 'object')
+  assert.equal(object.answered, true, 'the blocked operation still cannot name its object')
+  assert.equal(object.text, 'Project · #12', `the kind and the key are not both drawn: ${object.text}`)
+  assert.equal(six.scoreSix(answers).cells, 6, 'the blocked operation no longer answers all six')
+  assert.deepEqual(six.scoreSix(answers).leaked, [], 'the blocked answer leaks an internal name')
+})
+
+test('without the recorded key the blocked operation still says it was not recorded', () => {
+  const object = six.objectLine({
+    effect: null,
+    proposal: null,
+    recorded: null,
+    hostNowName: '',
+    proposalName: '',
+    state: '',
+    mask,
+    t,
+    te,
+  })
+  assert.equal(object.answered, false, 'a row that recorded no key must not be answered from elsewhere')
+  assert.equal(object.text, t('keelbase.sixQ.objectUnrecorded'))
+})
+
+// ── G2：第二人批准那一行，⑤ 由同一次操作的裁决行补上 ────────────────────────────────────────────────
+// ── G2: the approval row's ⑤ comes from the decision row of the same operation ───────────────────────
+const WRITE_ROW = {
+  id: 40,
+  userId: '1',
+  action: 'tool_call',
+  detail: 'escalate_customer -> ok',
+  isError: false,
+  createdAt: '2026-11-05T11:11:20.226058Z',
+  outcome: 'executed',
+  tool: 'escalate_customer',
+  authorization: '{"riskLevel":"R4","riskStrategy":"human_approval","requiresConfirmation":true,"checks":[]}',
+}
+const DECISION_ROW = {
+  id: 38,
+  userId: '9901',
+  action: 'tool_confirmation',
+  detail: 'escalate_customer approved (out_of_band)',
+  isError: false,
+  createdAt: '2026-11-05T11:11:19.900000Z',
+  outcome: 'approved',
+  tool: 'escalate_customer',
+  authorization: null,
+}
+
+test('the approver is paired from the decision row of the same operation', () => {
+  const paired = six.approverOf(WRITE_ROW, [DECISION_ROW, WRITE_ROW])
+  assert.ok(paired, 'the decision row of the same operation was not paired')
+  assert.equal(String(paired.userId), '9901', 'the paired row is not the decision')
+})
+
+test('an ambiguous or far-away decision is not resolved — no guessing', () => {
+  assert.equal(six.approverOf(WRITE_ROW, []), null, 'no decision row must not yield a person')
+  assert.equal(
+    six.approverOf(WRITE_ROW, [DECISION_ROW, { ...DECISION_ROW, id: 39 }]),
+    null,
+    'two candidates must not resolve to one',
+  )
+  assert.equal(
+    six.approverOf(WRITE_ROW, [{ ...DECISION_ROW, createdAt: '2026-11-05T11:11:40.000000Z' }]),
+    null,
+    'a decision outside the five-second window is not the same write',
+  )
+  assert.equal(
+    six.approverOf(WRITE_ROW, [{ ...DECISION_ROW, tool: 'update_crm_customer' }]),
+    null,
+    "another tool's decision is not this write's approver",
+  )
+  assert.equal(
+    six.approverOf(WRITE_ROW, [{ ...DECISION_ROW, outcome: 'attempted' }]),
+    null,
+    'a retry row is not a decision',
+  )
+})
+
+test('the approval row answers ⑤ with the person, once the caller has paired them', () => {
+  const answers = six.composeSix({
+    row: WRITE_ROW,
+    callerName: 'KeelBase',
+    effect: null,
+    proposal: null,
+    recorded: null,
+    approverName: 'Audit Approver',
+    hostNowName: '',
+    recordState: '',
+    mask,
+    resultWord: 'Executed',
+    resultMeaning: 'It really happened; the write is in the system',
+    t,
+    te,
+  })
+  const confirmation = answers.find((a) => a.key === 'confirmation')
+  assert.equal(confirmation.answered, true, 'the approval row still cannot name who approved it')
+  assert.equal(
+    confirmation.text,
+    `Audit Approver ${t('keelbase.sixQ.confirmSecondPerson')}`,
+    `the second person is not named: ${confirmation.text}`,
+  )
+})
+
+test('with no paired approver the approval row still says the row does not record who', () => {
+  const answers = six.composeSix({
+    row: WRITE_ROW,
+    callerName: 'KeelBase',
+    effect: null,
+    proposal: null,
+    recorded: null,
+    approverName: '',
+    hostNowName: '',
+    recordState: '',
+    mask,
+    resultWord: 'Executed',
+    resultMeaning: 'It really happened; the write is in the system',
+    t,
+    te,
+  })
+  const confirmation = answers.find((a) => a.key === 'confirmation')
+  assert.equal(confirmation.answered, false, 'an unpaired approval row must not be answered from elsewhere')
+  assert.equal(confirmation.text, t('keelbase.sixQ.confirmApprovalUnrecorded'))
+})
+
+// ── G3：`follow_up` 与 `pm_project` 有业务名 ─────────────────────────────────────────────────────
+// ── G3: `follow_up` and `pm_project` have business words ───────────────────────────────────────────
+test('follow_up and pm_project carry business words, and an unknown kind still says so', () => {
+  assert.equal(te('keelbase.record.follow_up'), true, 'follow_up has no business word')
+  assert.equal(t('keelbase.record.follow_up'), 'Follow-up')
+  assert.equal(te('keelbase.record.pm_project'), true, 'pm_project has no business word')
+  assert.equal(t('keelbase.record.pm_project'), 'Project')
+  assert.equal(
+    te('keelbase.record.some_future_type'),
+    false,
+    'a kind with no word must stay unknown rather than borrowing one',
+  )
 })

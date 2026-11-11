@@ -71,13 +71,13 @@ public interface PmsWorkItemMapper extends BaseMapperX<PmsWorkItemDO> {
      */
     default Map<Long, Map<Integer, Long>> selectStatusCountMapByProjectIds(Collection<Long> projectIds) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsWorkItemDO>()
-                .select("project_id AS projectId", "status", "COUNT(*) AS count")
+                .select("project_id", "status", "COUNT(*) AS count")
                 .in("project_id", projectIds)
                 .eq("lifecycle_status", PmsWorkItemLifecycleStatusEnum.ACTIVE.getStatus())
                 .groupBy("project_id", "status"));
         Map<Long, Map<Integer, Long>> projectStatusCountMap = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            Long projectId = ((Number) row.get("projectId")).longValue();
+            Long projectId = ((Number) row.get("project_id")).longValue();
             Integer status = ((Number) row.get("status")).intValue();
             projectStatusCountMap.computeIfAbsent(projectId, key -> new LinkedHashMap<>())
                     .put(status, ((Number) row.get("count")).longValue());
@@ -93,13 +93,13 @@ public interface PmsWorkItemMapper extends BaseMapperX<PmsWorkItemDO> {
      */
     default Map<Long, Map<Integer, Long>> selectStatusCountMapByIterationIds(Collection<Long> iterationIds) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsWorkItemDO>()
-                .select("iteration_id AS iterationId", "status", "COUNT(*) AS count")
+                .select("iteration_id", "status", "COUNT(*) AS count")
                 .in("iteration_id", iterationIds)
                 .eq("lifecycle_status", PmsWorkItemLifecycleStatusEnum.ACTIVE.getStatus())
                 .groupBy("iteration_id", "status"));
         Map<Long, Map<Integer, Long>> iterationStatusCountMap = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            Long iterationId = ((Number) row.get("iterationId")).longValue();
+            Long iterationId = ((Number) row.get("iteration_id")).longValue();
             Integer status = ((Number) row.get("status")).intValue();
             iterationStatusCountMap.computeIfAbsent(iterationId, key -> new LinkedHashMap<>())
                     .put(status, ((Number) row.get("count")).longValue());

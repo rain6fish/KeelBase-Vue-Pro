@@ -36,7 +36,7 @@
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-core</artifactId>
-            <version>0.1.16</version>
+            <version>0.1.17</version>
         </dependency>
 
         <!-- KeelBase's Spring AI adapter — the model loop on KeelBase's **own** path. It implements the
@@ -52,7 +52,7 @@
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-springai</artifactId>
-            <version>0.1.16</version>
+            <version>0.1.17</version>
         </dependency>
 
         <!-- The trace id the host writes beside its own logs and hands to the runtime for execution
@@ -232,20 +232,21 @@
         </dependency>
 
         <!-- PMS 项目管理模块。默认注释，保证编译速度 -->
-        <!-- Enabled for this line. / 本线打开。 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-pms</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- M3 为 pms 这一批打开它：覆盖门只枚举**已部署**的模块，而工具面需要那两个 service 在类路径上。 /
+             M3 enables it for the pms batch: the coverage gate enumerates deployed modules only, and the
+             tool faces need those two services on the classpath. -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-pms</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
-        <!-- OA 办公自动化模块。默认注释，保证编译速度 -->
-        <!-- Enabled for this line. / 本线打开。 -->
-<!--        <dependency>-->
-<!--            <groupId>cn.iocoder.boot</groupId>-->
-<!--            <artifactId>yudao-module-oa</artifactId>-->
-<!--            <version>${revision}</version>-->
-<!--        </dependency>-->
+        <!-- OA 办公自动化模块。M3 第三批打开读面。 / The OA module — opened by M3 batch three, read face only. -->
+        <dependency>
+            <groupId>cn.iocoder.boot</groupId>
+            <artifactId>yudao-module-oa</artifactId>
+            <version>${revision}</version>
+        </dependency>
 
         <!-- IM 相关模块。默认注释，保证编译速度 -->
 <!--        <dependency>-->

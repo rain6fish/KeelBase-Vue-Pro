@@ -96,6 +96,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
 
       # `-p 127.0.0.1:...`：端口只挂在回环上。就绪判据用各自的客户端（`pg_isready` /
       # `redis-cli ping`），而不是 sleep —— 「容器起了」与「它接得住连接」是两件事。
@@ -166,6 +171,22 @@ jobs:
         run: >-
           KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
           -pl yudao-server -am -DskipTests package 2>&1 | tee build.log
+
+      # 门禁以 `-o` 跑 `mvn ... test`，而 `-DskipTests` 只编译测试、不解析 surefire 的 provider。
+      # pin 一变 pom 就变，setup-java 的 maven 缓存键随之失效；冷库里那一件缺着，测试进程根本起不来，
+      # 报告缺失又被门禁读成「未通过」。这一步在线跑同一个测试类一次，把 provider 解析进本作业用的本地库。
+      #
+      # The gates run `mvn ... test` with `-o`, but `-DskipTests` only compiles the tests and never
+      # resolves surefire's provider. A pin bump changes the pom, which rotates setup-java's maven
+      # cache key; on the cold repository that artifact is absent, the test process cannot start at
+      # all, and the missing reports are read as "not passing". This step runs one test class online
+      # so the provider lands in the same local repository this job builds against.
+      - name: Warm the offline test provider
+        timeout-minutes: 10
+        run: >-
+          KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
+          -pl yudao-server -am -Dtest=FmsReportingToolsTest -DfailIfNoTests=false
+          -Dsurefire.failIfNoSpecifiedTests=false test 2>&1 | tee warm-test-provider.log
 
       # `repackage` 没跑时产物是个普通 jar：起它时会以「no main manifest attribute」失败，而这句
       # 让失败发生在**构建这一步**、并说出是哪个文件。顺手记下 jar 里三个 `keelbase4j-*` 的版本，
@@ -265,6 +286,22 @@ jobs:
           PG_CONTAINER: ${{ env.PG_CONTAINER }}
           PG_DB: ${{ env.PG_DB }}
           PG_USER: ${{ env.PG_USER }}
+          # 旁路审计门会自己再起一个宿主（开关关），它连的是**宿主侧**端口；这些值必须与「起宿主并等应答」
+          # 那一步逐项一致，否则第二个宿主回落到 `run-server.sh` 的默认端口、连不上库并在十几秒内退出。
+          #
+          # The bypass-audit gate starts a second host itself (switch off) and that host dials the **host-side**
+          # ports; these must match the "Start the host" step item for item, or the second host falls back to
+          # `run-server.sh`'s default ports, cannot reach the database and exits within seconds.
+          PG_HOST: 127.0.0.1
+          PG_PORT: ${{ env.PG_HOST_PORT }}
+          PG_PASSWORD: ${{ env.PG_PASSWORD }}
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: ${{ env.REDIS_HOST_PORT }}
+          ACCESS_LOG: 'false'
+          # 第二个宿主的日志落在工作区内，随 artifact 一起上传 —— 下一次红要能自己说明为什么。
+          # The second host's log lands inside the workspace and travels with the artifact, so the next red
+          # explains itself.
+          EVIDENCE_DIR: ${{ github.workspace }}/bypass-audit-evidence
           MVN: mvn
         run: |
           set -uo pipefail
@@ -302,6 +339,7 @@ jobs:
             jar-runtime.txt
             ci-skip-notices.txt
             scenario-logs/
+            bypass-audit-evidence/
           if-no-files-found: warn
 
       - name: Report the host's tail when the run went red

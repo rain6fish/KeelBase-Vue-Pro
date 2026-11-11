@@ -185,6 +185,24 @@ test('a held or refused call takes its object from the confirmation record', () 
   assert.match(script, /objectLine\(\{[\s\S]*?\bproposal,/, 'the object column no longer receives the proposal')
 })
 
+test('YD-45: a decision row says its person is the approver or the decliner', () => {
+  // 裁决行上的「谁」是**作裁决的那位**，不是调用方。行为列只说「确认」时说不出这一层，故这一格点名；
+  // 而 `attempted` 的重试行不是裁决，不贴标签。两套词条由 `i18n-key-coverage` 另钉。
+  //
+  // On a decision row the "who" cell is **the decider**, not the caller. The action column only says
+  // "confirmation", so this cell names the distinction; an `attempted` retry is not a decision and gets
+  // no tag. Both language bundles are pinned separately by `i18n-key-coverage`.
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(template, /<el-tag v-if="deciderText\(row\)"/, 'the who cell no longer labels a decision')
+  assert.match(script, /function deciderText\(row: AuditRow\): string/)
+  assert.match(script, /row\.action !== 'tool_confirmation'/, 'the label is no longer limited to confirmation rows')
+  assert.match(script, /row\.outcome === 'approved'/, 'an approval row is no longer labelled')
+  assert.match(script, /row\.outcome === 'declined'/, 'a declined row is no longer labelled')
+  assert.match(script, /keelbase\.audit\.approverTag/)
+  assert.match(script, /keelbase\.audit\.declinerTag/)
+  assert.doesNotMatch(script, /outcome === 'attempted'[\s\S]{0,80}(?:approverTag|declinerTag)/)
+})
+
 test('chainWhat names the coverage statement instead of pointing at where it sits', () => {
   // 页面上这句排在覆盖声明**上面**（`AuditChainPage.vue:41` vs `:69`），2026-11-02 之前它写的是
   // 「上面覆盖声明里的第一条缺口」—— 读者按「上面」往上看，看到的是链结论标签，找不到那句话（M7
@@ -210,4 +228,67 @@ test('chainWhat names the coverage statement instead of pointing at where it sit
     assert.doesNotMatch(message, /(?:上面|下面|上方|下方)/, `chainWhat points by position: ${message}`)
     assert.doesNotMatch(message, /\b(?:above|below)\b/i, `chainWhat points by position: ${message}`)
   }
+})
+
+test('a tool the console has no word for still answers the 做了什么 column, without its registered name', () => {
+  // 「做了什么」这一列在有工具时走 `toolText`：认得的工具给业务词，不认识的给一句读者能据以判断的话，
+  // **不印注册名**（YD-42 的反向可证）。词表是否收全了宿主供出的工具，由 `tool-vocabulary.test.mjs`
+  // 拿源码对账；这一条钉的是接线 —— 列真的从 `toolText` 取，而不是绕过去拿 `row.tool`。
+  //
+  // The 做了什么 column goes through `toolText` whenever a row names a tool: a known tool gets its business
+  // word, an unknown one gets a sentence a reader can act on, and the **registered name is not printed**
+  // (YD-42's reverse proof). Whether the vocabulary covers every tool the host serves is held against the
+  // sources by `tool-vocabulary.test.mjs`; this pins the wiring — the column really takes its text from
+  // `toolText` instead of going around it to `row.tool`.
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(script, /function whatText\(row: AuditRow\): string \{\s*return row\.tool \? toolText\(row\.tool\)/)
+  assert.match(template, /\{\{ whatText\(row\) \}\}/, 'the 做了什么 cell no longer goes through whatText')
+})
+
+test('a blocked call takes its object from the key its own row recorded', () => {
+  // 被**闸门拦下**的调用既没有台账行、也没有确认记录：运行时把键写在那条审计行自己的句末。这一条钉住接线 ——
+  // 页面真的去读那一段、种类真的取自工具声明，而且读不出来时**不**从别处补一个 id。
+  //
+  // A **gate-blocked** call has neither a ledger row nor a confirmation record: the runtime writes the key at
+  // the end of the audit row's own sentence. This pins the wiring — the page really reads that back, the kind
+  // really comes from the tool declaration, and a missing key is **not** filled in from somewhere else.
+  assert.match(script, /import \{[^}]*\brecordedObjectIn\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
+    'the page does not import the reader for the row-recorded key')
+  assert.match(
+    script,
+    /function recordedObjectOf\([\s\S]*?const recordedId = effect \|\| proposal \? null : recordedObjectIn\(row\)/,
+    'there is no single reader for the row-recorded key on the road that has neither a ledger row nor a proposal',
+  )
+  assert.match(script, /resultType: toolResultType\(row\.tool\)/,
+    'the kind of the blocked object is not taken from the tool declaration')
+  assert.match(
+    script,
+    /function objectOf\(row: AuditRow\): string \{[\s\S]*?recorded: recordedObjectOf\(row, e, proposal\)/,
+    'the object column does not take the row-recorded key — it and the expansion would answer ③ differently',
+  )
+  assert.match(
+    script,
+    /function sixOf\(row: AuditRow\)[\s\S]*?const recorded = recordedObjectOf\(row, e, proposal\)/,
+    'the six answers no longer take the recorded key from the same place as the object column',
+  )
+  assert.match(script, /composeSix\(\{[\s\S]*?\brecorded,/, 'the six answers no longer receive the recorded key')
+})
+
+test('an approval row takes its approver from the decision row, never from the inventory', () => {
+  // 第二人批准那一行的批准人只在**同一次操作的另一行**上。这一条钉住两件事：页面按「同一工具、五秒内、
+  // 恰好一个候选」把那一行配上（与台账、确认记录、YD-45 追溯步同一条规则），且它**不问工具清单** ——
+  // 清单答的是此刻的闸，而这一行是过去的一次调用。
+  //
+  // The approver of an approval row exists only on **another row of the same operation**. This pins two
+  // things: the page pairs that row by "same tool, within five seconds, exactly one candidate" (the rule the
+  // ledger, the confirmation records and YD-45's trace step already use), and it **does not ask the
+  // inventory** — the inventory answers today's gate, while the row is a past call.
+  assert.match(script, /import \{[^}]*\bapproverOf\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
+    'the page does not import the approver matcher')
+  assert.match(script, /const approver = approverOf\(row, rows\.value\)/,
+    'the page does not pair the decision row from the audit rows it holds')
+  assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? String\(approver\.userId\) : ''/,
+    'the paired approver is not resolved to a name (or the empty answer is not explicit)')
+  assert.match(script, /composeSix\(\{[\s\S]*?\bapproverName:/, 'the six answers no longer receive the approver')
+  assert.doesNotMatch(script, /approverOf\(row, inventory/, 'the approver is being answered from the inventory')
 })

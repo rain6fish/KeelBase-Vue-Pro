@@ -20,7 +20,11 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { canWriteWithRoles, AUDIT_READER_ROLE } from '../keelbase-ui/host-overlay/src/keelbase/consoleRoleCore.mjs'
+import {
+  canWriteWithRoles,
+  isHostAdministrator,
+  AUDIT_READER_ROLE,
+} from '../keelbase-ui/host-overlay/src/keelbase/consoleRoleCore.mjs'
 
 test('an audit reader gets no write control', () => {
   assert.equal(canWriteWithRoles(['audit_reader']), false)
@@ -39,4 +43,20 @@ test('every other role is unchanged', () => {
   assert.equal(canWriteWithRoles([]), true, 'a user with no role keeps the page as it was')
   assert.equal(canWriteWithRoles(null), true)
   assert.equal(canWriteWithRoles(undefined), true)
+})
+
+// U2：全局确认队列只有管理员读。判据是宿主自己的超管角色码，不是另造的一张名单；其余角色（含无角色）
+// 一律**不是**管理员 —— 答错成「是」会朝一条只有管理员够得到的面发起请求。
+//
+// U2: only an administrator reads the global confirmation queue. The predicate is the host's own super-admin
+// role code, not a second list; every other role (including none) is **not** an administrator — answering "yes"
+// wrongly would send a request after a face only an administrator can reach.
+test('only the host super administrator counts as an administrator', () => {
+  assert.equal(isHostAdministrator(['super_admin']), true)
+  assert.equal(isHostAdministrator(['common', 'super_admin']), true)
+  assert.equal(isHostAdministrator(['tenant_admin']), false)
+  assert.equal(isHostAdministrator(['audit_reader']), false)
+  assert.equal(isHostAdministrator([]), false)
+  assert.equal(isHostAdministrator(null), false)
+  assert.equal(isHostAdministrator(undefined), false)
 })

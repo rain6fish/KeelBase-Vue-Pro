@@ -62,11 +62,16 @@ const SECOND_PASS = process.env.FMS_SECOND_PASS || 'gate-pass-1234';
 const READER_ROLE = process.env.FMS_READER_ROLE || 'gate_fms_m2_reader';
 const ACCOUNT_SET_ACCESS_DENIED = 1_052_100_002; // ACCOUNT_SET_ACCESS_DENIED / 无权访问该账套
 
-// 投影那一半在进程内跑：Maven 与专用仓库可覆盖，默认照本机（与建栈时用的那条一致）。
-// The projection half runs in process: Maven and its dedicated repository are overridable,
-// defaulting to this machine's (the same pair the stack was built with).
-const MVN = process.env.MVN || 'D:/Develop/apache-maven-3.9.16/bin/mvn';
-const MVN_REPO = process.env.MVN_REPO || 'D:/Rain6fish/.m2-fmsgates';
+// 投影那一半在进程内跑：Maven 与仓库可覆盖。默认取 PATH 上的 `mvn`、不点名仓库，故干净机器上照跑；
+// 给了 `MVN_REPO` 等于点名隔离缓存，那种跑法默认离线（与本地读数同形），`MVN_OFFLINE=0/1` 可覆盖。
+//
+// The projection half runs in process: Maven and its repository are overridable. The default is `mvn`
+// on `PATH` with no repository named, so a clean machine works; naming `MVN_REPO` means an isolated
+// cache, offline by default (the way the local readings were taken), with `MVN_OFFLINE=0/1` overriding.
+const MVN = process.env.MVN || 'mvn';
+const MVN_REPO = process.env.MVN_REPO || '';
+const MVN_OFFLINE = process.env.MVN_OFFLINE === undefined
+  ? Boolean(MVN_REPO) : process.env.MVN_OFFLINE !== '0';
 
 // 四个面声明的七个读工具与各自的触发短语。触发短语只取**读**的说法；裸的「结账」「结转」刻意不用。
 // The seven read tools the four faces declare, each with a phrase that triggers it. Only **read**
@@ -579,9 +584,9 @@ function runProjectionTests() {
     'FmsClosingSchemeToolsTest', 'FmsReportingToolsTest',
     'FmsClosingPeriodGovernanceTest', 'FmsInitialBalanceGovernanceTest',
     'FmsClosingSchemeGovernanceTest', 'FmsReportingGovernanceTest'];
-  const args = ['scripts/jdk25.sh', MVN, '-B', '-o', '-pl', 'yudao-server', '-am',
+  const args = ['scripts/jdk25.sh', MVN, '-B', ...(MVN_OFFLINE ? ['-o'] : []), '-pl', 'yudao-server', '-am',
     `-Dtest=${classes.join(',')}`, '-DfailIfNoTests=false', '-Dsurefire.failIfNoSpecifiedTests=false',
-    `-Dmaven.repo.local=${MVN_REPO}`, 'test'];
+    ...(MVN_REPO ? [`-Dmaven.repo.local=${MVN_REPO}`] : []), 'test'];
   let output = '';
   let failure = '';
   try {

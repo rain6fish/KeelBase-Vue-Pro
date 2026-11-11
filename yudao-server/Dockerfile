@@ -1,6 +1,8 @@
 ## AdoptOpenJDK 停止发布 OpenJDK 二进制，而 Eclipse Temurin 是它的延伸，提供更好的稳定性
 ## 感谢复旦核博士的建议！灰子哥，牛皮！
-FROM eclipse-temurin:25-jre
+## 基础镜像按摘要钉死：该摘要实测为 Temurin-25.0.5+8，含 JSSE 两个 CVE 的修复；浮动 tag 会随时间漂移。
+## The base image is pinned by digest: it resolves to Temurin-25.0.5+8, the build carrying both JSSE CVE fixes; a floating tag drifts over time.
+FROM eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
 
 ## 创建目录，并使用它作为工作目录
 RUN mkdir -p /yudao-server

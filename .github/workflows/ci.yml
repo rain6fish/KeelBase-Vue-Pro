@@ -8,11 +8,17 @@
 # authoritative: `maven.yml` never triggers on this repository's branches. The host's own Java tests
 # and the ai1 module's own tests run for real in `conformance`, below.
 #
-# Nine jobs, and each answers a question the others cannot (one carries a step that answers a
+# Eleven jobs, and each answers a question the others cannot (one carries a step that answers a
 # question of its own, marked where it appears):
 #
 #   path-refs            every path this repository writes about itself — in a comment, a doc, a
 #                        script — points at a file it actually holds;
+#   sql-aliases          no query whose result is consumed as a **Map** aliases a result column in
+#                        camelCase — PostgreSQL folds an unquoted alias to lower case, and MyBatis puts
+#                        that folded name in the map as its key, so `AS priceSum` reads back as a
+#                        missing key (a silent 0) rather than an error; `AS "priceSum"` and
+#                        `CAST(x AS DATE)` stay allowed, and so do Bean results, which MyBatis matches
+#                        case-insensitively;
 #   script-tests         every `scripts/*.test.mjs` this repository ships actually runs — one glob
 #                        rather than a list, so a test added later is covered without editing this
 #                        workflow; the topical jobs still name their own files, because a failure
@@ -30,6 +36,9 @@
 #                        scope carries a posture in `conformance/governance-coverage.tsv`, a `seam`
 #                        posture is falsified against the sources when no aspect names that service, and
 #                        the ledger must hold **zero gaps** — one service falling back to `gap` is red (M0);
+#   exempt-claims        *a step inside `governance-registry`* — every `exempt` reason is itself an
+#                        assertion: dispatched by its first clause and falsified against the declaration
+#                        that defines the fact (deployment / seed manifests, controllers, DOs, mappers);
 #   console-pages        *a step inside `governance-registry`* — every page the assistant offers is a
 #                        route the menus we ship compose, so a curated list cannot quietly point at a
 #                        page that moved;
@@ -49,14 +58,20 @@
 #                        quoted; it is also where the host's Java tests and the ai1 module's own tests
 #                        run.
 #
-# All but `generator`, `governance-tests` and `conformance` are pure Node and finish in seconds, except
-# `rendered-copy`: it is pure Node too, but it fetches the UI checkout and installs the gate's four
-# packages, so it costs about a minute.
+# All but `generator`, `governance-tests`, `conformance` and `real-stack-gates` are pure Node and finish
+# in seconds, except `rendered-copy`: it is pure Node too, but it fetches the UI checkout and installs
+# the gate's four packages, so it costs about a minute.
 # `generator` and `governance-tests` want a JDK 25 toolchain and a Maven build, so they cost minutes;
 # `generator` is kept to its two **offline** checks, and `governance-tests` to the governance package.
 #
-# `conformance` is the one job that needs a service stack, because calling the scenario scripts without
-# a host would not be running them. It brings up PostgreSQL (with pgvector) and Redis as service
+# `real-stack-gates` is the second job that needs a service stack, for the same reason: the five gates
+# are scenario scripts driven against a live host, and running them without one would not be running
+# them. It builds the host once and then runs each gate as its own step, so a failure names the gate.
+# None of the five needs a model key — they assert *which* tool ran, and a model would turn that into a
+# guess — so no step is skipped by a condition.
+#
+# `conformance` is the other such job, because calling the conformance suite without a host would not
+# be running it. It brings up PostgreSQL (with pgvector) and Redis as service
 # containers, builds the host, runs the host's Java tests and the ai1 module's own tests, loads the
 # seed, starts the server, waits for `/actuator/health`, and then runs
 # `scripts/run-app-conformance.mjs`. Two of that suite's
@@ -71,10 +86,14 @@
 # 测试 skip 开关在本仓**不作数**：`maven.yml` 在本仓的分支上根本不触发。宿主自己的 Java 测试、以及 ai1
 # 模块自己的测试，都在下面的 `conformance` 里**真跑**。
 #
-# 九道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
+# 十一道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
 #
 #   path-refs            本仓写到自己身上的每一条路径——注释里的、文档里的、脚本里的——都指向一个它
 #                        确实持有的文件；
+#   sql-aliases          没有一条**结果按 Map 消费**的查询把列起成 camelCase 别名 —— PG 把未加引号的别名
+#                        折成小写，而 MyBatis 把折叠后的名字原样当成 Map 的键，于是 `AS priceSum` 读回来是
+#                        「键不存在」（静默的 0）而不是异常；`AS "priceSum"` 与 `CAST(x AS DATE)` 是允许的
+#                        例外，Bean 结果也允许 —— MyBatis 对属性是忽略大小写匹配的；
 #   script-tests         本仓带的每个 `scripts/*.test.mjs` 都真的跑得起来 —— 用一条 glob 而不是一份清单，
 #                        故以后新加的测试不改这个 workflow 就已经在射程内；分题的 job 仍各自点名自己的
 #                        文件，因为那里的失败应当在**那道 job 的问题**里去读；
@@ -88,6 +107,8 @@
 #   coverage-ledger      *`governance-registry` 里的一个 step* —— 部署范围里每个业务 service 都在
 #                        `conformance/governance-coverage.tsv` 里有一个姿态；标 `seam` 的若没有切面点名它，
 #                        源码当场证伪（M0）；
+#   exempt-claims        *`governance-registry` 里的一个 step* —— 每条 `exempt` 理由本身就是一句断言：按首句
+#                        分派，并对**定义该事实的那个声明**（部署/种子清单、控制器、DO、Mapper）逐条证伪；
 #   console-pages        *`governance-registry` 里的一个 step* —— 助手提供的每一页，都是**我们发布的菜单**
 #                        解得出来的一条路径，策展清单因而不会悄悄指向一个已经挪走的页面；
 #   identity-matrix      *`governance-registry` 里的一个 step* —— 九页身份矩阵（哪个角色能开哪一页治理页）
@@ -99,11 +120,14 @@
 #   governance-tests     宿主治理测试包自己就能过 —— 20 个类，不需要数据库、Redis 或端口 —— 故一条治理
 #                        事实坏了会**先**红，而不是排在整套栈的 `conformance` 后面等；
 #   conformance          应用对着**跑着的栈**（PostgreSQL + Redis + 宿主）端到端符合，且四个治理率可读
-#                        —— 驱动门禁，不誊抄门禁；宿主的 Java 测试与 ai1 模块自己的测试也在这里跑。
+#                        —— 驱动门禁，不誊抄门禁；宿主的 Java 测试与 ai1 模块自己的测试也在这里跑；
+#   real-stack-gates     五道**真栈场景门**（公告 / 文件 / BPM 三条接缝 / FMS 四个读接缝 / 旁路审计）
+#                        对着跑着的宿主各跑一遍 —— 它们此前只在各自会话的隔离栈上手跑过，读数只活在交接件
+#                        里；这道 job 让「切面被改坏」在 CI 上红，而不是等人去复跑。
 #
 # 其余各道是纯 Node 或离线检查、几秒到一分钟（`rendered-copy` 要拉一次界面检出、装门禁那四个包，故约
-# 一分钟）。`generator` 与 `governance-tests` 要 JDK 25 工具链与 Maven 构建，以分钟计。最后一道
-# `conformance` 是本文件里**唯一**需要一套**跑着的栈**的：
+# 一分钟）。`generator` 与 `governance-tests` 要 JDK 25 工具链与 Maven 构建，以分钟计。需要一套**跑着的
+# 栈**的是两道：`conformance` 与 `real-stack-gates`。前者是：
 # service containers 起 PostgreSQL（带 pgvector）与 Redis → 构建宿主 → 跑宿主的 Java 测试与 ai1 模块自己的
 # 测试 → 灌种子 → 起服务 → 等 `/actuator/health` → 跑 `scripts/run-app-conformance.mjs`。不起宿主直接调
 # 那些脚本，那不叫跑过它。
@@ -117,11 +141,11 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  # 让本文件能在特性分支上被点名跑一次（`gh workflow run ci.yml --ref <branch>`）：证明一道 job 真跑，
-  # 不必为了验证而把触发器开进 main。
-  #
-  # Runs this file on a feature branch on demand (`gh workflow run ci.yml --ref <branch>`): a job can be
-  # shown to really run without opening a trigger into `main` for the sake of a check.
+  # 手动触发用于在**特性分支**上验证本文件自身：`gh workflow run ci.yml --ref <branch>` 跑的是那个
+  # 分支上的这份文件，故不必为了让一道新 job 真跑而先把它的触发器开在 main 上。
+  # Manual dispatch verifies this file **on a feature branch**: `gh workflow run ci.yml --ref <branch>`
+  # runs the file as that branch holds it, so no trigger has to be widened onto main just to prove a
+  # new job runs.
   workflow_dispatch:
 
 permissions:
@@ -142,6 +166,44 @@ jobs:
       # same note, for the same reason, is in the sibling repositories' workflows.
       - name: Cited paths must exist
         run: node scripts/check-path-refs.mjs
+
+  # 这一道是 2026-11-04 那两笔真缺陷的闸：`PayWalletTransactionMapper` 的 `SUM(price) AS priceSum` 让钱包收支
+  # 恒为 0，`AiChatMessageMapper` 同理；pms 另有六处同形让控制台项目页在 PG 上 500。两次都是**事后逐条修**，
+  # 没有一道闸拦这一类写法。这道 job 把 `scripts/check-sql-aliases.mjs` 接进 CI —— 纯 Node，不起栈，几秒完成。
+  #
+  # 它判的是**真正会坏的那一类**：结果按 Map 消费的查询。PG 把未加引号的别名折成小写，而 MyBatis 把折叠后的
+  # 名字原样当 Map 的键 ⇒ 代码按键取不到，拿到默认值或 null，**不报错**。Bean 结果不判，因为 MyBatis 的属性
+  # 匹配忽略大小写（`pricesum` 照样映射到 `priceSum`）。判据、允许的例外（`AS "quoted"`、`CAST AS type`）、
+  # 部署范围与「只认带 `AS` 的别名」这条边界，都写在脚本头部。脚本按 `yudao-server/pom.xml` 里未被注释的
+  # `yudao-module-*` 取部署范围；范围外的上游写法只计数、不判（`--all` 才判）。
+  #
+  # This is the gate for the two real defects of 2026-11-04: `PayWalletTransactionMapper`'s
+  # `SUM(price) AS priceSum` pinned wallet income and expense at 0, and `AiChatMessageMapper` did the same;
+  # six pms sites of the same shape made the console's project page 500 on PostgreSQL. Both were fixed
+  # site by site **after the fact**, with no gate over the shape. This job wires
+  # `scripts/check-sql-aliases.mjs` into CI — pure Node, no stack, seconds.
+  #
+  # It judges **the queries that actually break**: those whose result is consumed as a Map. PostgreSQL
+  # folds an unquoted alias to lower case, and MyBatis puts that folded name in the map as its key ⇒ the
+  # lookup misses and returns a default or null, **without an error**. Bean results are not judged, because
+  # MyBatis matches properties case-insensitively (`pricesum` still maps to `priceSum`). The criteria, the
+  # allowed exceptions (`AS "quoted"`, `CAST AS type`), the deployed scope, and the boundary ("only
+  # aliases spelled with `AS` are recognised") all live in the script's header. The scope is the
+  # uncommented `yudao-module-*` in `yudao-server/pom.xml`; upstream spellings outside it are counted, not
+  # judged (`--all` judges them).
+  sql-aliases:
+    name: No Map-returning query aliases a result column in camelCase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # 部署范围是默认范围：CI 的构建与本仓的部署用同一份 `yudao-server/pom.xml`，故这里不加 `--all`。
+      # The deployed scope is the default: CI builds the same `yudao-server/pom.xml` this repository
+      # deploys, so no `--all` here.
+      - name: No camelCase result-column alias on a Map-returning query
+        run: node scripts/check-sql-aliases.mjs
 
   script-tests:
     name: Every script test this repository ships runs
@@ -530,6 +592,21 @@ jobs:
       - name: Every business service is onboarded — no gaps
         run: node scripts/check-governance-coverage.mjs --require-full
 
+      # 账本里每一行 `exempt` 的理由都必须是一句**机器能证伪的断言**：这道检查按理由首句分派断言，读的是
+      # **定义该事实的那个声明**（部署清单、种子清单、控制器、DO、Mapper、工具类），而不是拿 grep 去猜形状。
+      # 覆盖门只验「理由非空、负责人非空、日期未过期」，验不了理由是否为真——2026-11-06 的复核据此发现 19 条
+      # 与源码冲突。红时逐行点名：服务 FQCN、理由首句、违反了哪条断言、该看哪处源码。纯 Node，不起栈。
+      #
+      # Every `exempt` reason must be an assertion a machine can falsify: this check dispatches on the
+      # reason's first clause and reads the declaration that **defines** the fact (deployment manifest, seed
+      # manifest, controller, DO, mapper, tool class) rather than guessing its shape with grep. The coverage
+      # gate checks only that a reason is non-empty, its owner is named and its date has not passed; it cannot
+      # check that the reason is still true — the 2026-11-06 review found 19 rows that contradict the sources.
+      # On red it names the service FQCN, the reason's first clause, the assertion violated, and where to look.
+      # Pure Node, no stack.
+      - name: Every exempt reason survives the assertion it declares
+        run: node scripts/check-exempt-claims.mjs
+
       # The assistant's page list is curated, and a curated list is a second place to forget: each
       # route it names is looked up in the menu tree the SQL we ship defines, composed the way the
       # console's router composes it — and then against the branches `module-scope.sql` keeps, because
@@ -541,6 +618,23 @@ jobs:
       # 启用，都会变红。纯 Node。
       - name: Every page the assistant offers must be one the console this deployment runs can open
         run: node scripts/check-console-pages.mjs
+
+      # The planner picks a route by a bare substring — `text.contains(trigger)`, first hit wins, and across
+      # configuration classes the order comes from scanning. A phrase two tool faces both claim therefore raises
+      # nothing: it quietly takes the wrong road. Both incidents were found by running the stack (pms's 「我的待办」
+      # against BPM's task face, oa's 「看我的请假」 taken by BPM's sample), and the second one still has only a
+      # real-stack gate. This reads the `triggers()` declarations out of the Java sources and refuses any phrase two
+      # different faces share, or one that is a substring of another — the same criterion
+      # `YudaoGovernanceContextTest.noTwoToolFacesClaimTheSamePhrase` states, moved to where no build is needed.
+      # A declaration shape it cannot read exits 2 rather than being skipped. Pure Node, no JDK, no stack.
+      # 规划器按**裸子串**选路——`text.contains(trigger)`，第一条命中就赢，而跨配置类的顺序来自扫描。于是「一句
+      # 话两个工具面都认」什么也不会报：它只是安静地走错一条。两起事故都是跑起来才发现的（`pms` 的「我的待办」
+      # 撞 BPM 的任务面、`oa` 的「看我的请假」被 BPM 样例抢走），而第二起至今只有真栈门抓得到。这道检查从 Java
+      # 源码里读 `triggers()` 声明，拒掉「两个不同工具面共用一个短语」或「一句是另一句的子串」——判据与
+      # `YudaoGovernanceContextTest.noTwoToolFacesClaimTheSamePhrase` 同一条，只是挪到不需要构建的地方。
+      # 读不懂的声明形状 exit 2，不跳过。纯 Node、不要 JDK、不起栈。
+      - name: No two tool faces answer to the same phrase
+        run: node scripts/check-trigger-uniqueness.mjs
 
       # The deployment's seed manifest is reconciled with what it serves: every `sql/keelbase-*.sql`
       # has to be classified (`load` / `separate` / `skip` + reason), and a menu file for a keelbase-ui
@@ -635,6 +729,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
       # `gen-from-spec.sh` resolves a JDK 25 for the one command; on a runner the toolchain is already
       # 25, so it is handed that home explicitly rather than letting the resolver download its own
       # copy (the download is the fallback, not the preferred path). Both checks are **offline**:
@@ -699,6 +798,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
       # 本机 JDK 25 实测：20 个类、151 条，0 失败、0 跳过；`~/.m2` 已热时整条命令约 1 分钟。**这一步同时
       # 承担构建与测试**（`conformance` 是拆成两步、由整道 job 兜 45 分钟的），冷 runner 上要先编完
       # reactor、再下载依赖，故上限取 20 分钟而不是沿用那边测试步的 10 分钟。
@@ -750,14 +854,15 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 宿主钉的是**已发布**的运行时 `0.1.16`（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
-      # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。抬运行时版本时，
-      # 宿主 pom 的坐标与这里一起改。
+      # 宿主钉的是**已发布**的运行时（Central 上有），故 CI 直接解析它，不再从公开仓按 SHA
+      # 构建：一个 SNAPSHOT 只在本机 `~/.m2` 里，会让这套 job 在 runner 上永远缺件。**版本号这里不写** ——
+      # 它只在 pom 的 pin 里，写在这里就会漂（这句从前写着 `0.1.9`，而 pin 早已走到 `0.1.17`）。
       #
-      # The host pins the **released** runtime `0.1.16` (available on Central), so CI resolves it
-      # directly instead of building the public repository at a SHA: a SNAPSHOT lives only in a
-      # developer's `~/.m2`, which left this job missing artifacts on the runner. When the runtime
-      # version is bumped, the host pom's coordinate moves with it.
+      # The host pins a **released** runtime (available on Central), so CI resolves it directly instead
+      # of building the public repository at a SHA: a SNAPSHOT lives only in a developer's `~/.m2`,
+      # which left this job missing artifacts on the runner. **The version is not written here** — it
+      # lives only in the POM's pin, and a copy here drifts (this line said `0.1.9` long after the pin
+      # had moved on).
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
@@ -767,6 +872,11 @@ jobs:
           distribution: temurin
           java-version: '25'
           cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
 
       # 宿主的 20 个 Java 测试类是纯 JUnit 5 + Mockito：假 mapper、假服务顶住数据面，故不需要数据库、
       # Redis 或端口。用 JDK 25 在本机实测：151 条，0 失败、0 跳过；构建之后单跑约 16 秒，故这一步的上限
@@ -798,6 +908,24 @@ jobs:
         run: >-
           KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
           -pl yudao-server -am -DskipTests install
+
+      # 构建解析到的那三件运行时，必须是**发布的那一份字节**。2026-10-26 实测：pom 钉着 `0.1.11`、Central 上也有、
+      # tag 也对得上，而宿主产物里嵌的是本机 `mvn install` 装进去的同版本重编产物（core `4b203bb3…` 对
+      # `8a2c34dc…`）。内容等价（同 POM、同源码、同 API），所以构建、发布、本 job 全绿，没有一处会报。
+      # 在 runner 上 `~/.m2` 只由 Central 填充，故这一步抓的是另两类事实：**pin 指向一个还没发布的版本**
+      # （解析失败或 `.sha1` 404 ⇒ 红，而不是「查不了就算过」），以及**发布那份在版本号不变的情况下换了字节**。
+      # 开发机上的本机遮蔽它抓不到 —— 那由 `scripts/run-server.sh` 每次起栈前跑同一个脚本去挡。
+      #
+      # The three runtime artefacts the build resolved must be **the published bytes**. Measured 2026-10-26: the POM
+      # pinned `0.1.11`, Central carried it and the tag matched — while the host artefact embedded an identical-version
+      # local `mvn install` (core `4b203bb3…` against `8a2c34dc…`). The contents are equivalent (same POM, same
+      # sources, same API), so the build, the release and this job all stayed green and nothing reported it. On a
+      # runner `~/.m2` is filled from Central alone, so what this step catches is two other facts: **a pin pointing at
+      # a version not yet published** (resolution or the `.sha1` 404s ⇒ red, never "cannot check, so pass"), and **a
+      # published copy whose bytes changed under a fixed version number**. The developer-machine shadowing it cannot
+      # see — that is the same script run by `scripts/run-server.sh` before every stack start.
+      - name: The runtime the build resolved is the published one
+        run: node scripts/check-runtime-pin-bytes.mjs
 
       - name: Run the host's Java tests
         timeout-minutes: 10
@@ -936,5 +1064,274 @@ jobs:
           path: |
             conformance/reports/
             conformance.out
+            host.log
+          if-no-files-found: warn
+
+  # 五道真栈场景门：公告（37）· 文件（39）· BPM 三条接缝（47 / 43 / 36）· FMS 四个读接缝（87）· 旁路审计（44）。
+  # 它们此前只在各自会话的隔离栈上手跑过，读数只活在交接件里 —— 切面被改坏时没有任何一道闸会红。这道 job 把
+  # 「真栈绿」变成推送的必要条件：一套隔离 PG/Redis、一次宿主构建、一次灌种子，然后每道门一个 step。
+  #
+  # 五道门都**不需要模型 key**：它们断言的是**哪个**工具跑了，模型会把这个变成猜（见 `scripts/run-server.sh`
+  # 头部的说明）。故这里没有任何 `if:` 跳过的门 —— 跑不了就是一桩要报的事，而不是静默略过。
+  #
+  # The five real-stack scenario gates: notices (37), infra files (39), the three BPM seams (47 / 43 / 36),
+  # the four FMS read seams (87), and the bypass audit (44). Each had been driven by hand against a
+  # session-local isolated stack, and the readings lived only in hand-off notes — nothing went red when a
+  # seam was broken afterwards. This job makes "green on a live stack" a condition of pushing: one isolated
+  # PostgreSQL/Redis pair, one host build, one seed load, then one step per gate.
+  #
+  # None of the five needs a model key — they assert *which* tool ran, which a model would turn into a guess
+  # (see the note at the top of `scripts/run-server.sh`). So no gate is skipped by a condition here: a gate
+  # that cannot run is something to report, never something to pass over silently.
+  real-stack-gates:
+    name: The five real-stack scenario gates pass against a running host
+    runs-on: ubuntu-latest
+    # 冷 runner 上：构建宿主约 6–10 分钟、起宿主约 1 分钟、五道门合计约 5 分钟（本机热缓存实测 15 s + 13 s +
+    # 41 s + 38 s + 37 s + 50 s + 73 s）。60 分钟是冷启动的上限，不是通常耗时。
+    # On a cold runner: the host build is about 6–10 minutes, startup about one, and the five gates about
+    # five together (warm-cache local readings: 15 s, 13 s, 41 s, 38 s, 37 s, 50 s, 73 s). 60 minutes is a
+    # cold-runner ceiling, not the expected time.
+    timeout-minutes: 60
+    env:
+      # 两个宿主（旁路门会自己再起一个「开关关」的）必须对同一把审计 key，否则第二条的链与第一条不同。
+      # Both hosts (the bypass gate starts its own "switch off" one) must share one audit key; otherwise the
+      # second host writes a different chain.
+      KEELBASE_AUDIT_KEY: gates-ci-audit-key
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: gates_ci
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U root -d gates_ci"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 56379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
+      # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
+      # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
+      - name: Assert the JDK build number
+        run: bash scripts/check-jdk-build.sh 25.0.5+8
+
+      # 门禁脚本自己会调 Maven（投影那一半在同一次运行里跑同仓测试），故这几个旋钮交给 `GITHUB_ENV` 而不是
+      # 每一步重复：宿主的 JDK 是 runner 上那份 25，Maven 用 PATH 上的，仓库用 Maven 默认的 `~/.m2/repository`
+      # （也就是 `setup-java` 缓存的那一个），并显式**不**离线 —— 冷 runner 上 `-o` 会在缺件时直接失败。
+      #
+      # The gate scripts invoke Maven themselves (the projection half runs this repo's tests inside the same
+      # invocation), so these knobs go through `GITHUB_ENV` rather than repeating them per step: the host JDK
+      # is the runner's own 25, Maven is the one on `PATH`, the repository is Maven's default
+      # `~/.m2/repository` (the one `setup-java` caches), and offline mode is explicitly **off** — `-o`
+      # on a cold runner fails outright when something is missing.
+      - name: Point the gate scripts at the runner's JDK and Maven
+        run: |
+          set -euo pipefail
+          {
+            echo "KEELBASE_JDK25=$JAVA_HOME"
+            echo "MVN=mvn"
+            echo "MVN_REPO=$HOME/.m2/repository"
+            echo "MVN_OFFLINE=0"
+          } >> "$GITHUB_ENV"
+
+      # `package`（不是 `install`）：宿主自己要 `yudao-server/target/yudao-server.jar`，而门禁的 Maven 调用会
+      # 再走一遍 `-pl yudao-server -am test`，兄弟模块到那时从 reactor 里编，不依赖本步装进 `~/.m2` 的产物。
+      # `-DskipTests` 仍编译测试源码，故投影测试要的依赖在这一步就下齐了。
+      #
+      # `package` (not `install`): the host itself wants `yudao-server/target/yudao-server.jar`, and the
+      # gates' own Maven calls re-walk `-pl yudao-server -am test`, compiling sibling modules from the
+      # reactor rather than resolving what this step installed. `-DskipTests` still compiles test sources,
+      # so the projection tests' dependencies are fetched here.
+      - name: Build the host
+        timeout-minutes: 30
+        run: >-
+          KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
+          -pl yudao-server -am -DskipTests package
+
+      # 种子清单把 `bpm` 与 `fms` 两份建表 SQL 标成 `skip`（本部署不展示 bpm 菜单、`fms` 更不在部署 jar 的清单
+      # 里），而这两组门禁要的正是**真表**：BPM 的三条接缝读写 Flowable 自己的表，FMS 的四条读接缝读写
+      # `fms_*`。故在 `bootstrap-db.sh` 之后单独灌这两份，与本地各次读数同形。
+      #
+      # The seed manifest marks both the `bpm` and `fms` DDL files `skip` (this deployment does not show BPM
+      # menus, and `fms` is not even on the deployment's module list), while these gates need the **real
+      # tables**: BPM's seams read and write Flowable's own tables, and FMS's read seams read and write
+      # `fms_*`. So both are loaded right after `bootstrap-db.sh`, the same shape as the local readings.
+      - name: Load the seed, then the BPM and FMS tables
+        timeout-minutes: 10
+        env:
+          PG_DB: gates_ci
+          PG_USER: root
+          PUBLIC_ORIGIN: http://127.0.0.1:48090
+        run: |
+          set -euo pipefail
+          # GitHub gives service containers generated names; resolve the one by its image rather than
+          # guessing. The scenario scripts talk to PostgreSQL through `docker exec`, so this is the handle
+          # they need.
+          # GitHub 给 service container 生成名字；按镜像解析出它，而不是猜。场景脚本通过 `docker exec`
+          # 跟 PostgreSQL 说话，故这就是它们要的那个句柄。
+          PG_CONTAINER="$(docker ps --filter ancestor=pgvector/pgvector:pg17 --format '{{.ID}}' | head -n1)"
+          test -n "$PG_CONTAINER"
+          export PG_CONTAINER
+          echo "PG_CONTAINER=$PG_CONTAINER" >> "$GITHUB_ENV"
+          bash deploy/demo-ecs/bootstrap-db.sh
+          docker exec -i "$PG_CONTAINER" psql -U root -d gates_ci -v ON_ERROR_STOP=1 -q < sql/keelbase-bpm.sql
+          docker exec -i "$PG_CONTAINER" psql -U root -d gates_ci -v ON_ERROR_STOP=1 -q < sql/keelbase-fms.sql
+
+      - name: Start the host and wait for it to answer UP
+        timeout-minutes: 10
+        env:
+          PORT: '48090'
+          PG_PORT: '55432'
+          REDIS_PORT: '56379'
+          PG_DB: gates_ci
+          PG_USER: root
+          PG_PASSWORD: password
+          ACCESS_LOG: 'false'
+        run: |
+          set -euo pipefail
+          KEELBASE_JDK25="$JAVA_HOME" bash scripts/run-server.sh > host.log 2>&1 &
+          echo $! > host.pid
+          for i in $(seq 1 150); do
+            if curl -fsS "http://127.0.0.1:48090/actuator/health" 2>/dev/null \
+              | grep -Eq '"status"[[:space:]]*:[[:space:]]*"UP"'; then
+              echo "host is UP after $((i * 2))s"
+              exit 0
+            fi
+            if ! kill -0 "$(cat host.pid)" 2>/dev/null; then
+              echo "the host exited before it became healthy" >&2
+              tail -n 200 host.log >&2 || true
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "the host did not become healthy in 300s" >&2
+          tail -n 200 host.log >&2 || true
+          exit 1
+
+      - name: Prepare the gate output directory
+        run: mkdir -p gates/evidence
+
+      # 每道门一个 step：失败时 job 的结论直接点名是哪一道，而不是「真栈门那道」。
+      # One step per gate: a failure names the gate itself, rather than "the gate job".
+      #
+      # 公告：无权限写被拒、有权限写落库、读是广播、审计链 valid。
+      # Notices: a write without the code is refused, one with it lands, a read is broadcast, chain valid.
+      - name: Gate — system notice (37 ok expected)
+        timeout-minutes: 10
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-system-notice-scenarios.mjs | tee gates/notice.out
+
+      # 文件：分页 total 的页内语义、按 id 读别人的行交回 null、删除只认创建者。
+      # Files: page totals narrowed per caller, another's row answers null by id, only the creator deletes.
+      - name: Gate — infra files (39 ok expected)
+        timeout-minutes: 10
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-infra-file-scenarios.mjs | tee gates/file.out
+
+      # BPM 三条接缝（流程实例 / 任务 / 抄送）。每条门在同一次运行里跑同仓的投影单测（经 `scripts/jdk25.sh`）。
+      # The three BPM seams (process instance / task / process copy). Each runs this repo's projection tests
+      # inside the same invocation (through `scripts/jdk25.sh`).
+      - name: Gate — BPM process instance (47 ok expected)
+        timeout-minutes: 20
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-bpm-process-instance-scenarios.mjs | tee gates/bpm-instance.out
+
+      - name: Gate — BPM task (43 ok expected)
+        timeout-minutes: 20
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-bpm-task-scenarios.mjs | tee gates/bpm-task.out
+
+      - name: Gate — BPM process copy (36 ok expected)
+        timeout-minutes: 20
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-bpm-process-copy-scenarios.mjs | tee gates/bpm-copy.out
+
+      # FMS 四个读接缝（结账期间 / 期初余额 / 结账方案 / 报表读数），同样带一次进程内投影单测。
+      # The four FMS read seams (closing period / initial balance / closing scheme / reporting), likewise with
+      # one in-process projection test run.
+      - name: Gate — FMS read seams (87 ok expected)
+        timeout-minutes: 20
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          PG_DB: gates_ci
+        run: |
+          set -o pipefail
+          node scripts/run-fms-read-seams-scenarios.mjs | tee gates/fms.out
+
+      # 旁路审计：门**自己**起第二个宿主（`keelbase.bypassAudit.enabled=false`），故这里把连库与连接池的那几个
+      # 旋钮一并交给它；第二个宿主的日志落在 `gates/evidence/`，随产物一起上传。
+      # The bypass audit: the gate starts a **second** host itself (`keelbase.bypassAudit.enabled=false`), so
+      # the datastore knobs are handed to it here; that host's log lands in `gates/evidence/` and is uploaded
+      # with the artifacts.
+      - name: Gate — bypass audit (26 ok expected)
+        timeout-minutes: 25
+        env:
+          HOST_URL: http://127.0.0.1:48090
+          BYPASS_AUDIT_OFF_PORT: '48091'
+          PG_DB: gates_ci
+          PG_HOST: 127.0.0.1
+          PG_PORT: '55432'
+          PG_USER: root
+          PG_PASSWORD: password
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: '56379'
+          EVIDENCE_DIR: ${{ github.workspace }}/gates/evidence
+        run: |
+          set -o pipefail
+          node scripts/run-bypass-audit-scenarios.mjs | tee gates/bypass.out
+
+      - name: Report the host's tail when the run went red
+        if: failure()
+        run: tail -n 200 host.log || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-stack-gates
+          path: |
+            gates/
             host.log
           if-no-files-found: warn

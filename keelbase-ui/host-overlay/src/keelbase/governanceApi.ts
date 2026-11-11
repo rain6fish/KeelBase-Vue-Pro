@@ -273,6 +273,26 @@ export interface OutOfBandDecision {
 }
 
 /**
+ * 一次由**第二人**批准的写走到哪了，按运行时 `ExecutionOutcome` 记录的形状：`status` 今天答
+ * `executed` / `declined` / `error` / `blocked`，`error` 是运行时自己的那句话（它没记原因时为 null）。
+ * 页面按 `status` 分岔，不认识的词照实说出来 —— 这里不把它收窄成一个闭合的联合，免得下一次运行时
+ * 多答一个词时页面静默地把它当成成功。
+ *
+ * What a write approved by a **second person** came to, in the shape of the runtime's `ExecutionOutcome`
+ * record: `status` answers `executed` / `declined` / `error` / `blocked` today, and `error` is the runtime's
+ * own sentence (null when it recorded none). The page branches on `status` and repeats a word it does not
+ * know; the type is not narrowed to a closed union so that a newer runtime answering one more word is not
+ * silently read as success.
+ */
+export interface ExecutionOutcome {
+  status: string
+  data?: unknown
+  token?: string | null
+  effectId?: number | null
+  error?: string | null
+}
+
+/**
  * 一页确认记录，按 `/ai/confirmations` 答的形状：与 `/ai/my/confirmations` **同一份**行投影，只是覆盖
  * 所有调用方、且不按调用方自己的窗口收窄。
  *
@@ -304,6 +324,20 @@ export const confirmationApi = {
   decide: (token: string, decision: 'approve' | 'decline') =>
     runtime
       .post<OutOfBandDecision>(`/ai/my/confirmations/${encodeURIComponent(token)}/decide`, { decision })
+      .then((r) => r.data),
+  /**
+   * 由**另一名**管理员批准（或拒绝）一条待批的写；运行时随后以**发起人**的身份执行它。守卫是
+   * `requireManager()`：非管理员 403、发起人自批 403、已裁决或不是审批行 409，全由运行时自己判 ——
+   * 页面不重判，也不把它的答复套成 `OutOfBandDecision`（本宿主答的是引擎自己的记录）。
+   *
+   * Approve (or decline) a held write **as another administrator**; the runtime then runs it as the
+   * **initiator**. The guard is `requireManager()`: a non-administrator answers 403, the initiator himself
+   * 403, an already-decided row or one that is not an approval 409 — all decided by the runtime, never
+   * re-judged here, and its answer is the engine's own record rather than `OutOfBandDecision`.
+   */
+  approveBy: (token: string, decision: 'approve' | 'decline') =>
+    runtime
+      .post<ExecutionOutcome>(`/ai/confirmations/${encodeURIComponent(token)}/approve-by`, { decision })
       .then((r) => r.data),
 }
 

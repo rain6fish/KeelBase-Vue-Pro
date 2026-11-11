@@ -58,7 +58,8 @@
 // marker. The audit rows are deliberately left alone: that is a hash chain, and cutting a link to tidy up is a
 // worse act than the untidiness.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { request } from 'node:http';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ADMIN_USER, resolveAdminPassword } from './admin-credential.mjs';
@@ -80,11 +81,16 @@ const BIZ_TYPE_CONTACT = 3; // CrmBizTypeEnum.CRM_CONTACT
 const LEVEL_OWNER = 1; // CrmPermissionLevelEnum.OWNER
 const LEVEL_WRITE = 3; // CrmPermissionLevelEnum.WRITE
 
-// 投影那一半在进程内跑：Maven 与专用仓库可覆盖，默认照本机（与建栈时用的那条一致）。
-// The projection half runs in-process: Maven and its dedicated repository are overridable, defaulting to
-// this machine's (the same pair the stack was built with).
-const MVN = process.env.MVN || 'D:/Develop/apache-maven-3.9.16/bin/mvn';
-const MVN_REPO = process.env.MVN_REPO || 'D:/Rain6fish/.m2-contact-gate';
+// 投影那一半在进程内跑：Maven 与仓库可覆盖。默认取 PATH 上的 `mvn`、不点名仓库，故干净机器与 CI 都照跑；
+// 给了 `MVN_REPO` 等于点名隔离缓存，那种跑法默认离线（与本地读数同形），`MVN_OFFLINE=0/1` 可覆盖。
+//
+// The projection half runs in process: Maven and its repository are overridable. The default is `mvn` on
+// PATH with no repository named, so a clean machine and CI both work; naming `MVN_REPO` means an isolated
+// cache, offline by default (the way the local readings were taken), with `MVN_OFFLINE=0/1` overriding.
+const MVN = process.env.MVN || 'mvn';
+const MVN_REPO = process.env.MVN_REPO || '';
+const MVN_OFFLINE = process.env.MVN_OFFLINE === undefined
+  ? Boolean(MVN_REPO) : process.env.MVN_OFFLINE !== '0';
 
 let pass = 0;
 let fail = 0;
@@ -151,16 +157,54 @@ process.on('exit', () => {
   }
 });
 
+// 取数**每个请求一条新连接**（`agent: false`：Node 为这一笔造一个不复用的 agent，响应一结束就丢掉 socket）。
+// 否则连接池会把长命连接留过本门用 `execFileSync` 跑的那次 Maven 投影测试：那段时间事件循环是阻塞的，
+// 而宿主仍按自己的 keep-alive 超时（本机实测 ~60s）关空闲连接。池里那条连接于是落在「对端正在关闭」的窗口里，
+// 下一笔写上去就是 `other side closed` / `ECONNRESET`。这不是重试，也没有放宽任何断言：换的只是**取数方式**，
+// 每一笔请求照旧只发一次、失败照旧算失败。
+//
+// Every request opens **its own connection** (`agent: false`: Node builds a non-reusing agent for that
+// request and drops the socket when the response ends). Otherwise the pool carries long-lived
+// connections past the Maven projection test this gate runs through `execFileSync`: the event loop is
+// blocked for that stretch while the host keeps closing idle connections on its own keep-alive timeout
+// (~60 s measured here). A pooled socket then sits in the window where the peer is closing it, and the
+// next request written onto it dies as `other side closed` / `ECONNRESET`. This is not a retry and no
+// assertion is relaxed: only the way readings are fetched changes, every request is still sent once,
+// and a failure is still a failure.
+function httpJson(url, { method = 'GET', headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const payload = body === undefined ? null : (typeof body === 'string' ? body : JSON.stringify(body));
+    const req = request(url, {
+      method,
+      agent: false,
+      headers: { ...headers, ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {}) },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        try {
+          resolve({ status: res.statusCode, json: text ? JSON.parse(text) : {} });
+        } catch (e) {
+          reject(new Error(`${method} ${url} -> ${res.statusCode}, body is not JSON: ${text.slice(0, 200)}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 // 宿主答它那个瞬时 500 时**重试一次**、且说出来；业务性拒绝不重试。
 // Retry **once** on the host's transient 500 and say so; a business refusal is not retried.
 async function api(path, { method = 'GET', token, body } = {}) {
   for (let attempt = 1; ; attempt += 1) {
-    const res = await fetch(`${HOST}/admin-api${path}`, {
+    const { json } = await httpJson(`${HOST}/admin-api${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', 'tenant-id': TENANT, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      ...(body ? { body: JSON.stringify(body) } : {})
+      body,
     });
-    const json = await res.json();
     if (json.code !== 500 || attempt > 1) {
       return json;
     }
@@ -176,22 +220,20 @@ async function login(username, password) {
 }
 
 async function chat(token, message, extra = {}) {
-  const res = await fetch(`${HOST}/ai/chat`, {
+  const { json } = await httpJson(`${HOST}/ai/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ message, conversationId: `gate-contact-${Date.now()}`, ...extra })
+    body: { message, conversationId: `gate-contact-${Date.now()}`, ...extra },
   });
-  const json = await res.json();
   return json.data || json;
 }
 
 async function confirm(token, confirmationToken, decision) {
-  const res = await fetch(`${HOST}/ai/confirmations/${confirmationToken}`, {
+  const { json } = await httpJson(`${HOST}/ai/confirmations/${confirmationToken}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ decision })
+    body: { decision },
   });
-  const json = await res.json();
   return json.data || json;
 }
 
@@ -255,18 +297,28 @@ async function ensureUser(adminToken, username, password, roleIds) {
 }
 
 // 「谁」：宿主为这一次写记下的那行操作日志，它的 `user_id` 必须是调用方。这行由宿主**异步**写下，
-// 故给它一小段窗口；窗口内该出现，始终没出现就是**失败**。按本轮唯一的联系人姓名定位。
+// 故有上限地轮询到它出现（默认 30s，`SCENARIO_OPERATE_LOG_TIMEOUT_MS` 可覆盖）；始终没出现就是**失败**，
+// 且读数里带上证据（匹配行数、表里最新一行）。按本轮唯一的联系人姓名定位。
 // Who: the row the host logged for this write must name the caller. It is written **asynchronously**,
-// so give it a short window; it must appear within it, and not appearing is a failure. Located by the
+// so poll with a deadline (30s by default; `SCENARIO_OPERATE_LOG_TIMEOUT_MS` overrides) and fail if it
+// never appears, carrying the evidence (matching rows, newest row) in the reading. Located by the
 // contact name, which is unique to this run.
+const OPERATE_LOG_WAIT_MS = Number(process.env.SCENARIO_OPERATE_LOG_TIMEOUT_MS || 30000) || 30000;
 async function hostLoggedWho(actionLike) {
-  for (let i = 0; i < 12; i += 1) {
+  const filter = `type = 'CRM 联系人' and action like '%${actionLike}%'`;
+  const deadline = Date.now() + OPERATE_LOG_WAIT_MS;
+  while (Date.now() < deadline) {
     const who = psql(`select coalesce(user_id::text, '<null>') from system_operate_log`
-      + ` where type = 'CRM 联系人' and action like '%${actionLike}%' order by id desc limit 1`);
+      + ` where ${filter} order by id desc limit 1`);
     if (who) return who;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return '';
+  // 读数带上证据：有几行匹配、表里最新一行是哪条 —— 让「没等到」与「没写」在日志里可分辨。
+  // The reading carries its evidence: how many rows match and the newest operate-log id, so "never
+  // appeared" and "was never written" are distinguishable in the log.
+  const matching = psql(`select count(*) from system_operate_log where ${filter}`);
+  const newest = psql(`select coalesce(max(id)::text, '<none>') from system_operate_log`);
+  return `<no row within ${OPERATE_LOG_WAIT_MS}ms: matching=${matching}, newest operate_log id=${newest}>`;
 }
 
 // 第 7(a) 条的返回结构那一半：在同一次运行里跑同仓的 `CrmContactToolsTest`，直读 `ToolResult.data()`。
@@ -276,9 +328,15 @@ async function hostLoggedWho(actionLike) {
 // puts a tool result on the wire; its reading is the surefire count, not a reply and not a page.
 function runProjectionTest() {
   const report = resolve(ROOT, 'yudao-server/target/surefire-reports/TEST-cn.iocoder.yudao.server.keelbase.CrmContactToolsTest.xml');
-  const args = ['scripts/jdk25.sh', MVN, '-B', '-pl', 'yudao-server', '-am',
+  // 删掉上一轮留下的报告：不删时，本次 Maven **根本没跑成**也会读到旧文件、读成「ok」—— 一次连
+  // `mvn` 都不在的跑法就这样绿过（实测）。删掉之后「没有报告」只可能意味着**本次**没产出。
+  // Remove the previous round's report: without this, a run whose Maven never even started still reads the
+  // old file and reports "ok" — measured on a run where `mvn` was not on PATH at all. With it deleted,
+  // "no report" can only mean **this** run produced none.
+  rmSync(report, { force: true });
+  const args = ['scripts/jdk25.sh', MVN, '-B', ...(MVN_OFFLINE ? ['-o'] : []), '-pl', 'yudao-server', '-am',
     '-Dtest=CrmContactToolsTest', '-DfailIfNoTests=false', '-Dsurefire.failIfNoSpecifiedTests=false',
-    `-Dmaven.repo.local=${MVN_REPO}`, 'test'];
+    ...(MVN_REPO ? [`-Dmaven.repo.local=${MVN_REPO}`] : []), 'test'];
   let output = '';
   let failure = '';
   try {
@@ -288,7 +346,14 @@ function runProjectionTest() {
     failure = e.signal ? `signal ${e.signal}` : `exit ${e.status}`;
   }
   if (!existsSync(report)) {
-    return { verdict: `no surefire report (${failure || 'missing'})`, tail: output.slice(-1200) };
+    // 自解释：说清跑的是哪条命令、仓库与 PATH —— `mvn` 不在 PATH 上时，`command not found` 不会自己
+    // 说清缺的是哪一个，而一个裸「no surefire report」会被读成「测试红了」。
+    // Self-explaining: name the command, the repository and the PATH — when `mvn` is not on PATH,
+    // "command not found" does not say which one is missing, and a bare "no surefire report" reads as
+    // "the test went red".
+    const context = `command=${MVN}; repo=${MVN_REPO || '<maven default>'}; offline=${MVN_OFFLINE}; `
+      + `PATH=${String(process.env.PATH || '').slice(0, 240)}`;
+    return { verdict: `no surefire report (${failure || 'missing'}; ${context})`, tail: output.slice(-1200) };
   }
   const xml = readFileSync(report, 'utf8');
   const attr = (name) => {
@@ -310,7 +375,7 @@ console.log('== 前置 ==');
 // The audit chain is signed with `keelbase.audit.hmac-key`, so rows signed under another key can never
 // verify. Clear the table first and say so.
 psql('truncate table ai_audit_logs');
-check('/app/capabilities 200', '200', (await fetch(`${HOST}/app/capabilities`)).status);
+check('/app/capabilities 200', '200', (await httpJson(`${HOST}/app/capabilities`)).status);
 
 const admin = await login(ADMIN_USER, resolveAdminPassword(psql));
 ok('admin 登录');
@@ -625,7 +690,7 @@ console.log('== 场景 5 · 台账与审计链 ==');
 
   const rows = Number(psql('select count(*) from ai_audit_logs'));
   check('审计行在（>0）', true, rows > 0);
-  const verify = await (await fetch(`${HOST}/audit/verify`, { headers: { Authorization: `Bearer ${admin}` } })).json();
+  const verify = (await httpJson(`${HOST}/audit/verify`, { headers: { Authorization: `Bearer ${admin}` } })).json;
   check('链校验通过', true, verify.data && verify.data.valid);
 }
 

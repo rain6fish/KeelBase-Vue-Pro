@@ -163,21 +163,51 @@ export function statusTagType(code: number | null | undefined): TagType {
   return code >= 400 ? 'danger' : 'success'
 }
 
-// The tools this runtime registers, by the names it registers them under. The console names each in the
-// reader's language and keeps the registered name beside it: a business reader knows 「新建客户」, and an
-// engineer can still see which tool that is. Each name below is a **translation of what that tool
-// declares it does** — `/ai/tools` answers a description per tool — and not a guess from its spelling.
-// A tool this console does not know keeps its registered name, which is honest rather than invented.
+// 本宿主在 `/ai/tools` 上供出的**每一个**工具，按它注册的名字 —— 宿主自己的工具 bean，加上运行时自带的示例
+// 工具。控制台给每一个配**读者语言**的名字；下面每个名字都是**那个工具自己声明的用途**（`/ai/tools` 逐个
+// 答了描述）的**译文**，不是从拼写猜的。`tool-vocabulary.test.mjs` 拿这张表与宿主源码对账：新加一个工具面
+// 却没在这里配词，会红，而不是以「没有名字的调用」落到读者眼前。
 //
-// 本运行时注册的那些工具，按它注册的名字。控制台给每一个配**读者语言**的名字、并把注册名留在旁边：业务读者
-// 认得「新建客户」，工程师也看得出那是哪个工具。下面每个名字都是**那个工具自己声明的用途**（`/ai/tools`
-// 逐个答了描述）的**译文**，不是从拼写猜的。控制台不认识的工具**保留它的注册名** —— 那是诚实，不是编造。
+// 不认识的工具**渲染成什么**由**调用方**决定，不由本文件决定：`toolLabelKey` 返回 null，对注册名不置一词。
+// 工程师面向的页面（工具清单、策略中心）把注册名留在词旁边，好让管理员看出是哪个工具；**读者面向的审计链页
+// 不印** —— 注册名是一台机器里的标识符（`create_crm_customer`），而 `YD-42` 的反向可证正是要抓这一种泄漏。
+//
+// Every tool this host serves on `/ai/tools`, by the names it registers them under — the host's own
+// tool beans plus the runtime's sample tools. The console names each in the reader's language; each name
+// below is a **translation of what that tool declares it does** (`/ai/tools` answers a description per
+// tool), not a guess from its spelling. `tool-vocabulary.test.mjs` holds this list against the host's
+// sources, so a tool face added without a word here turns red instead of reaching a reader as an
+// unnamed call.
+//
+// What an unknown tool renders as is the **caller's** decision, not this file's: `toolLabelKey` returns
+// null and says nothing about the registered name. The engineer-facing pages (tool inventory, policy
+// centre) keep the registered name beside the word so an administrator can tell which tool it is; the
+// **reader-facing audit chain page does not** print it — a registered name is an identifier inside one
+// machine (`create_crm_customer`), and `YD-42`'s reverse proof exists to catch exactly that leak.
 const TOOLS = [
   'list_yudao_users', 'analyze_customer_risk', 'create_followup', 'escalate_customer',
   'list_my_oa_leaves', 'approve_oa_leave', 'navigate_console_page',
   'list_crm_customers', 'create_crm_customer', 'update_crm_customer',
   'list_my_notify_messages', 'get_notify_message', 'mark_notify_message_read', 'mark_all_notify_messages_read',
   'list_generated_products', 'create_generated_products',
+  'analyze_project_risk', 'create_pm_task', 'delete_project', 'escalate_project',
+  'create_crm_business', 'create_crm_clue', 'create_crm_contact', 'create_crm_contract',
+  'create_crm_product', 'create_crm_receivable', 'create_crm_receivable_plan', 'record_crm_followup',
+  'crm_follow_up_queue', 'get_crm_followup_record',
+  'list_crm_businesses', 'list_crm_clues', 'list_crm_contacts', 'list_crm_contracts',
+  'list_crm_products', 'list_crm_receivables', 'list_crm_receivable_plans',
+  'list_my_projects', 'list_my_work_items', 'get_work_item_work_log_summary', 'list_work_item_activities',
+  'list_my_bpm_tasks', 'cancel_my_bpm_instance', 'list_my_bpm_instances', 'list_my_bpm_process_copies',
+  'list_my_oa_leave_applies', 'get_my_oa_leave_apply',
+  'list_my_fms_vouchers', 'review_fms_voucher', 'get_fms_closing_overview', 'get_fms_closing_schemes',
+  'get_fms_trial_balance', 'get_fms_balance_sheet', 'get_fms_income_statement',
+  'get_fms_cash_flow_statement', 'get_fms_subject_balances',
+  'find_members', 'get_iteration_overview', 'get_member', 'list_member_point_records', 'list_member_sign_in_records',
+  'list_member_level_records', 'list_member_experience_records',
+  'get_my_pay_wallet', 'get_my_pay_wallet_transaction', 'get_my_pay_wallet_recharge',
+  'get_my_pay_order', 'get_my_pay_refund', 'get_my_pay_transfer',
+  'list_notices', 'create_notice', 'list_my_infra_files', 'delete_infra_file',
+  'list_my_demo_contacts', 'create_demo01_contact', 'rename_demo01_contact',
 ]
 
 /** The i18n key for a tool's name in the reader's language, or null when this console does not know it. */
@@ -192,7 +222,16 @@ export function toolLabelKey(name: string | null | undefined): string | null {
  *
  * 名字与用途是**两条** key，不是一个：名字是一行标题里的词，用途是政策页上让人**不用打开工具**就知道它
  * 会做什么的那一句。两者的中文都是**对工具自己声明的用途的翻译**（`/ai/tools` 逐个答了描述），不是从名字
- * 猜的；控制台不认识某个工具时两条都回落到**它的注册名与它自己的声明**，那是诚实，不是编造。
+ * 猜的。不认识的工具，策略中心回落到**它的注册名与它自己的声明**（管理面，要能认出是哪个工具），而读者
+ * 面向的审计链页只说本页没有它的业务名 —— 注册名不上读者那一面，见上面工具表的注释。
+ *
+ * The i18n key for a tool's one-line purpose in the reader's language, or null when this console does not
+ * know it. Name and purpose are **two** keys, not one: the name is a word in a heading, the purpose is the
+ * line that lets a person understand a tool on the policy page **without opening it**. Both are translations
+ * of **what the tool declares it does** (`/ai/tools` answers a description per tool). For a tool it does not
+ * know, the policy centre falls back to the registered name and the tool's own declared words (an
+ * administrator's face, where identifying the tool matters), while the reader-facing audit chain page says
+ * only that this page has no business name for it — the registered name does not go on the reader's face.
  */
 export function toolDescriptionKey(name: string | null | undefined): string | null {
   const code = inSet(TOOLS, name)

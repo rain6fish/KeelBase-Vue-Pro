@@ -63,10 +63,10 @@
             <div class="d-row">
               <span class="d-key">{{ t('keelbase.effects.colTarget') }}</span>
               <span>
-                {{ maskTitle(row.targetTitle) }}
-                <!-- The masking note belongs to a title that exists; see the Action Center's copy. -->
-                <!-- 掩码那句话属于**真有过标题**的情形；理由见行动中心那一份。 -->
-                <span v-if="row.targetTitle" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
+                {{ targetText(row) }}
+                <!-- 掩码那句话属于**真有过名字**的情形；理由见行动中心那一份。 -->
+                <!-- The masking note belongs to a name that exists; see the Action Center's copy. -->
+                <span v-if="targetNamed(row)" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>
@@ -90,7 +90,7 @@
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colTarget')" width="240">
         <template #default="{ row }">
-          {{ maskTitle(row.targetTitle) }} <span class="muted">#{{ row.resultId ?? '—' }}</span>
+          {{ targetText(row) }} <span class="muted">#{{ row.resultId ?? '—' }}</span>
         </template>
       </el-table-column>
       <!-- F-4：两列原来直接把枚举值打在表上（`crm_customer` / `local_compensate`），读者不知道是什么。
@@ -152,6 +152,7 @@ import Pagination from '@/components/Pagination/index.vue'
 import { effectApi, type EffectRow } from '@/keelbase/governanceApi'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { resolveCallerNames } from '@/keelbase/callerNames'
+import { resolveRecordNames } from '@/keelbase/recordNames'
 import { resultTypeLabelKey, revokeClassLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { timeText } from '@/keelbase/time'
 import { maskTitle } from '@/keelbase/mask'
@@ -201,6 +202,25 @@ function callerName(id: string | null | undefined): string {
   return names.value[String(id)] ?? String(id)
 }
 
+/**
+ * 这一格写什么：宿主答得出就给它的名字（已掩码），否则用运行时给的标题，再没有就说「未登记名称」。
+ * 破折号留给**真没有对象**的行，不再用来表示「没问到」。
+ *
+ * What this cell says: the host's name when it has one (masked), else the runtime's title, else "name
+ * not registered". The dash is left to rows that really carry no object, not to "we did not ask".
+ */
+function targetText(row: EffectRow): string {
+  const named = targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`]
+  if (named) return named
+  if (row.targetTitle) return maskTitle(row.targetTitle)
+  return t('keelbase.effects.targetUnnamed')
+}
+
+/** 这一格真有个名字（宿主或运行时给的），掩码那句说明才该出现。 / Whether the cell holds a real name. */
+function targetNamed(row: EffectRow): boolean {
+  return Boolean(targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`] || row.targetTitle)
+}
+
 /** Whether the record this write landed on is still there — read off the row, never re-derived. */
 /** 这次写落在的那条记录**还在不在** —— 按行读，绝不自己重算。 */
 function stateText(row: EffectRow): string {
@@ -213,6 +233,18 @@ const rows = ref<EffectRow[]>([])
 /** 名录给发起人配好的名字，按 id 索引；取不到时列回落成 id 本身。 */
 /** Names the directory holds for the callers, keyed by id; the column falls back to the id. */
 const names = ref<Record<string, string>>({})
+/**
+ * 宿主给这一行**落在哪条记录**配好的名字（已掩码），按 `类型#主键` 索引。
+ *
+ * 运行时的 `targetTitle` 对客户这类记录是 **null**（2026-11-04 真栈实测），于是这一格过去只剩 `— #1`。
+ * 现在按行问宿主那条窄读面；答不上时才说「未登记名称」，不再把「没问」画成一个破折号。
+ *
+ * The host's name (masked) for **the record this row landed on**, keyed by `type#key`. The runtime's
+ * `targetTitle` is **null** for a customer row (measured on a real stack, 2026-11-04), so this cell used to
+ * carry `— #1`. Each row now asks the host's narrow read face; when it cannot answer, the cell says
+ * "name not registered" instead of drawing a dash over "never asked".
+ */
+const targetNames = ref<Record<string, string>>({})
 const total = ref(0)
 const page = ref(1)
 const limit = ref(20)
@@ -231,6 +263,10 @@ async function load() {
     rows.value = res.items
     total.value = res.total
     names.value = { ...names.value, ...(await resolveCallerNames(res.items.map((r) => r.userId))) }
+    targetNames.value = {
+      ...targetNames.value,
+      ...Object.fromEntries(await resolveRecordNames(res.items.map((r) => ({ type: r.resultType, id: r.resultId })))),
+    }
     if (userId.value) {
       const resolved = await resolveCallerNames([userId.value])
       const name = resolved[userId.value]

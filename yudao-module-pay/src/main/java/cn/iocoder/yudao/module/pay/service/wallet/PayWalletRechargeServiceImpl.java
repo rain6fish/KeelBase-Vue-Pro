@@ -109,6 +109,11 @@ public class PayWalletRechargeServiceImpl implements PayWalletRechargeService {
     }
 
     @Override
+    public PayWalletRechargeDO getWalletRecharge(Long id) {
+        return walletRechargeMapper.selectById(id);
+    }
+
+    @Override
     public PageResult<PayWalletRechargeDO> getWalletRechargePackagePage(Long userId, Integer userType,
                                                                         PageParam pageReqVO, Boolean payStatus) {
         PayWalletDO wallet = payWalletService.getOrCreateWallet(userId, userType);

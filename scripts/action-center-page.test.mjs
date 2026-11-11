@@ -64,6 +64,62 @@ test('the decision response decides what is reported — a failed write is not r
   assert.match(actionCenter, /approvedNotRun/, 'the failed-execution message is gone')
 })
 
+// U2：R4 的第二次批准。`/ai/my/confirmations` 只答 `mode=immediate`，故待批的 R4 行过去在任何人的
+// 行动中心里都看不到；这张卡读全局队列，且**只在管理员登录时**读 —— 普通用户/审计读者吃 403 的那次请求
+// 根本不该发出去，也不该把人家的刷新变成一条报错。
+//
+// U2: the second approval of an R4 write. `/ai/my/confirmations` answers `mode=immediate` only, which is why
+// a pending R4 row was invisible in everyone's action centre. This card reads the global queue, and reads it
+// **only when an administrator is signed in** — the request an ordinary user or audit reader would get a 403
+// for is never made, and their refresh is never turned into an error toast.
+test('the second-approver card reads the global queue behind the administrator predicate and filters to pending approvals', () => {
+  assert.match(actionCenter, /confirmationApi\.listAll\(/, 'the card no longer reads the global confirmation queue')
+  assert.match(actionCenter, /if \(!isAdmin\.value \|\| approvalLoading\.value\) return/, 'the queue read is no longer behind the administrator predicate')
+  assert.match(
+    actionCenter,
+    /c\.mode === 'approval' && c\.status === 'pending'/,
+    'the queue is no longer filtered to pending approval rows',
+  )
+  assert.match(actionCenter, /status === 403/, 'a refused queue read is no longer put away without a toast')
+})
+
+test('the second-approver card pairs the initiator or says it cannot, and masks the name', () => {
+  assert.match(actionCenter, /initiatorOf\(c, rows\)/, 'the queue row is no longer paired with its pending audit row')
+  assert.match(actionCenter, /resolveCallerNames\(Object\.values\(joined\)/, 'the initiator name is never resolved through the host directory')
+  assert.match(actionCenter, /maskTitle\(name\)/, 'the initiator name is no longer masked')
+  assert.match(actionCenter, /initiatorUnknown/, 'the honest fallback is gone — a guess may be drawn instead')
+})
+
+test('the second-approver decision goes to approveBy and branches on the execution outcome', () => {
+  assert.match(actionCenter, /confirmationApi\.approveBy\(/, 'the second approval no longer calls approve-by')
+  assert.match(actionCenter, /status === 'executed'/, 'an executed approval is no longer recognised')
+  assert.match(actionCenter, /status === 'declined'/, 'a decline is no longer recognised')
+  assert.match(actionCenter, /status === 'error' \|\| status === 'blocked'/, 'a refusal is no longer distinguished from success')
+  assert.match(actionCenter, /approvalUnknown/, 'an unknown outcome is no longer reported as itself')
+  assert.match(api, /approveBy: \(token: string, decision: 'approve' \| 'decline'\)/, 'the API no longer offers approve-by')
+  assert.match(api, /\/ai\/confirmations\/\$\{encodeURIComponent\(token\)\}\/approve-by/, 'the approve-by path is gone')
+  assert.ok(api.includes('export interface ExecutionOutcome'), 'the runtime record is no longer declared as ExecutionOutcome')
+})
+
+test('both locale dictionaries carry every U2 key', () => {
+  const [en, zh] = patch.split('diff --git a/src/locales/zh-CN.ts')
+  assert.ok(zh, 'the Chinese locale hunk is gone')
+  const keys = (segment) =>
+    new Set([...segment.matchAll(/^\+\s+([A-Za-z_$][\w$]*):/gm)].map((m) => m[1]))
+  const enKeys = keys(en)
+  const zhKeys = keys(zh)
+  const required = [
+    'approvalTitle', 'approvalCount', 'approvalHint',
+    'initiatorLabel', 'initiatorNamed', 'initiatorIdOnly', 'initiatorUnknown',
+    'approvalOwnRow', 'approvalExecuted', 'approvalDeclined', 'approvalRefused',
+    'approvalUnknown', 'approvalFailed', 'approvalScanBound',
+  ]
+  for (const key of required) {
+    assert.ok(enKeys.has(key), `en.ts is missing ${key}`)
+    assert.ok(zhKeys.has(key), `zh-CN.ts is missing ${key}`)
+  }
+})
+
 test('the audit page draws the checks the runtime already records on the row', () => {
   assert.match(auditChain, /checksOf\(row\)/, 'the expansion no longer reads authorization.checks')
   assert.match(auditChain, /checkText\(c\.name\)/, 'check names are no longer rendered from their own key')
@@ -172,4 +228,22 @@ test('the page no longer reports "approved" before the server answered', () => {
     /await confirmationApi\.decide\([^)]*\)\s*\n\s*ElMessage\.success\(t\(decision === 'approve'/,
     'the unconditional "approved" announcement is back',
   )
+})
+
+test('目标那一格问宿主要名字，答不上时说「未登记名称」', () => {
+  // 运行时的 `targetTitle` 只认它自己样例域的跟进记录（`EffectController.target()` 只匹配
+  // `result_type='follow_up'`），故客户、合同这些行的「目标」格过去只剩「— #1」。这一格现在按行问宿主那条
+  // 窄读面（`record-names`）；宿主答不上时**明说**「未登记名称」，而不是把「没问」画成一个破折号。
+  //
+  // The runtime's `targetTitle` recognises only its own sample domain's follow-ups
+  // (`EffectController.target()` matches `result_type='follow_up'` and nothing else), so a customer or
+  // contract row's target cell used to carry `— #1`. The cell now asks the host's narrow read face
+  // (`record-names`) per row, and when the host cannot answer it **says** "name not registered" instead of
+  // drawing a dash over "never asked".
+  assert.match(actionCenter, /import \{ resolveRecordNames \}/, 'the page no longer asks the host for record names')
+  assert.match(actionCenter, /resolveRecordNames\(res\.items\.map/, 'the ledger is drawn without asking the host')
+  assert.match(actionCenter, /\{\{ targetText\(row\) \}\}/, 'the target cell no longer goes through targetText')
+  assert.doesNotMatch(actionCenter, /\{\{ maskTitle\(row\.targetTitle\) \}\}/, 'the dash-only target cell is back')
+  assert.match(patch, /targetUnnamed: '未登记名称'/, 'the Chinese fallback word is gone')
+  assert.match(patch, /targetUnnamed: 'name not registered'/, 'the English fallback word is gone')
 })

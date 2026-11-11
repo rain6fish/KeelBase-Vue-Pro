@@ -87,6 +87,85 @@
     </div>
   </ContentWrap>
 
+  <!--
+    等待第二人批准（U2）：全局确认队列里 `mode=approval`、`status=pending` 的那些。那条队列只有管理员
+    够得到，故这张卡也只对管理员取数；普通用户与审计读者看不到它，更不会因此收到一条 403 提示。发起人由
+    相邻的 `tool_call/pending` 审计行配对读出（见 `pendingJoin.mjs`），配不到时**明说**定不出来，不点一个
+    猜的名字。
+
+    Waiting for a second person (U2): the global confirmation queue's `mode=approval`, `status=pending` rows.
+    Only an administrator can reach that queue, so only an administrator asks for it; an ordinary user and an
+    audit reader see no card and no 403 toast. The initiator is paired from the adjacent `tool_call/pending`
+    audit row (see `pendingJoin.mjs`), and when that pairing fails the card **says so** instead of naming a
+    guess.
+  -->
+  <ContentWrap
+    v-if="isAdmin && approvalVisible && (approvalRows.length || approvalError)"
+    :title="t('keelbase.actionCenter.approvalTitle')"
+  >
+    <template #header>
+      <el-tag v-if="approvalRows.length" size="small" type="warning" effect="plain">
+        {{ t('keelbase.actionCenter.approvalCount', { n: approvalRows.length }) }}
+      </el-tag>
+      <el-button class="ml-auto" size="small" :loading="approvalLoading" @click="loadApprovals">
+        {{ t('keelbase.common.refresh') }}
+      </el-button>
+    </template>
+
+    <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">{{ t('keelbase.actionCenter.approvalHint') }}</div>
+    <div v-if="approvalScanBound" class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
+      {{ t('keelbase.actionCenter.approvalScanBound') }}
+    </div>
+    <div v-if="approvalError" class="text-[var(--el-color-danger)] mb-10px">{{ approvalError }}</div>
+
+    <div v-for="c in approvalRows" :key="c.token" class="row">
+      <div class="row-main">
+        <div class="row-head">
+          <span class="font-weight-medium">{{ toolText(c.toolName) }}</span>
+          <el-tag v-if="c.riskLevel" size="small" effect="plain">{{ c.riskLevel }}</el-tag>
+          <el-tag size="small" type="info" effect="plain">{{ c.mode }}</el-tag>
+        </div>
+        <div class="row-step">{{ initiatorText(c) }}</div>
+        <div class="row-reason">{{ reasonText(c) }}</div>
+        <div class="args-label">{{ t('keelbase.actionCenter.argsLabel') }}</div>
+        <pre class="args">{{ formatArgs(c.arguments) }}</pre>
+        <div class="row-meta">
+          {{ timeText(c.createdAt) }}
+          <template v-if="c.expiresAt"> · {{ t('keelbase.actionCenter.expiresAt', { at: timeText(c.expiresAt) }) }}</template>
+        </div>
+      </div>
+      <!-- 自己发起的那一行不给批准：服务端对它答 403，页面在给按钮之前就说清楚。 -->
+      <!-- A row the caller raised offers no approve: the server answers 403, and the page says so first. -->
+      <div v-if="initiatedByMe(c)" class="row-actions text-12px text-[var(--el-text-color-secondary)]">
+        {{ t('keelbase.actionCenter.approvalOwnRow') }}
+      </div>
+      <!-- 与其余写控件同一条角色规则：审计读者一个都不给（服务端本来也会拒）。 -->
+      <!-- The same role rule as every other write control: an audit reader gets none (the server would refuse). -->
+      <div v-else-if="canWrite" class="row-actions">
+        <el-button
+          size="small"
+          type="primary"
+          :loading="decidingApproval === c.token"
+          :disabled="decidingApproval !== null"
+          @click="decideApproval(c, 'approve')"
+        >
+          {{ t('keelbase.actionCenter.approve') }}
+        </el-button>
+        <el-button
+          size="small"
+          :loading="decidingApproval === c.token"
+          :disabled="decidingApproval !== null"
+          @click="decideApproval(c, 'decline')"
+        >
+          {{ t('keelbase.actionCenter.decline') }}
+        </el-button>
+      </div>
+      <div v-else class="row-actions text-12px text-[var(--el-text-color-secondary)]">
+        {{ t('keelbase.actionCenter.readOnlyNote') }}
+      </div>
+    </div>
+  </ContentWrap>
+
   <!-- F-18：判决落下的那些行不该消失。这里只渲染运行时已经返回、而页面过去没要的字段。 -->
   <!-- F-18: rows that were decided should not vanish. This renders only fields the runtime already
        returns and the page never asked for. -->
@@ -159,16 +238,16 @@
             <div class="d-row">
               <span class="d-key">{{ t('keelbase.effects.colTarget') }}</span>
               <span>
-                {{ maskTitle(row.targetTitle) }}
-                <!-- The masking note belongs to a title that exists. Where the runtime answers none,
-                     saying "masked" would describe an act nobody performed. Here the note also names
-                     the business leg below it: that table is the host's own log, shown under the
-                     host's read permission, so this sentence must not claim the console prints
+                {{ targetText(row) }}
+                <!-- 掩码那句话属于**真有过名字**的情形。运行时与宿主都没答内容时说「已掩码」，是在描述
+                     一件没人做过的事。这里那句话也点了下方那条业务腿：那张表是**宿主自己的日志**、按
+                     宿主的读权限显示，故这句话不能声称本控制台什么都不打印。 -->
+                <!-- The masking note belongs to a name that exists. Where neither the runtime nor the
+                     host answers one, saying "masked" would describe an act nobody performed. Here the
+                     note also names the business leg below it: that table is the host's own log, shown
+                     under the host's read permission, so this sentence must not claim the console prints
                      nothing. -->
-                <!-- 掩码那句话属于**真有过标题**的情形。运行时没答内容时说「已掩码」，是在描述一件没人
-                     做过的事。这里那句话也点了下方那条业务腿：那张表是**宿主自己的日志**、按宿主的读
-                     权限显示，故这句话不能声称本控制台什么都不打印。 -->
-                <span v-if="row.targetTitle" class="muted">{{ t('keelbase.effects.maskedNoteHostLog') }}</span>
+                <span v-if="targetNamed(row)" class="muted">{{ t('keelbase.effects.maskedNoteHostLog') }}</span>
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>
@@ -214,7 +293,7 @@
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colTarget')" width="240">
         <template #default="{ row }">
-          {{ maskTitle(row.targetTitle) }} <span class="muted">{{ idText(row.resultId) }}</span>
+          {{ targetText(row) }} <span class="muted">{{ idText(row.resultId) }}</span>
         </template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colResultType')" prop="resultType" width="150" />
@@ -249,18 +328,29 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ContentWrap } from '@/components/ContentWrap'
 import Pagination from '@/components/Pagination/index.vue'
-import { businessLogApi, confirmationApi, effectApi, type BusinessLogRow, type ConfirmationItem, type EffectRow } from '@/keelbase/governanceApi'
+import {
+  auditApi,
+  businessLogApi,
+  confirmationApi,
+  effectApi,
+  type AuditRow,
+  type BusinessLogRow,
+  type ConfirmationItem,
+  type EffectRow,
+} from '@/keelbase/governanceApi'
 import { resolveCallerNames } from '@/keelbase/callerNames'
+import { resolveRecordNames } from '@/keelbase/recordNames'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
-import { useConsoleWriteAllowed } from '@/keelbase/consoleRole'
+import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
+import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
 
 defineOptions({ name: 'KeelbaseGovernanceActionCenter' })
 
@@ -268,6 +358,9 @@ const { t } = useI18n()
 /** The audit reader sees no write control (revoke, approve, decline); the server's verdict is unchanged. */
 /** 审计读者不出现写控件（撤销、批准、拒绝）；服务端裁决不变。 */
 const { canWrite } = useConsoleWriteAllowed()
+/** 全局确认队列只有管理员够得到；「是不是我自己发起的」也要用到当前用户。 */
+/** Only an administrator reaches the global queue, and "is this one mine" needs the current user too. */
+const { isAdmin, userId: myUserId } = useConsoleAdministrator()
 
 /** The tool in the reader's language, falling back to the registered name. */
 /** 工具名，用读者的语言；不认识就保留注册名。 */
@@ -297,6 +390,25 @@ function idText(value: number | string | null | undefined): string {
 }
 
 /**
+ * 这一格写什么：宿主答得出就给它的名字（已掩码），否则用运行时给的标题，再没有就说「未登记名称」。
+ * 破折号留给**真没有对象**的行，不再用来表示「没问到」。
+ *
+ * What this cell says: the host's name when it has one (masked), else the runtime's title, else "name
+ * not registered". The dash is left to rows that really carry no object, not to "we did not ask".
+ */
+function targetText(row: EffectRow): string {
+  const named = targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`]
+  if (named) return named
+  if (row.targetTitle) return maskTitle(row.targetTitle)
+  return t('keelbase.effects.targetUnnamed')
+}
+
+/** 这一格真有个名字（宿主或运行时给的），掩码那句说明才该出现。 / Whether the cell holds a real name. */
+function targetNamed(row: EffectRow): boolean {
+  return Boolean(targetNames.value[`${row.resultType ?? ''}#${row.resultId ?? ''}`] || row.targetTitle)
+}
+
+/**
  * 这一行的发起人：名录认得就显示名字，认不得就原样显示 id —— 页面**只补名字、不改事实**。
  *
  * The caller behind the row: a name when the directory knows it, the id itself otherwise — this only
@@ -322,10 +434,46 @@ const decided = ref<ConfirmationItem[]>([])
 const pendingLoading = ref(false)
 const deciding = ref<string | null>(null)
 
+/**
+ * 等待第二人批准的全局队列。它**不是**「我的待决」：`/ai/my/confirmations` 只答 `mode=immediate`，
+ * 故 R4 行在过去任何人的行动中心里都看不到。这里读的是 `GET /ai/confirmations`，并只在管理员登录时读。
+ *
+ * The global queue of writes waiting for a second person. It is **not** "my pending": `/ai/my/confirmations`
+ * answers `mode=immediate` only, which is why an R4 row was invisible in everyone's action centre. This reads
+ * `GET /ai/confirmations`, and only when an administrator is signed in.
+ */
+const approvalRows = ref<ConfirmationItem[]>([])
+/** 每条待批确认的发起人 id；配对不出来时为 null（页面明说，不猜）。 */
+/** The initiator id of each pending confirmation; null when the pairing cannot be made (the page says so). */
+const approvalInitiators = ref<Record<string, string | null>>({})
+/** 名录给发起人配好的名字，按 id 索引。 / Names the directory holds for the initiators, keyed by id. */
+const approvalNames = ref<Record<string, string>>({})
+const approvalVisible = ref(false)
+const approvalScanBound = ref(false)
+const approvalLoading = ref(false)
+const approvalError = ref('')
+const decidingApproval = ref<string | null>(null)
+
+/** 队列一页 100（运行时的上限），最多读五页；读到上界就明说还有更早的没读。 */
+/** A queue page is 100 (the runtime's cap), five pages at most; hitting the bound is said out loud. */
+const APPROVAL_QUEUE_LIMIT = 100
+const APPROVAL_QUEUE_MAX_PAGES = 5
+/** 配对用的审计窗：一页 200 行，与追溯页同一口径。 / The audit window for pairing: 200 rows, as the trace page reads it. */
+const APPROVAL_AUDIT_LIMIT = 200
+
 const effects = ref<EffectRow[]>([])
 /** 名录给发起人配好的名字，按 id 索引；取不到时列回落成 id 本身。 */
 /** Names the directory holds for the callers, keyed by id; the column falls back to the id. */
 const names = ref<Record<string, string>>({})
+/**
+ * 宿主给这一行**落在哪条记录**配好的名字（已掩码），按 `类型#主键` 索引。口径与写入台账页同一份：
+ * 运行时的 `targetTitle` 对客户这类记录是 **null**（2026-11-04 真栈实测）。
+ *
+ * The host's name (masked) for **the record this row landed on**, keyed by `type#key`; the same rule as
+ * the write ledger's page. The runtime's `targetTitle` is **null** for a customer row (measured on a real
+ * stack, 2026-11-04), so the cell used to carry a dash and a key and nothing else.
+ */
+const targetNames = ref<Record<string, string>>({})
 const total = ref(0)
 const page = ref(1)
 const limit = ref(20)
@@ -418,6 +566,146 @@ function statusTag(status: string): 'success' | 'info' {
   return status === 'revoked' ? 'info' : 'success'
 }
 
+/**
+ * 全局队列，按页读到短页或到上界。最新在前，故上界截掉的是**更早**的行 —— 页面把这一点说出来。
+ *
+ * The global queue, page after page until a short page or the bound. It is newest first, so the bound drops
+ * the **older** rows — and the page says that out loud.
+ */
+async function readApprovalQueue(): Promise<{ items: ConfirmationItem[]; bound: boolean }> {
+  const items: ConfirmationItem[] = []
+  for (let page = 1; page <= APPROVAL_QUEUE_MAX_PAGES; page += 1) {
+    const res = await confirmationApi.listAll(page, APPROVAL_QUEUE_LIMIT)
+    const pageItems = res?.items ?? []
+    items.push(...pageItems)
+    if (pageItems.length < APPROVAL_QUEUE_LIMIT) return { items, bound: false }
+  }
+  return { items, bound: true }
+}
+
+/**
+ * 那条 `tool_call/pending` 审计行记下的发起人；配对不出来时明说。名字经宿主名录联出并掩码，名录答不出
+ * 名字时回落 `用户 #id` —— 不把 id 也掩掉，那会把「谁」掩成谁也认不出的一个数字。
+ *
+ * The initiator recorded on the pending `tool_call/pending` audit row; when the pairing fails, say so. The
+ * name is joined through the host's directory and masked; a directory that cannot name the id falls back to
+ * `User #id` rather than masking the id too, which would hide the very person it names.
+ */
+function initiatorText(c: ConfirmationItem): string {
+  const id = approvalInitiators.value[c.token] ?? null
+  if (!id) return t('keelbase.actionCenter.initiatorUnknown')
+  const name = approvalNames.value[id]
+  const who = name && name !== id
+    ? t('keelbase.actionCenter.initiatorNamed', { name: maskTitle(name), id })
+    : t('keelbase.actionCenter.initiatorIdOnly', { id })
+  return t('keelbase.actionCenter.initiatorLabel', { who })
+}
+
+/** 这一笔是不是调用方自己发起的：是的话不给批准按钮，服务端也会拒（403）。 */
+/** Whether the caller raised this one: if so, no approve button — the server refuses it (403) anyway. */
+function initiatedByMe(c: ConfirmationItem): boolean {
+  const id = approvalInitiators.value[c.token] ?? null
+  return Boolean(id && myUserId.value && id === myUserId.value)
+}
+
+/**
+ * 读那条只有管理员够得到的队列。拒绝（403）意味着角色表在这里不可靠：这张卡**不渲染、也不弹错** ——
+ * 一个人人都会用的页面不该为一张不属于他的卡报错。其余失败才是这个管理员该看见的错误。
+ *
+ * Read the queue only an administrator can reach. A refusal (403) means the role list is not reliable here:
+ * the card is **not drawn and nothing is toasted** — a page everyone uses must not report an error for a card
+ * that is not theirs. Any other failure is an error this administrator should see.
+ */
+async function loadApprovals() {
+  if (!isAdmin.value || approvalLoading.value) return
+  approvalLoading.value = true
+  approvalError.value = ''
+  try {
+    const { items, bound } = await readApprovalQueue()
+    approvalVisible.value = true
+    approvalScanBound.value = bound
+    approvalRows.value = items.filter((c) => c.mode === 'approval' && c.status === 'pending')
+    if (!approvalRows.value.length) {
+      approvalInitiators.value = {}
+      return
+    }
+    // 待决行与它的审计行写在同一刻，故从最早的那一条往前让出配对窗；一页 200 行，与追溯页同一口径。
+    // The pending row and its audit row share an instant, so the window opens one pairing span before the
+    // earliest of them; one page of 200 rows, the same rule the trace page reads with.
+    const times = approvalRows.value
+      .map((c) => Date.parse(c.createdAt))
+      .filter((n) => !Number.isNaN(n))
+    // 配对只是**补一个名字**：这次审计读失败时仍把队列画出来，发起人那一格说「定不出来」。
+    // The pairing only **adds a name**: a failed audit read still draws the queue, and the initiator cell says
+    // it cannot tell.
+    let rows: AuditRow[] = []
+    try {
+      rows = times.length
+        ? await auditApi.logs({
+            since: new Date(Math.min(...times) - PENDING_INITIATOR_WINDOW_MS).toISOString(),
+            limit: APPROVAL_AUDIT_LIMIT,
+          })
+        : []
+    } catch {
+      rows = []
+    }
+    const joined: Record<string, string | null> = {}
+    for (const c of approvalRows.value) joined[c.token] = initiatorOf(c, rows)
+    approvalInitiators.value = joined
+    approvalNames.value = {
+      ...approvalNames.value,
+      ...(await resolveCallerNames(Object.values(joined).filter((id): id is string => Boolean(id)))),
+    }
+  } catch (e) {
+    const status = (e as { response?: { status?: number } })?.response?.status
+    if (status === 403) {
+      approvalVisible.value = false
+      approvalRows.value = []
+      approvalInitiators.value = {}
+    } else {
+      approvalVisible.value = true
+      approvalError.value = runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
+    }
+  } finally {
+    approvalLoading.value = false
+  }
+}
+
+/**
+ * 批准或拒绝别人的待批写。提示语按运行时答的 `status` 分岔：`executed` / `declined` 是完成，
+ * `error` / `blocked` 带着运行时自己的原因，其余的词照实说出来 —— 不把不认识的结局当成成功。
+ *
+ * Approve or decline another person's held write. The message branches on the runtime's `status`:
+ * `executed` / `declined` are done, `error` / `blocked` carry the runtime's own reason, and any other word is
+ * repeated as it came — an outcome this page does not know is never read as success.
+ */
+async function decideApproval(item: ConfirmationItem, decision: 'approve' | 'decline') {
+  decidingApproval.value = item.token
+  try {
+    const res = await confirmationApi.approveBy(item.token, decision)
+    const status = res?.status
+    if (status === 'executed') {
+      ElMessage.success(t('keelbase.actionCenter.approvalExecuted'))
+    } else if (status === 'declined') {
+      ElMessage.success(t('keelbase.actionCenter.approvalDeclined'))
+    } else if (status === 'error' || status === 'blocked') {
+      ElMessage.warning(
+        t('keelbase.actionCenter.approvalRefused', { reason: res?.error || t('keelbase.actionCenter.unknownReason') }),
+      )
+    } else {
+      ElMessage.warning(t('keelbase.actionCenter.approvalUnknown', { status: status || '—' }))
+    }
+    // 批准会**真的执行**那笔写（以发起人的身份），故台账与队列一起刷新。
+    // An approval really runs the write (as the initiator), so the ledger and the queue refresh together.
+    await Promise.all([loadApprovals(), loadEffects()])
+  } catch (e) {
+    ElMessage.error(runtimeErrorMessage(e, t('keelbase.actionCenter.approvalFailed')))
+    await loadApprovals()
+  } finally {
+    decidingApproval.value = null
+  }
+}
+
 async function loadPending() {
   pendingLoading.value = true
   // One call asks only for what is waiting; the other leaves `status` out, which is how the same
@@ -445,6 +733,10 @@ async function loadPending() {
     }
   }
   pendingLoading.value = false
+  // 同一个「刷新」也把等待第二人批准的那张卡带上：它不在这两次读里。非管理员在 `loadApprovals` 里直接返回。
+  // The same "refresh" carries the waiting-for-a-second-person card too, which those two reads do not cover.
+  // A non-administrator returns from `loadApprovals` at once.
+  void loadApprovals()
 }
 
 async function loadEffects() {
@@ -455,6 +747,10 @@ async function loadEffects() {
     effects.value = res.items
     total.value = res.total
     names.value = { ...names.value, ...(await resolveCallerNames(res.items.map((r) => r.userId))) }
+    targetNames.value = {
+      ...targetNames.value,
+      ...Object.fromEntries(await resolveRecordNames(res.items.map((r) => ({ type: r.resultType, id: r.resultId })))),
+    }
   } catch (e) {
     effects.value = []
     total.value = 0
@@ -555,6 +851,10 @@ function confirmRevoke(row: EffectRow) {
 onMounted(() => {
   void loadPending()
   void loadEffects()
+  // `loadPending` 也会带它；首次进入时它还没跑完就已返回，故这里再叫一次并无重复的代价（有在途守卫）。
+  // `loadPending` carries it too; on first entry this call lands before that one finishes, and the in-flight
+  // guard makes the second one a no-op.
+  void loadApprovals()
 })
 </script>
 

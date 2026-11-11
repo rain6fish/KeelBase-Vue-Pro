@@ -102,12 +102,12 @@ public interface PmsIterationMapper extends BaseMapperX<PmsIterationDO> {
      */
     default Map<Long, Map<Integer, Long>> selectStatusCountMapByProjectIds(Collection<Long> projectIds) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsIterationDO>()
-                .select("project_id AS projectId", "status", "COUNT(*) AS count")
+                .select("project_id", "status", "COUNT(*) AS count")
                 .in("project_id", projectIds)
                 .groupBy("project_id", "status"));
         Map<Long, Map<Integer, Long>> projectStatusCountMap = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            Long projectId = ((Number) row.get("projectId")).longValue();
+            Long projectId = ((Number) row.get("project_id")).longValue();
             Integer status = ((Number) row.get("status")).intValue();
             projectStatusCountMap.computeIfAbsent(projectId, key -> new LinkedHashMap<>())
                     .put(status, ((Number) row.get("count")).longValue());

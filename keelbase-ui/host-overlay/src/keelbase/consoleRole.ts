@@ -25,9 +25,9 @@
 // 这不改服务端自己的拒绝：它仍是权威，直接打写端点对这位读者仍旧答 403。
 import { computed } from 'vue'
 import { useUserStore } from '@/store/modules/user'
-import { AUDIT_READER_ROLE, canWriteWithRoles } from './consoleRoleCore.mjs'
+import { AUDIT_READER_ROLE, HOST_ADMIN_ROLE, canWriteWithRoles, isHostAdministrator } from './consoleRoleCore.mjs'
 
-export { AUDIT_READER_ROLE, canWriteWithRoles }
+export { AUDIT_READER_ROLE, HOST_ADMIN_ROLE, canWriteWithRoles, isHostAdministrator }
 
 /**
  * `canWrite` is false for the audit reader and true for everybody else. It reads the role list on
@@ -40,4 +40,22 @@ export function useConsoleWriteAllowed() {
   const userStore = useUserStore()
   const readOnly = computed(() => !canWriteWithRoles(userStore.getRoles))
   return { readOnly, canWrite: computed(() => !readOnly.value) }
+}
+
+/**
+ * 调用方是不是管理员，以及他是谁。前者决定要不要发起一次**只有管理员答得动**的读（全局确认队列）；
+ * 后者用来认出「这一笔是我自己发起的」—— 那一行不给批准按钮，因为服务端会拒，而页面在给按钮之前就该说清楚。
+ *
+ * Whether the caller is an administrator, and who they are. The first decides whether to make a read only an
+ * **administrator** can make (the global confirmation queue); the second recognises "this one is mine" — such
+ * a row offers no approve button, because the server refuses it and the page says so before offering it.
+ */
+export function useConsoleAdministrator() {
+  const userStore = useUserStore()
+  const isAdmin = computed(() => isHostAdministrator(userStore.getRoles))
+  const userId = computed(() => {
+    const id = userStore.getUser?.id
+    return id === undefined || id === null ? '' : String(id)
+  })
+  return { isAdmin, userId }
 }

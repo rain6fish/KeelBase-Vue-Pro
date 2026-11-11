@@ -159,6 +159,28 @@
             <el-tag :type="postureTagType(row.posture)" size="small">{{ t(`keelbase.boundary.posture.${row.posture}`) }}</el-tag>
           </template>
         </el-table-column>
+        <!-- 开箱时：这条路上的工具在「还没人写过策略」的部署里能不能调。取自本行自己的 `defaults`
+             （`on` / `writes-off`）与两个工具名清单 —— 页面不重算，记录里没有的不画。
+             2026-11-04 实测：SKILL 的七个工具（含只读 SKILL.md 的 `Skill`）注册时就写成 `enabled:false`，
+             新部署里模型连技能说明都拿不到；这一列把这件事摆在读者眼前，而不是只留在取证文件里。 -->
+        <!-- Out of the box: whether this path's tools may run in a deployment nobody has written a
+             policy for — taken from the row's own `defaults` and its two tool lists. Nothing is
+             recomputed here, and what the record does not carry is not drawn. -->
+        <el-table-column :label="t('keelbase.boundary.colDefault')" min-width="200">
+          <template #default="{ row }">
+            <el-tag
+              :type="row.defaults === 'on' ? 'success' : 'warning'"
+              size="small"
+              effect="plain"
+            >{{ t(`keelbase.boundary.defaults.${row.defaults}`) }}</el-tag>
+            <div v-if="row.onTools" class="text-12px mt-4px">
+              {{ t('keelbase.boundary.defaultsOnTools', { tools: row.onTools.join(', ') }) }}
+            </div>
+            <div v-if="row.offTools" class="text-12px mt-4px text-[var(--el-text-color-secondary)]">
+              {{ t('keelbase.boundary.defaultsOffTools', { tools: row.offTools.join(', ') }) }}
+            </div>
+          </template>
+        </el-table-column>
         <!-- 路径 × 关卡矩阵：一列一道关，勾只由本行自己的 `holds` 推出（`holds.includes(control)`）。
              原来把这一行的关卡画成标签串，读者要比对好几行才看得出「哪条路少了哪道关」；摆成矩阵后
              横向一读就是答案。页面仍不重算任何东西 —— `stated.paths` 里没有的关卡就不会被打勾。 -->
@@ -197,6 +219,14 @@
           <template #default="{ row }">{{ t(`keelbase.boundary.gap.${row.gap}`) }}</template>
         </el-table-column>
       </el-table>
+      <!-- 「写类关闭」不是缺了功能，也不是它在某次调用上被临时拒绝：注册时写下的默认策略就是这样，
+           每次调用仍到引擎、由策略拒绝并留审计行。要放开就在策略中心逐项启用。 -->
+      <!-- "Writes off" is neither a missing feature nor a one-off refusal: it is what the default policy
+           says at registration, each call still reaches the engine and a refusal row is written, and an
+           administrator lifts it tool by tool in the Policy Center. -->
+      <div class="text-12px text-[var(--el-text-color-secondary)] mt-6px mb-10px">
+        {{ t('keelbase.boundary.defaultsHow') }}
+      </div>
 
       <!-- 它扣不住的：独立成块，读者从上到下走一遍就能读到上游那条路与「只差一个 bean」的告诫。
            内容来自 `stated.notHeld`，路径名来自 `path.<id>` —— 与上面那张表同一份记录，页面不另算。 -->
@@ -256,6 +286,97 @@
         </el-table>
       </template>
 
+      <!-- 两条写痕**并列**：左边是上游控制台的 REST 写（只记不改），右边是 AI 经引擎的写（受治理）。同一页、
+           两张表、**永不合成一行** —— 「有痕」与「受治理」是两件事，这一节让读者在同一屏里看到它们。
+           数据全部来自端点（`/admin-api/keelbase/bypass-log` 与运行时的 `/audit/logs`），页面不重算。
+           / Two write trails **side by side**: upstream console REST writes (recorded only) on the left, AI
+           writes through the engine (governed) on the right. Same page, two tables, **never one row** —
+           "traced" and "governed" are different facts, and this section shows them on one screen. Every cell
+           comes from an endpoint; nothing is recomputed here. -->
+      <div class="font-medium mt-16px mb-4px flex items-center">
+        {{ t('keelbase.boundary.trailsTitle') }}
+        <el-button class="ml-auto" size="small" :loading="trailsLoading" @click="loadTrails">
+          {{ t('keelbase.common.refresh') }}
+        </el-button>
+      </div>
+      <div class="text-12px text-[var(--el-text-color-secondary)] mb-8px">{{ t('keelbase.boundary.trailsWhat') }}</div>
+      <el-row :gutter="12" class="trails">
+        <el-col :span="12">
+          <div class="font-medium mb-4px">{{ t('keelbase.boundary.bypassTitle') }}</div>
+          <div v-if="bypassError" class="text-12px text-[var(--el-color-danger)] mb-4px">{{ bypassError }}</div>
+          <div
+            v-else-if="bypass && bypass.items.length === 0"
+            class="text-12px text-[var(--el-text-color-secondary)]"
+          >
+            {{ t('keelbase.boundary.bypassEmpty') }}
+          </div>
+          <el-table v-else :data="bypass?.items ?? []" stripe size="small" class="boundary-trail">
+            <el-table-column :label="t('keelbase.boundary.colTime')" width="150">
+              <template #default="{ row }">{{ timeText(row.occurredAt) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colRequest')" min-width="210">
+              <template #default="{ row }">
+                <div>
+                  <el-tag size="small" effect="plain">{{ row.method }}</el-tag>
+                  <span class="ml-4px text-12px break-all">{{ row.path }}</span>
+                </div>
+                <div class="text-12px text-[var(--el-text-color-secondary)]">
+                  {{ subjectText(row) }} · {{ callerName(row.callerId) }} · {{ row.durationMs }} ms
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colPosture')" width="105">
+              <template #default>
+                <el-tag size="small" type="warning" effect="plain">
+                  {{ t('keelbase.boundary.postureRecorded') }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colResult')" width="110">
+              <template #default="{ row }">{{ resultText(row) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colBody')" min-width="160">
+              <template #default="{ row }">
+                <span class="text-12px">{{ bodyText(row) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-col>
+        <el-col :span="12">
+          <div class="font-medium mb-4px">{{ t('keelbase.boundary.governedTitle') }}</div>
+          <div v-if="governedError" class="text-12px text-[var(--el-color-danger)] mb-4px">{{ governedError }}</div>
+          <div
+            v-else-if="governed && governed.length === 0"
+            class="text-12px text-[var(--el-text-color-secondary)]"
+          >
+            {{ t('keelbase.boundary.governedEmpty') }}
+          </div>
+          <el-table v-else :data="governed ?? []" stripe size="small" class="boundary-trail">
+            <el-table-column :label="t('keelbase.boundary.colTime')" width="150">
+              <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colAction')" min-width="180">
+              <template #default="{ row }">
+                <span class="text-12px">{{ row.tool ?? row.action ?? '—' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colWho')" width="100">
+              <template #default="{ row }">{{ callerName(row.userId) }}</template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colPosture')" width="105">
+              <template #default>
+                <el-tag size="small" type="success">{{ t('keelbase.boundary.postureGoverned') }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column :label="t('keelbase.boundary.colResult')" width="110">
+              <template #default="{ row }">
+                {{ row.outcome ?? (row.isError ? t('keelbase.boundary.resultError') : t('keelbase.boundary.resultOk')) }}
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-col>
+      </el-row>
+
       <!-- 会绕过它的 bean：有才画，且是这一页唯一「坏了」的样子 / only when there are any -->
       <template v-if="boundary.computed.offenders.length">
         <div class="font-medium mt-16px mb-6px">{{ t('keelbase.boundary.offendersTitle') }}</div>
@@ -272,6 +393,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ContentWrap } from '@/components/ContentWrap'
+import request from '@/config/axios'
+import { auditApi, type AuditRow } from '@/keelbase/governanceApi'
+import { resolveCallerNames } from '@/keelbase/callerNames'
+import { timeText } from '@/keelbase/time'
 
 defineOptions({ name: 'KeelbaseGovernanceBoundary' })
 
@@ -376,6 +501,97 @@ const heldActionIds = computed(() => actionsWhere((p) => p.holds.includes('confi
 const auditedActionIds = computed(() =>
   actionsWhere((p) => p.posture !== 'not-governed' && !p.holds.includes('confirmation'))
 )
+
+/**
+ * 一行旁路留痕，按只读端点的答复（`GET /admin-api/keelbase/bypass-log`）。正文三列同时为 null 是「没读」；
+ * 接口从不返回正文的值 —— 它本来就不在库里（见 `YudaoBypassAuditBody`）。
+ *
+ * One bypass-trail row, as the read endpoint answers it. All three body columns null means "not read"; the
+ * endpoint never returns a body value — none is in the table to begin with.
+ */
+type BypassRow = {
+  id: number
+  occurredAt: string
+  method: string
+  path: string
+  module: string | null
+  object: string | null
+  callerId: number | null
+  httpStatus: number
+  resultCode: number | null
+  durationMs: number
+  bodyLength: number | null
+  bodySha256: string | null
+  bodyFields: string | null
+}
+
+type BypassPage = { total: number; page: number; limit: number; items: BypassRow[] }
+
+const bypass = ref<BypassPage | null>(null)
+const governed = ref<AuditRow[] | null>(null)
+const bypassError = ref('')
+const governedError = ref('')
+const trailsLoading = ref(false)
+const callerNames = ref<Record<string, string>>({})
+
+const callerName = (id: number | string | null | undefined) => {
+  if (id === null || id === undefined || id === '') return '—'
+  return callerNames.value[String(id)] ?? String(id)
+}
+
+const subjectText = (row: BypassRow) => [row.module, row.object].filter(Boolean).join(' / ') || '—'
+
+const resultText = (row: BypassRow) =>
+  row.resultCode === null
+    ? t('keelbase.boundary.resultNoCode', { http: row.httpStatus })
+    : t('keelbase.boundary.resultBoth', { http: row.httpStatus, code: row.resultCode })
+
+const bodyText = (row: BypassRow) => {
+  if (row.bodyLength === null) return t('keelbase.boundary.bodyNone')
+  const shape = { length: row.bodyLength, digest: row.bodySha256 ?? '—' }
+  return row.bodyFields
+    ? t('keelbase.boundary.bodyParts', { ...shape, fields: row.bodyFields })
+    : t('keelbase.boundary.bodyNoFields', shape)
+}
+
+/**
+ * 两条写痕各自去取：**一边失败不拖累另一边**，且失败那一侧写明「读不到」而不是画一张空表 —— 一张空的治理表
+ * 会被读成「没有任何写」，那正是这一节最不该给出的误读。
+ *
+ * The two trails are fetched independently: **one failing does not take the other down**, and the failed side
+ * says "unreadable" instead of drawing an empty table — an empty governance table reads as "nothing was
+ * written", the one misreading this section must never produce.
+ */
+async function loadTrails() {
+  trailsLoading.value = true
+  const [trail, chain] = await Promise.allSettled([
+    request.get({ url: '/keelbase/bypass-log', params: { page: 1, limit: 8 } }) as Promise<BypassPage>,
+    auditApi.logs({ limit: 8 }),
+  ])
+  if (trail.status === 'fulfilled') {
+    bypass.value = trail.value
+    bypassError.value = ''
+  } else {
+    bypass.value = null
+    bypassError.value = t('keelbase.boundary.trailsUnreadable')
+  }
+  if (chain.status === 'fulfilled') {
+    governed.value = chain.value
+    governedError.value = ''
+  } else {
+    governed.value = null
+    governedError.value = t('keelbase.boundary.trailsUnreadable')
+  }
+  try {
+    callerNames.value = await resolveCallerNames([
+      ...(bypass.value?.items ?? []).map((row) => row.callerId),
+      ...(governed.value ?? []).map((row) => row.userId),
+    ])
+  } catch {
+    // Names only ever add; ids stand in when they cannot be had. / 名字只是补充；取不到就用 id 顶替。
+  }
+  trailsLoading.value = false
+}
 const ungovernedActionIds = computed(() => actionsWhere((p) => p.posture === 'not-governed'))
 
 // The UI build lays this file in from the gate's own `--emit`; nothing here recomputes it. `no-store`
@@ -385,6 +601,10 @@ const ungovernedActionIds = computed(() => actionsWhere((p) => p.posture === 'no
 const SOURCE = '/keelbase-governance-boundary.json'
 
 onMounted(async () => {
+  // 两条写痕与那份构建记录**无关**：它们来自端点，构建里没有记录时也照读（那一节自己说读不到）。
+  // The two trails do not depend on that build record: they come from endpoints and are read even when the
+  // record is missing (that section says so on its own).
+  void loadTrails()
   try {
     const res = await fetch(SOURCE, { cache: 'no-store' })
     // A build without the record is a different fact from a failed read, and it is said differently.

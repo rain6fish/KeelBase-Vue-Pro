@@ -25,6 +25,19 @@ public interface PayWalletRechargeService {
                                              AppPayWalletRechargeCreateReqVO createReqVO);
 
     /**
+     * 获得钱包充值记录
+     *
+     * 只读、按标识符读一行；不判属主——属主对在 `pay_wallet` 上，由调用方（工具路径）事后判。
+     *
+     * Returns one recharge row by its id. Read-only and owner-agnostic: the owner pair lives on `pay_wallet`,
+     * so deciding whose row it is stays with the caller (the tool path).
+     *
+     * @param id 编号
+     * @return 钱包充值记录
+     */
+    PayWalletRechargeDO getWalletRecharge(Long id);
+
+    /**
      * 获得钱包充值记录分页
      *
      * @param userId 用户编号

@@ -269,19 +269,29 @@ async function ensureUser(adminToken, username, password, roleIds) {
 }
 
 // 「谁」：宿主为这一次写记下的那行操作日志，它的 `user_id` 必须是调用方。这行由宿主**异步**写下，
-// 故给它一小段窗口；窗口内该出现，始终没出现就是**失败**。按本轮唯一的线索名找。
+// 故有上限地轮询到它出现（默认 30s，`SCENARIO_OPERATE_LOG_TIMEOUT_MS` 可覆盖）；始终没出现就是**失败**，
+// 且读数里带上证据（匹配行数、表里最新一行）。按本轮唯一的线索名找。
 //
-// Who: the row the host logged for this write must name the caller. It is written **asynchronously**,
-// so give it a short window; it must appear within it, and not appearing is a failure. Locate it by this
-// run's unique clue name.
+// Who: the row the host logged for this write must name the caller. It is written **asynchronously**, so
+// poll with a deadline (30s by default; `SCENARIO_OPERATE_LOG_TIMEOUT_MS` overrides) and fail if it never
+// appears, carrying the evidence (matching rows, newest row) in the reading. Locate it by this run's
+// unique clue name.
+const OPERATE_LOG_WAIT_MS = Number(process.env.SCENARIO_OPERATE_LOG_TIMEOUT_MS || 30000) || 30000;
 async function hostLoggedWho(actionLike) {
-  for (let i = 0; i < 12; i += 1) {
+  const filter = `type = 'CRM 线索' and action like '%${actionLike}%'`;
+  const deadline = Date.now() + OPERATE_LOG_WAIT_MS;
+  while (Date.now() < deadline) {
     const who = psql(`select coalesce(user_id::text, '<null>') from system_operate_log`
-      + ` where type = 'CRM 线索' and action like '%${actionLike}%' order by id desc limit 1`);
+      + ` where ${filter} order by id desc limit 1`);
     if (who) return who;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  return '';
+  // 读数带上证据：有几行匹配、表里最新一行是哪条 —— 让「没等到」与「没写」在日志里可分辨。
+  // The reading carries its evidence: how many rows match and the newest operate-log id, so "never
+  // appeared" and "was never written" are distinguishable in the log.
+  const matching = psql(`select count(*) from system_operate_log where ${filter}`);
+  const newest = psql(`select coalesce(max(id)::text, '<none>') from system_operate_log`);
+  return `<no row within ${OPERATE_LOG_WAIT_MS}ms: matching=${matching}, newest operate_log id=${newest}>`;
 }
 
 // ── 0) 前置 ──────────────────────────────────────────────────────────────────────────────────────

@@ -14,10 +14,32 @@
 export const AUDIT_READER_ROLE = 'audit_reader'
 
 /**
+ * 芋道的超级管理员角色码。宿主自己判「是不是管理员」用的就是它（`YudaoAdministrator` 看的是角色里有没有
+ * 超管），控制台这一侧照同一条口径认，不另发明一张名单。
+ *
+ * Yudao's super-administrator role code. The host itself answers "is this caller an administrator" with it
+ * (`YudaoAdministrator` asks whether the roles hold the super administrator), and the console reads the same
+ * rule rather than inventing a second list.
+ */
+export const HOST_ADMIN_ROLE = 'super_admin'
+
+/**
  * True unless the caller carries `audit_reader`.
  *
  * 除非调用方带 `audit_reader`，否则为 true。
  */
 export function canWriteWithRoles(roles) {
   return !(roles ?? []).includes(AUDIT_READER_ROLE)
+}
+
+/**
+ * 宿主是否认这个调用方为管理员：角色清单里有没有芋道的 `super_admin`。服务端仍是权威 —— 前端判据只决定
+ * 「要不要发起一次只有管理员答得动的读」，判错了服务端会拒，页面按拒绝收起那张卡。
+ *
+ * Whether the host counts this caller as an administrator: the role list holds Yudao's `super_admin`. The
+ * server remains the authority — the client predicate only decides whether to make a read that only an
+ * administrator can make; a wrong verdict is refused by the server, and the page puts the card away.
+ */
+export function isHostAdministrator(roles) {
+  return (roles ?? []).includes(HOST_ADMIN_ROLE)
 }

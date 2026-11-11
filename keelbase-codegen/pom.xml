@@ -28,17 +28,17 @@
 
         <!-- 以及冻结协议，只为一条常量：`RiskLevel.needsConfirmation` —— 「哪几级为人停下」的那条规则。Spec
              带一个 `requiresConfirmation` 布尔，但**风险级才是权威**（协议 §4），故生成器从这条规则的**出处**读它、
-             而不是复述一遍。仅编译期：它产出的文本仍不依赖任何东西。版本与宿主的运行时依赖同档（`0.1.16`），
+             而不是复述一遍。仅编译期：它产出的文本仍不依赖任何东西。版本与宿主的运行时依赖同档（`0.1.17`），
              免得这条规则哪天改了、生成器却按旧规矩行事。
              And the frozen protocol, for one constant: `RiskLevel.needsConfirmation` — the rule that says which
              levels stop for a human. A Spec carries a `requiresConfirmation` flag, but the risk level is the
              authority (protocol §4), so the generator reads the rule where it lives rather than restating it.
              Compile-time only: the text this emits still depends on nothing else. Kept on the same version as the
-             host's runtime dependencies (`0.1.16`), so the rule cannot change under a generator still reading the old one. -->
+             host's runtime dependencies (`0.1.17`), so the rule cannot change under a generator still reading the old one. -->
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-protocol</artifactId>
-            <version>0.1.16</version>
+            <version>0.1.17</version>
         </dependency>
     </dependencies>
 

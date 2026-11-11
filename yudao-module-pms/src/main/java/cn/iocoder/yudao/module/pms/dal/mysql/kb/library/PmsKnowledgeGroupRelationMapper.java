@@ -44,13 +44,13 @@ public interface PmsKnowledgeGroupRelationMapper extends BaseMapperX<PmsKnowledg
     default Map<Long, Integer> selectGroupLibraryCountMapByUserIdAndLibraryIds(Long userId,
                                                                                  Collection<Long> libraryIds) {
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsKnowledgeGroupRelationDO>()
-                .select("group_id AS groupId", "COUNT(DISTINCT library_id) AS count")
+                .select("group_id", "COUNT(DISTINCT library_id) AS count")
                 .eq("user_id", userId)
                 .in("library_id", libraryIds)
                 .groupBy("group_id"));
         Map<Long, Integer> groupCountMap = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            groupCountMap.put(((Number) row.get("groupId")).longValue(), ((Number) row.get("count")).intValue());
+            groupCountMap.put(((Number) row.get("group_id")).longValue(), ((Number) row.get("count")).intValue());
         }
         return groupCountMap;
     }

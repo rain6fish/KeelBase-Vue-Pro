@@ -55,11 +55,26 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 `-pl yudao-server -am` 构建服务端及其依赖，跳过那十五个没接进服务端的业务模块。产物是
 `yudao-server/target/` 下的 fat jar。这一步假定 `mvn` 在 `PATH` 上；下面的数据存储另需 Docker。
 
+**核一下构建到底解析到了什么。** 宿主钉的是**已发布**的运行时，而**已发布的版本坐标一旦本机有副本，Maven 就不会再去取**
+—— 于是本机对同一版本做一次 `mvn install`，就**静默遮蔽**了发布的那份 jar，而所有读数照样是绿的。2026-10-26 实测：
+`0.1.11` 既钉了也发了，产物里嵌的却是本机重编的 `4b203bb3…`，不是发布的 `8a2c34dc…`。那两份之所以等价，只是因为
+当时没人改过源码 —— 而构建里没有任何东西会说这件事，改没改都是。
+
+```bash
+node scripts/check-runtime-pin-bytes.mjs --jar yudao-server/target/yudao-server.jar
+```
+
+它从 POM 读出 pin，算产物里那三件 jar 的 sha1，逐个与发布库给出的 `.sha1` 比。不等即红，并把两个 sha1 都打出来；
+**取不到发布的 sha1 也是红** —— 那是「判不了」，不是「没事」。`scripts/run-server.sh` 每次起栈前都会跑它，CI 在构建之后
+跑仓库面那一形态。红了就把本机装的那几份移开再解析一次 —— 它们在
+`~/.m2/repository/cn/com/keelbase/<artifact>/<version>/`，遮蔽的那几份是 `_remote.repositories` 写 `artifact>=`、
+且没有 `.md5`/`.sha1` sidecar 的。
+
 ### 离线构建：备好一份 Maven 本地库
 
 钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉
-0.1.16）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
-**完全离线**的机器上，同一个构建会以「找不到 0.1.16」失败。先把这一层补进本地库：
+0.1.17）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
+**完全离线**的机器上，同一个构建会以「找不到 0.1.17」失败。先把这一层补进本地库：
 
 ```bash
 # 1) 复制基线库（源库只读），缺的版本按根 pom 的镜像解析进目标库
@@ -101,6 +116,26 @@ bash scripts/run-server.sh
 | `--yudao.tenant.ignore-tables=…` | 点名**由 KeelBase 治理**的表，好让宿主的租户拦截器**不再**去收束它们（一行的权威只有一个——见本线的决定索引） |
 | `--spring.datasource.dynamic.druid.validation-query="SELECT 1"` | 宿主自己的值是 `SELECT 1 FROM DUAL`，那是 **MySQL**——PostgreSQL 没有 `DUAL` |
 | `--spring.datasource.dynamic.datasource.master.type=com.zaxxer.hikari.HikariDataSource` | **换掉连接池**。见下——用 Druid 时约一半的登录会失败 |
+
+### SKILL 工具：新部署里关着，等管理员启用
+
+一份**从没被人写过策略**的部署，**一个技能也用不了**。装配某个 agent 的 SKILL 工具时，
+`YudaoAi1ToolGovernor` 把每个非只读工具注册进来并写成 `enabled:false`
+（`GovernancePolicyStore.ensureDisabled`）。落在闸后面的有七个：`Bash`、`BashOutput`、`Edit`、
+`KillShell`、`Read`、`Write` 与 `Skill`。`Skill` 那个工具只负责加载 `SKILL.md`，禁掉它意味着模型
+**连技能的说明都读不到**。只有 `Glob`、`Grep`、`ListDirectory` 是 R1 读、直接可用。
+
+这是**策略的默认值**，不是缝的缺陷：每次调用仍然先到 `GovernedExecutionEngine`，被拦的那次留下
+一行 `blocked` 审计（失败项写明是 `tool_enabled`），模型也会被告知这次调用没有执行。边界页在
+ai1 SKILL 那一行的「开箱时」列里如实写着这件事。
+
+要启用某个工具：在治理菜单里打开**策略中心**，勾上该工具的「启用」并保存。
+只启用 `Skill` 只解决「读得到技能说明」；真正让技能**做事**的是 shell 与文件工具，而那些在本机上
+**真有副作用** —— 它们就在这台机器上跑，且外部写没有确认、也没有副作用台账行（已声明的
+`external-effect-no-ledger` 缺口）。
+
+`Skill` 该不该开箱即用，是一条**待裁的产品决定**：把它挪进读集，只会让**新部署**读得到技能说明，
+**已部署**的那些不受影响 —— 它们的策略行早就写下了。
 
 ## 池被换掉了，以及为什么
 

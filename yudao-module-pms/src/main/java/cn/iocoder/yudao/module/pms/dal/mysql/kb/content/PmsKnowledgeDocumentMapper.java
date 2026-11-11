@@ -45,13 +45,13 @@ public interface PmsKnowledgeDocumentMapper extends BaseMapperX<PmsKnowledgeDocu
             return Collections.emptyMap();
         }
         List<Map<String, Object>> rows = selectMaps(new QueryWrapperX<PmsKnowledgeDocumentDO>()
-                .select("library_id AS libraryId", "type", "COUNT(*) AS count")
+                .select("library_id", "type", "COUNT(*) AS count")
                 .in("library_id", libraryIds)
                 .eq("status", status)
                 .groupBy("library_id", "type"));
         Map<Long, Map<Integer, Long>> result = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
-            Long libraryId = ((Number) row.get("libraryId")).longValue();
+            Long libraryId = ((Number) row.get("library_id")).longValue();
             Integer type = ((Number) row.get("type")).intValue();
             result.computeIfAbsent(libraryId, key -> new LinkedHashMap<>())
                     .put(type, ((Number) row.get("count")).longValue());

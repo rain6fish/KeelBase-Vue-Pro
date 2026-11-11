@@ -34,6 +34,12 @@ bash scripts/jdk25.sh mvn -q -DskipTests package -pl yudao-server -am
 里拿掉、reactor 里还在的会——**从本机 maven 仓里被拉进来，悄无声息**；第一次尝试之后审计那份 jar，正是这样
 发现 `report`/`hrm`/`fms`/`pms`/`oa` 还在里面。
 
+> **2026-11-04 补正**：「五个」是 **2026-10-12 那次构建**的基线。此后治理线在 `yudao-server/pom.xml`
+> 里打开了 `fms`（`YD-28` 的第五个模块；本部署不灌它的表、不显示它的菜单）以及 M3 的 `member` / `pay` /
+> `pms` / `oa`，`seed-manifest.txt` 据此加载 `member` / `pms` / `oa` 的表。故「这个宿主跑哪几个模块」以
+> `seed-manifest.txt` 与 `yudao-server/pom.xml` 为准，`module-scope.sql` 决定哪些菜单可见；上面 1.6 GB /
+> 580 MB 的裁剪理由仍然成立。
+
 **模块集是这个部署的，所以它属于这里、不属于仓库自己的构建。** 改这个宿主跑哪几个模块，就是改这个文件。
 
 **`bpm` 在 jar 里，但不属于控制台。** 它在 jar 里不是意外：`yudao-module-crm` 在构建期依赖它——

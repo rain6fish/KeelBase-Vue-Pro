@@ -37,6 +37,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PAGE = 'keelbase-ui/host-overlay/src/views/keelbase/governance/BoundaryPage.vue';
 const PATCH = 'keelbase-ui/host-patches/0002-governance-ui.patch';
 const GATE = 'scripts/check-ungoverned-tool-beans.mjs';
+const FACTORY = 'yudao-module-ai1-springai/src/main/java/cn/iocoder/yudao/module/ai1/harness/skill/Ai1SkillToolFactory.java';
 
 const read = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
@@ -196,6 +197,86 @@ test('the gate record pins the SKILL path as partially governed, and names where
   assert.match(row, /Ai1SkillToolFactory\.java:\d+/, 'the row cites the assembly point it describes');
 });
 
+/** 一行的两个工具名清单，按写出来的顺序。 / A row's two tool-name lists, in the order written. */
+function toolList(row, key) {
+  const match = row.match(new RegExp(`${key}:\\s*\\[([^\\]]*)\\]`));
+  assert.ok(match, `the row carries ${key}`);
+  return [...match[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+}
+
+test('the record says which SKILL tools run and which are off in a fresh deployment', () => {
+  const gate = read(GATE);
+  const at = gate.indexOf("id: 'ai1-skill'");
+  const row = objectAt(gate, gate.lastIndexOf('{', at));
+
+  // 2026-11-04：默认策略把七个 SKILL 工具写成 `enabled:false`，其中 `Skill` 只加载 SKILL.md —— 新部署里
+  // 模型连技能说明都读不到。这份清单是**声明**，改默认值（分类、增删工具、上游改名）就要在这里重新陈述。
+  // 2026-11-04: the default policy disables seven SKILL tools, `Skill` (which only loads SKILL.md) among
+  // them, so a fresh deployment cannot even read skill content. This list is the declaration; changing
+  // the defaults means restating it here.
+  assert.match(row, /defaults:\s*'writes-off'/, 'the SKILL path starts with its write tools off');
+  assert.deepEqual(toolList(row, 'onTools'), ['Glob', 'Grep', 'ListDirectory'],
+    'the read tools that run without a policy');
+  assert.deepEqual(toolList(row, 'offTools'),
+    ['Bash', 'BashOutput', 'Edit', 'KillShell', 'Read', 'Skill', 'Write'],
+    'the tools the default policy disables, including the one that only reads SKILL.md');
+
+  // 每一行都要说明「开箱时」—— 少一行就是一句「默认没写 = 已覆盖」。
+  // Every row states its out-of-the-box behaviour; a missing one is "unwritten = covered".
+  const from = gate.indexOf('paths: [');
+  for (const id of ['runtime-seam', 'upstream-resolver', 'ai1-mcp', 'ai1-rag']) {
+    const other = objectAt(gate, gate.lastIndexOf('{', gate.indexOf(`id: '${id}'`, from)));
+    assert.match(other, /defaults:\s*'(?:on|writes-off)'/, `the ${id} row states its default`);
+  }
+});
+
+test('the declared read set is the one the factory actually uses', () => {
+  const factory = read(FACTORY);
+  const head = factory.slice(factory.indexOf('private static boolean readOnlyTool'));
+  const body = head.slice(0, head.indexOf('\n    }'));
+  const readLiterals = [...body.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]);
+
+  const gate = read(GATE);
+  const row = objectAt(gate, gate.lastIndexOf('{', gate.indexOf("id: 'ai1-skill'")));
+  const onTools = toolList(row, 'onTools').map((name) => name.toLowerCase());
+  const offTools = toolList(row, 'offTools').map((name) => name.toLowerCase());
+
+  // 两处必须说同一件事：Java 的 `readOnlyTool` 决定谁走 R1（因此不落 `enabled:false`），记录里的
+  // `onTools` 是给读者看的那一面。改了一边而没改另一边，这里就红 —— 页面上的清单不会悄悄过期。
+  // Both sides must say one thing: `readOnlyTool` decides who is R1 (and so gets no `enabled:false`
+  // entry), and `onTools` is the reader-facing side. Changing one without the other turns this red.
+  assert.deepEqual([...readLiterals].sort(), [...onTools, 'list_directory'].sort(),
+    'the record lists the tools the factory treats as reads');
+  assert.deepEqual(offTools.filter((name) => readLiterals.includes(name)), [],
+    'nothing declared off is a read in the factory');
+});
+
+test('the page draws the out-of-the-box state from the row, not from a sentence', () => {
+  const tpl = templateOf(read(PAGE));
+
+  assert.match(tpl, /t\('keelbase\.boundary\.colDefault'\)/, 'the table carries the column header');
+  assert.match(tpl, /keelbase\.boundary\.defaults\.\$\{row\.defaults\}/, 'the tag comes from the row\'s own defaults');
+  assert.match(tpl, /t\('keelbase\.boundary\.defaultsOnTools', \{ tools: row\.onTools/, 'the running tools are drawn');
+  assert.match(tpl, /t\('keelbase\.boundary\.defaultsOffTools', \{ tools: row\.offTools/, 'the disabled tools are drawn');
+  assert.match(tpl, /t\('keelbase\.boundary\.defaultsHow'\)/, 'how to enable one is on the page');
+});
+
+test('both languages label the default states and say how to enable a tool', () => {
+  const { en, zh } = boundaryMessages();
+
+  for (const [name, m] of [['English', en], ['Chinese', zh]]) {
+    assert.ok(m.colDefault, `${name} labels the column`);
+    assert.ok(m.defaults?.on && m.defaults?.['writes-off'], `${name} labels both default states`);
+    for (const key of ['defaultsOnTools', 'defaultsOffTools']) {
+      assert.ok(m[key]?.includes('{tools}'), `${name} ${key} takes the tool list`);
+    }
+    // 「怎么放开」必须点得到策略中心；只写「被禁用」而不给下一步，读者只能去翻代码。
+    // "How to lift it" must name the Policy Center; saying only "disabled" leaves the reader in code.
+    assert.match(m.defaultsHow, /Policy Center|策略中心/, `${name} names where to enable a tool`);
+    assert.match(m.defaultsHow, /Skill\b/, `${name} says the SKILL loader itself is off`);
+  }
+});
+
 test('every path declares business actions, and both languages label each action', () => {
   const gate = read(GATE);
   const { en, zh } = boundaryMessages();
@@ -344,4 +425,64 @@ test('the checks are drawn as a path × control matrix, ticked only by each row\
   // A 12px header: with nine columns the English control names are longer than the Chinese ones and
   // break mid-word without it (measured in the running stack).
   assert.match(vue, /\.boundary-matrix :deep\(th \.cell\)\s*\{[^}]*font-size:\s*12px/, 'the matrix header lost its 12px size');
+});
+
+test('the two write trails are drawn side by side, each fed by its own endpoint', () => {
+  const vue = read(PAGE);
+  const tpl = templateOf(vue);
+
+  // 左边旁路行、右边治理行：两张表各自吃**自己的**数据源，页面上没有一处把它们合成一行。
+  // Left is the bypass trail, right the governed rows: each table eats **its own** source, and nothing on
+  // the page merges them into one row.
+  assert.match(tpl, /:data="bypass\?\.items \?\? \[\]"/, 'the bypass table lost its rows');
+  assert.match(tpl, /:data="governed \?\? \[\]"/, 'the governed table lost its rows');
+  assert.match(vue, /url: '\/keelbase\/bypass-log'/, 'the bypass rows no longer come from the read endpoint');
+  assert.match(vue, /auditApi\.logs\(/, 'the governed rows no longer come from the audit chain');
+  assert.match(vue, /Promise\.allSettled\(/, 'one failing trail would now take the other down with it');
+
+  // 读不到就**说出来**：一张空表会被读成「没有任何写」，那正是这一节最不该给出的误读。
+  // A failed read says so: an empty table would be read as "nothing was written", the one misreading this
+  // section must never produce.
+  assert.match(tpl, /v-if="bypassError"/, 'the bypass table no longer distinguishes failure from empty');
+  assert.match(tpl, /v-if="governedError"/, 'the governed table no longer distinguishes failure from empty');
+  assert.match(vue, /keelbase\.boundary\.trailsUnreadable/, 'the unreadable case has no words');
+});
+
+test('the two trails speak in two postures, and both languages carry them', () => {
+  const { en, zh } = boundaryMessages();
+  const tpl = templateOf(read(PAGE));
+
+  // 两个姿态词必须**不同**，且都在两种语言里：同一个词会让「并列」失去意义 —— 读者分不出哪一边没被治理。
+  // The two posture words must **differ**, in both languages: one word for both would empty the juxtaposition
+  // — a reader could not tell which side is not governed.
+  for (const [lang, block] of [['en', en], ['zh', zh]]) {
+    assert.ok(block.trailsTitle, `${lang} names the trails section`);
+    assert.ok(block.bypassTitle, `${lang} names the bypass trail`);
+    assert.ok(block.governedTitle, `${lang} names the governed trail`);
+    assert.ok(block.postureRecorded, `${lang} labels the recorded-only posture`);
+    assert.ok(block.postureGoverned, `${lang} labels the governed posture`);
+    assert.notEqual(block.postureRecorded, block.postureGoverned, `${lang} uses one word for both postures`);
+  }
+  assert.match(tpl, /keelbase\.boundary\.postureRecorded/, 'the bypass table no longer says "recorded only"');
+  assert.match(tpl, /keelbase\.boundary\.postureGoverned/, 'the governed table no longer says "governed"');
+});
+
+test('the body column speaks in shape, and says which shape it has', () => {
+  const { en, zh } = boundaryMessages();
+
+  // 正文那一列只有三种说法：没读、读了（长度 + 摘要 + 字段名）、读了但字段名不可用。值不在任何一条里。
+  // The body column has three things to say: not read, read (length + digest + names), read without names.
+  // No value is in any of them.
+  for (const [lang, block] of [['en', en], ['zh', zh]]) {
+    for (const key of ['bodyNone', 'bodyParts', 'bodyNoFields']) {
+      assert.equal(typeof block[key], 'string', `${lang} lost ${key}`);
+      assert.ok(block[key].length > 0, `${lang} left ${key} empty`);
+    }
+  }
+  assert.match(en.bodyParts, /\{length\}/, 'the English body line no longer states the length');
+  assert.match(en.bodyParts, /\{digest\}/, 'the English body line no longer states the digest');
+  for (const key of ['bodyNone', 'bodyParts', 'bodyNoFields']) {
+    assert.doesNotMatch(en[key], /\{value\}|\{body\}|\{content\}/, `${key} interpolates a body value`);
+    assert.doesNotMatch(zh[key], /\{value\}|\{body\}|\{content\}/, `${key} interpolates a body value`);
+  }
 });

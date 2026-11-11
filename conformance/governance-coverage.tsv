@@ -6,10 +6,13 @@
 #              后者在工具路径上**拒绝分页**；见 keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  只有工具面经引擎，REST 写入没有切面收窄（理由必填）
 #   gap        未接入、已排期（负责人 + 目标日期必填；过期即红）
-#   exempt     明确不接（理由 + 负责人 + 复核日期必填；过期即红）
+#   exempt     明确不接（理由 + 负责人 + 复核日期必填；过期即红）。**理由本身是一句断言**：
+#              `node scripts/check-exempt-claims.mjs` 按理由首句分派断言，并到**定义该事实的那个声明**
+#              （部署清单、种子清单、控制器、DO、Mapper、工具类）里逐条证伪它——验不了的理由不算理由。
 #
 # 校验：node scripts/check-governance-coverage.mjs          # 默认放行 gap（账本就是拿来暴露缺口的）
 #       node scripts/check-governance-coverage.mjs --require-full   # 零 gap 才算「完全接入」
+#       node scripts/check-exempt-claims.mjs             # 每条 exempt 理由都要被它自己声明的断言证实
 # 列：module  object  service  posture  evidence  reason  owner  recheck
 #
 # KeelBase-YuDao governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
@@ -21,10 +24,14 @@
 #              path — see keelbase-docs/KEELBASE-MODULE-ONBOARDING.md §2.1
 #   tool-only  only the tool face goes through the engine; the REST write is not narrowed (reason required)
 #   gap        not onboarded, scheduled (owner + target date required; overdue is red)
-#   exempt     deliberately out of scope (reason + owner + recheck date required; overdue is red)
+#   exempt     deliberately out of scope (reason + owner + recheck date required; overdue is red).
+#              **The reason is itself an assertion**: `node scripts/check-exempt-claims.mjs` dispatches on its
+#              first clause and falsifies it against the declaration that defines the fact (deployment and seed
+#              manifests, controllers, DOs, mappers, tool classes) — a reason nothing can check is not a reason.
 #
 # Check: node scripts/check-governance-coverage.mjs                # gaps pass by default (the ledger exists to show them)
 #        node scripts/check-governance-coverage.mjs --require-full # zero gaps means "fully onboarded"
+#        node scripts/check-exempt-claims.mjs                      # every exempt reason is confirmed by its own assertion
 # Columns: module  object  service  posture  evidence  reason  owner  recheck
 # module	object	service	posture	evidence	reason	owner	recheck
 ai	api-key	cn.iocoder.yudao.module.ai.service.model.AiApiKeyService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
@@ -41,17 +48,17 @@ ai	music	cn.iocoder.yudao.module.ai.service.music.AiMusicService	exempt		整模�
 ai	tool	cn.iocoder.yudao.module.ai.service.model.AiToolService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
 ai	workflow	cn.iocoder.yudao.module.ai.service.workflow.AiWorkflowService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
 ai	write	cn.iocoder.yudao.module.ai.service.write.AiWriteService	exempt		整模块弃用（D52 应用面已关停）	@rain	2027-09-30
-ai1-springai	agent	cn.iocoder.yudao.module.ai1.service.agent.Ai1AgentService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	home	cn.iocoder.yudao.module.ai1.service.home.Ai1HomeService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	knowledge-base	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeBaseService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	knowledge-document	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeDocumentService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	mcp	cn.iocoder.yudao.module.ai1.service.mcp.Ai1McpService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	model	cn.iocoder.yudao.module.ai1.service.model.Ai1ModelService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	provider	cn.iocoder.yudao.module.ai1.service.model.Ai1ProviderService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	agent	cn.iocoder.yudao.module.ai1.service.agent.Ai1AgentService	exempt		无属主列（Ai1AgentDO）；管理端点按 ai1:agent:* 权限码把关（/simple-list 仅登录可读、不含属主数据）；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	home	cn.iocoder.yudao.module.ai1.service.home.Ai1HomeService	exempt		无属主列（无自有 DO，聚合读）；管理端点按 ai1:home:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	knowledge-base	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeBaseService	exempt		无属主列（Ai1KnowledgeBaseDO）；管理端点按 ai1:knowledge:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	knowledge-document	cn.iocoder.yudao.module.ai1.service.knowledge.Ai1KnowledgeDocumentService	exempt		无属主列（Ai1KnowledgeDocumentDO）；管理端点按 ai1:knowledge-document:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	mcp	cn.iocoder.yudao.module.ai1.service.mcp.Ai1McpService	exempt		无属主列（Ai1McpDO）；管理端点按 ai1:mcp:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	model	cn.iocoder.yudao.module.ai1.service.model.Ai1ModelService	exempt		无属主列（Ai1ModelDO）；管理端点按 ai1:model:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	provider	cn.iocoder.yudao.module.ai1.service.model.Ai1ProviderService	exempt		无属主列（Ai1ProviderDO）；管理端点按 ai1:provider:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
 ai1-springai	session	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionService	exempt		会话行自带属主 ai1_session.user_id：四条「我的」客户端方法都以 userId 入参，Ai1SessionServiceImpl:78-83 validateSessionMy 以 ObjUtil.notEqual(session.getUserId(), userId) 拒绝他人，:87-89 列表按 (agentId,userId) 过滤；管理端 getSessionPage :92 由 ai1:session:query（Ai1SessionController:82）把关，属 D4；updateSessionTitle/touchSession 只由聊天运行时（Ai1SessionMessageServiceImpl:147/162）调用，deleteSessionListByAgentIds 只由 Ai1AgentServiceImpl:100 调用。会话由聊天流程自己创建与刷活，AI 无需直操，故不接工具面	@rain	2027-09-30
 ai1-springai	session-message	cn.iocoder.yudao.module.ai1.service.session.Ai1SessionMessageService	exempt		消息行无属主列，归属经 session_id→ai1_session.user_id 派生：两条写路径 Ai1SessionMessageServiceImpl:77/122 都先 validateSessionMy；读 getSessionMessageListBySessionId:64 在 service 里不收窄，由 controller 调前 validateSessionMy（Ai1SessionMessageController:43）兜住，管理端 /list 由 ai1:session:query（:71）把关（D4）；getSessionMessage(id):183 只被生成 worker Ai1SessionStreamTool:609/991 使用，updateSessionMessage:188 只由该 worker :861/995 回填。消息由该 worker 自动落库与回填、模型上下文已在 :758 装配，AI 无需独立读工具	@rain	2027-09-30
-ai1-springai	skill	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
-ai1-springai	skill-file	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillFileService	exempt		助手管理面（路径级治理另算）	@rain	2027-09-30
+ai1-springai	skill	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillService	exempt		无属主列（Ai1SkillDO）；管理端点按 ai1:skill:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
+ai1-springai	skill-file	cn.iocoder.yudao.module.ai1.service.skill.Ai1SkillFileService	exempt		无属主列（Ai1SkillFileDO）；管理端点按 ai1:skill:* 权限码把关；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-09-30
 bpm	category	cn.iocoder.yudao.module.bpm.service.definition.BpmCategoryService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
 bpm	comment	cn.iocoder.yudao.module.bpm.service.comment.BpmCommentService	exempt		评论住在引擎表 ACT_HI_COMMENT：模块无表/DO/Mapper，也无自己的权限（借 bpm:task:query / bpm:task:update），读只按流程实例、无属主维度；写有 11 处是任务面在记审批结果（BpmTaskServiceImpl:614 起），只有 controller 一处是人写的	@rain	2027-09-30
 bpm	form	cn.iocoder.yudao.module.bpm.service.definition.BpmFormService	exempt		流程定义/配置面（管理面，D4 甲）	@rain	2027-09-30
@@ -75,7 +82,7 @@ crm	contract-config	cn.iocoder.yudao.module.crm.service.contract.CrmContractConf
 crm	customer	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerService	seam	CrmCustomerGovernance			
 crm	customer-limit-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerLimitConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	customer-pool-config	cn.iocoder.yudao.module.crm.service.customer.CrmCustomerPoolConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
-crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService	tool-only	CrmFollowUpTools#record_crm_followup	只有工具面经引擎；REST 写入没有切面收窄	@rain	2027-06-30
+crm	follow-up-record	cn.iocoder.yudao.module.crm.service.followup.CrmFollowUpRecordService	seam	CrmFollowUpRecordGovernance			
 crm	owner-record	cn.iocoder.yudao.module.crm.service.permission.CrmOwnerRecordService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	performance-config	cn.iocoder.yudao.module.crm.service.performance.CrmPerformanceConfigService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
 crm	permission	cn.iocoder.yudao.module.crm.service.permission.CrmPermissionService	exempt		权限机制/配置面（不持有业务行）	@rain	2027-09-30
@@ -141,18 +148,91 @@ member	experience-record	cn.iocoder.yudao.module.member.service.level.MemberExpe
 member	point-record	cn.iocoder.yudao.module.member.service.point.MemberPointRecordService	tool-only	MemberPointTools#list_member_point_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-record	cn.iocoder.yudao.module.member.service.signin.MemberSignInRecordService	tool-only	MemberSignInTools#list_member_sign_in_records	属主是会员编号空间、与调用方（管理员）不重叠：粗闸读（requireAction + 租户 + 投影），不做属主收窄；必须给会员编号（不筛的分页是导出不是查询）	@rain	2027-06-30
 member	sign-in-config	cn.iocoder.yudao.module.member.service.signin.MemberSignInConfigService	exempt		租户级签到配置（管理面，D4 甲）	@rain	2027-06-30
+oa	leave-apply	cn.iocoder.yudao.module.oa.service.leave.OaLeaveApplyService	seam	OaApplyDocumentsGovernance	属主是 creator（无业务列）；分页已收，按 id 读是裸 selectById ⇒ 按标识符读 + 事后判属主		
+oa	overtime-apply	cn.iocoder.yudao.module.oa.service.overtime.OaOvertimeApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	reimbursement	cn.iocoder.yudao.module.oa.service.reimbursement.OaReimbursementService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	regular-apply	cn.iocoder.yudao.module.oa.service.regular.OaRegularApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	resign-apply	cn.iocoder.yudao.module.oa.service.resign.OaResignApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	travel-apply	cn.iocoder.yudao.module.oa.service.travel.OaTravelApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	travel-reimbursement	cn.iocoder.yudao.module.oa.service.travel.OaTravelReimbursementService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	supply-apply	cn.iocoder.yudao.module.oa.service.supply.OaSupplyApplyService	seam	OaApplyDocumentsGovernance	与请假同形：creator 收分页、裸读按 id		
+oa	seal-apply	cn.iocoder.yudao.module.oa.service.seal.OaSealApplyService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	vehicle-apply	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleApplyService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	vehicle-return	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleReturnService	seam	OaApplyDocumentsGovernance	属主是真列 user_id；分页已收，按 id 读不判		
+oa	meeting-room-booking	cn.iocoder.yudao.module.oa.service.meetingroom.OaMeetingRoomBookingService	seam	OaApplyDocumentsGovernance	属主是 creator；分页已收，按 id 读不判		
+oa	official-doc-send	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocSendService	seam	OaApplyDocumentsGovernance	属主是 creator；分页已收，按 id 读不判		
+oa	official-doc-receive	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocReceiveService	seam	OaApplyDocumentsGovernance	属主是 dept_id（部门，不是人）；分页按部门收、按 id 读连部门都不判 ⇒ 判据改为「收文部门 = 调用方部门」，读不出即收窄		
+oa	announcement	cn.iocoder.yudao.module.oa.service.announcement.OaAnnouncementService	exempt		分页按 creator / 收件人收，按 id 读判「创建人或接收人」；工具面照 §2.2 传 ActingCaller 即无越权口	@rain	2027-09-30
+oa	attendance	cn.iocoder.yudao.module.oa.service.attendance.OaAttendanceService	exempt		我的分页按 user_id、管理分页按下属；按 id 读判「在本人管理范围内」，且越界与不存在同一答案	@rain	2027-09-30
+oa	contact	cn.iocoder.yudao.module.oa.service.contact.OaContactService	exempt		分页走共享关系表，按 id 读判共享关系；属主是「创建人 + 共享对象」两层，不是单列	@rain	2027-09-30
+oa	contact-category	cn.iocoder.yudao.module.oa.service.contact.OaContactCategoryService	exempt		user_id 列，列表与写都按传入的 userId 收	@rain	2027-09-30
+oa	discussion	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionService	exempt		讨论板是公开面（分页本就不收属主）；manage 页对超管放开是模块语义；无个人数据可收窄	@rain	2027-09-30
+oa	discussion-like	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionLikeService	exempt		user_id 列，点赞按本人	@rain	2027-09-30
+oa	discussion-reply	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionReplyService	exempt		user_id 列，按讨论读、删判作者	@rain	2027-09-30
+oa	discussion-vote	cn.iocoder.yudao.module.oa.service.discussion.OaDiscussionVoteService	exempt		user_id 列，投票记录按本人	@rain	2027-09-30
+oa	file-favorite	cn.iocoder.yudao.module.oa.service.file.OaFileFavoriteService	exempt		user_id 列；建收藏前先判节点 READ	@rain	2027-09-30
+oa	file-node	cn.iocoder.yudao.module.oa.service.file.OaFileNodeService	exempt		模块自带 ACL 表（subject_type/subject_id/level/inherit），读口 validateFileNodePermission 已判层级；权限表形态，收窄口径另定	@rain	2027-09-30
+oa	file-permission	cn.iocoder.yudao.module.oa.service.file.OaFilePermissionService	exempt		节点的授权行，按节点与调用方取；无单属主	@rain	2027-09-30
+oa	mail-account	cn.iocoder.yudao.module.oa.service.mail.OaMailAccountService	exempt		含明文 password 列；账号按 creator 收，但凭据不该进工具面	@rain	2027-09-30
+oa	mail-folder	cn.iocoder.yudao.module.oa.service.mail.OaMailFolderService	exempt		按 account_id；无 REST 直读口，只经账号校验后的调用链	@rain	2027-09-30
+oa	mail-message	cn.iocoder.yudao.module.oa.service.mail.OaMailMessageService	exempt		邮件正文与通信对手（content/sender/recipients/ccs）是 PII，与账号凭据同链 ⇒ 工具面不开	@rain	2027-09-30
+oa	mail-provider	cn.iocoder.yudao.module.oa.service.mail.OaMailProviderService	exempt		imap/smtp 配置含凭据；管理面，无属主	@rain	2027-09-30
+oa	meeting-room	cn.iocoder.yudao.module.oa.service.meetingroom.OaMeetingRoomService	exempt		会议室台账（manager_user_id），管理面 oa:meeting-room:*；可预定页按 bookingScope 过滤	@rain	2027-09-30
+oa	note	cn.iocoder.yudao.module.oa.service.note.OaNoteService	exempt		分页按持有关系，按 id 读判持有；创建人 + 接收人两层	@rain	2027-09-30
+oa	note-category	cn.iocoder.yudao.module.oa.service.note.OaNoteCategoryService	exempt		user_id 列，列表与写都按传入的 userId 收	@rain	2027-09-30
+oa	official-doc-template	cn.iocoder.yudao.module.oa.service.officialdoc.OaOfficialDocTemplateService	exempt		公文模板是配置面（oa:officialdoc-template:*），无属主	@rain	2027-09-30
+oa	plan	cn.iocoder.yudao.module.oa.service.plan.OaPlanService	exempt		creator 收；按 id 读 validatePlanOwner；点评另判下属范围（模块语义）	@rain	2027-09-30
+oa	schedule	cn.iocoder.yudao.module.oa.service.schedule.OaScheduleService	exempt		创建人 + 参与人两层，按 id 读判「创建人或参与人」	@rain	2027-09-30
+oa	seal	cn.iocoder.yudao.module.oa.service.seal.OaSealService	exempt		印章台账（keeper_user_id），管理面 oa:seal:*	@rain	2027-09-30
+oa	supply-item	cn.iocoder.yudao.module.oa.service.supply.OaSupplyItemService	exempt		用品台账（dept_id），库存管理面 oa:supply-item:*	@rain	2027-09-30
+oa	supply-issue	cn.iocoder.yudao.module.oa.service.supply.OaSupplyIssueService	exempt		仓管发放/归还工作流，无属主；分页本就不看调用方，接它等于给 AI 开仓管权限	@rain	2027-09-30
+oa	task	cn.iocoder.yudao.module.oa.service.task.OaTaskService	exempt		创建人 + 接收人两层，按 id 读判；发布页与接收页各自收	@rain	2027-09-30
+oa	vehicle	cn.iocoder.yudao.module.oa.service.vehicle.OaVehicleService	exempt		车辆台账（dept_id），管理面 oa:vehicle:*	@rain	2027-09-30
+oa	work-report	cn.iocoder.yudao.module.oa.service.workreport.OaWorkReportService	exempt		creator 收；按 id 读判「本人或（下属 + statistics 权限）」	@rain	2027-09-30
 pay	wallet	cn.iocoder.yudao.module.pay.service.wallet.PayWalletService	seam	PayWalletGovernance			
-pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTransactionService	exempt		钱包流水的属主是前两个实参（userId + userType），两个分页口都自带这两个过滤位；M3 首批只接钱包一个对象，它是下一个接缝候选 · recheck 前重判	@rain	2027-06-30
-pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	exempt		充值单的属主是前两个实参（userId + userType），分页口自带这两个过滤位；写口是到账/退款两条内部流程，是本批之外的第二个候选	@rain	2027-06-30
-pay	wallet-recharge-package	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargePackageService	exempt		充值套餐是管理面配置（pay:wallet-recharge-package:*，D4 甲）	@rain	2027-06-30
+pay	wallet-transaction	cn.iocoder.yudao.module.pay.service.wallet.PayWalletTransactionService	seam	PayWalletTransactionGovernance	流水的属主**不在这一行上**：PayWalletTransactionDO 只有 wallet_id，属主对 (user_id, user_type) 在 pay_wallet 那一行。两个分页口都不是「自带过滤位」：walletId 一给就优先且不判属主；userId+userType 那半要经 getOrCreateWallet 换钱包——一次读可能插行。故工具路径拒绝分页与统计，改接「按流水号/业务编号读 + 沿 wallet_id 走一跳判属主」：别人的行与不存在的行同一个答案；本面只读（唯一写口收内部 BO，由余额流程调用）· 2026-11-03 复核：旧 exempt 理由不成立	@rain	2027-06-30
+pay	wallet-recharge	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargeService	seam	PayWalletRechargeGovernance	属主**不在这一行上**：PayWalletRechargeDO 只有 wallet_id，属主对 (user_id, user_type) 在 pay_wallet 那一行。唯一分页口 getWalletRechargePackagePage(userId,userType,page,payStatus) 先经 getOrCreateWallet 换 walletId——一次读可能插行，故工具路径拒绝分页；本件在模块补了只读单行口 getWalletRecharge(Long id)（裸 selectById），改接「按充值单编号读 + 沿 wallet_id 走一跳判属主」：别人的行与不存在的行同一个答案；本面只读（写口是内部流程/渠道回调）· 2026-11-03 复核	@rain	2027-06-30
+pay	wallet-recharge-package	cn.iocoder.yudao.module.pay.service.wallet.PayWalletRechargePackageService	exempt		PayWalletRechargePackageDO 只有 name/payPrice/bonusPrice/status，无属主列，属租户级配置；CRUD 与分页由 admin controller 按 pay:wallet-recharge-package:* 收（D4 甲），getWalletRechargePackageList(status) 是给充值流程选套餐用的；工具面没有一条路调用它 ⇒ 无工具路径可言 · 2026-11-03 复核	@rain	2027-06-30
 pay	order	cn.iocoder.yudao.module.pay.service.order.PayOrderService	seam	PayOrderGovernance	支付单属主是用户对（user_id + user_type），分页没有属主过滤位（PayOrderPageReqVO 只有 appId/channelCode/status/时间）⇒ 工具面不开分页（工具路径上分页与批量读被拒绝），改接「按支付单号/编号读 + 事后判属主」：别人的行与不存在的行同一个答案；本面只读，无写（模块的写全是内部流程或调外部渠道）	@rain	2027-06-30
 pay	refund	cn.iocoder.yudao.module.pay.service.refund.PayRefundService	seam	PayRefundGovernance	与支付单同形：分页 VO 没有属主过滤位，接「按退款单号/编号读 + 事后判属主」；工具路径上分页与导出列表被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
 pay	transfer	cn.iocoder.yudao.module.pay.service.transfer.PayTransferService	seam	PayTransferGovernance	与支付单同形：分页 VO 没有属主过滤位（userName/userAccount 是收款人，不是属主），接「按转账单号/编号读 + 事后判属主」；分页在工具路径上被拒绝，本面只读（写全是内部 DTO / 渠道回调 / 批处理）	@rain	2027-06-30
-pay	app	cn.iocoder.yudao.module.pay.service.app.PayAppService	exempt		支付应用是租户级配置面（pay:app:*，D4 甲）	@rain	2027-06-30
-pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt		支付渠道是应用级配置面（pay:channel:*，D4 甲）	@rain	2027-06-30
-pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		通知任务是模块内部的投递机器（pay_notify_task/log，无属主人列、无 controller），由 PayNotifyJob 重试	@rain	2027-06-30
-pay	demo-order	cn.iocoder.yudao.module.pay.service.demo.PayDemoOrderService	exempt		演示订单是样例面（demo，非业务行）	@rain	2027-06-30
-pay	demo-withdraw	cn.iocoder.yudao.module.pay.service.demo.PayDemoWithdrawService	exempt		演示提现是样例面（demo，非业务行）	@rain	2027-06-30
+pay	app	cn.iocoder.yudao.module.pay.service.app.PayAppService	exempt		PayAppDO 的列是 appKey/name/status/remark 与三个 notifyUrl，无属主列、属租户级配置；读口 getApp/getAppList/getAppMap 本就是给内部流程取应用信息，admin controller 按 pay:app:query 收（PayAppController:75/83）（D4 甲）；工具面没有一条路调用它 ⇒ 无工具路径可言 · 2026-11-03 复核	@rain	2027-06-30
+pay	channel	cn.iocoder.yudao.module.pay.service.channel.PayChannelService	exempt		PayChannelDO 带 config（PayClientConfig，渠道商户密钥/证书），无属主列、属应用级配置；getChannel/getChannelListByAppId/getChannelByAppIdAndCode/getPayClient 全是配置读，admin controller 按 pay:channel:query 收（D4 甲）；工具面没有一条路调用它 ⇒ 没有可开的读面 · 2026-11-03 复核	@rain	2027-06-30
+pay	notify	cn.iocoder.yudao.module.pay.service.notify.PayNotifyService	exempt		**更正旧理由里「无 controller」一句**：有 admin controller（PayNotifyController:132/151，pay:notify:query）。但 PayNotifyTaskDO 无属主人列（appId/type/dataId/merchantOrderId/merchantRefundId/merchantTransferId/status/notifyUrl），属主只能经 type + dataId 拐到 order/refund/transfer；投递是模块内部的机器，由 PayNotifyJob 重试；工具面没有一条路调用它 ⇒ exempt（不是「配置」，是「没有属主列且没有工具需求」）· 2026-11-03 复核	@rain	2027-06-30
+pay	demo-order	cn.iocoder.yudao.module.pay.service.demo.PayDemoOrderService	exempt		PayDemoOrderDO 有 user_id（属主在行上），但整块属 demo 模块：行由 PayDemoOrderController 的样例流程造，不承载业务账；分页 getDemoOrderPage(PageParam) 无属主位、有 getDemoOrder(id) 单行读，形态上够格按支付单同形接，但工具面没有一条路调用它，也无人需要「我的演示订单」⇒ exempt；若 demo 被真实业务替代再按支付单同形接 · 2026-11-03 复核	@rain	2027-06-30
+pay	demo-withdraw	cn.iocoder.yudao.module.pay.service.demo.PayDemoWithdrawService	exempt		PayDemoWithdrawDO 无属主人列（subject/price/userAccount/userName 是收款信息，不是属主），只有分页 getDemoWithdrawPage(PageParam)（bare PageParam、无属主位），没有按标识符的单行读 ⇒ §2.1 第三式的三条（单行读 / 可判属主列 / 真工具需求）一条都不满足；工具面没有一条路调用它 · 2026-11-03 复核	@rain	2027-06-30
+pms	knowledge-content-permission	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeContentPermissionService	exempt		访问模型本身：工具化等于给 AI 改/枚举权限的入口；不接	@rain	2027-06-30
+pms	knowledge-document-label	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeDocumentLabelService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	knowledge-document	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeDocumentService	exempt		REST 端点按 pms:kb:library:query 与 pms:kb:library:update 权限码收（PmsKnowledgeDocumentController），服务内再经库成员与内容权限校验；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-folder	cn.iocoder.yudao.module.pms.service.kb.content.PmsKnowledgeFolderService	exempt		REST 端点按 pms:kb:library:query 与 pms:kb:library:update 权限码收（PmsKnowledgeFolderController），服务内再经库成员与内容权限校验；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-document-comment	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentCommentService	exempt		REST 端点按 pms:kb:library:query 收（PmsKnowledgeDocumentCommentController），服务内判内容可评论与评论属主；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-document-like	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentLikeService	exempt		个人簿记，无跨人问题	@rain	2027-06-30
+pms	knowledge-document-share	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeDocumentShareService	exempt		REST 端点按 pms:kb:library:query 与 pms:kb:library:update 收（PmsKnowledgeDocumentShareController），服务内经内容权限校验；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-favorite	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeFavoriteService	exempt		REST 端点按 pms:kb:library:query 收（PmsKnowledgeFavoriteController），收藏目标经内容权限判可读；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-folder-read	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeFolderReadService	exempt		内部解析口（无 controller）：无自有表/DO，先判文件夹状态、再经库成员与内容权限校验后返回可读文件夹；同 knowledge-interaction-target	@rain	2027-06-30
+pms	knowledge-interaction-target	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeInteractionTargetService	exempt		内部装配的解析口，无独立业务行	@rain	2027-06-30
+pms	knowledge-view-record	cn.iocoder.yudao.module.pms.service.kb.interaction.PmsKnowledgeViewRecordService	exempt		个人浏览簿记，无 AI 问题	@rain	2027-06-30
+pms	knowledge-group	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeGroupService	exempt		个人视图配置（PmsKnowledgeGroupDO.userId），无跨人问题；REST 端点按 pms:kb:library:query 收（PmsKnowledgeGroupController）；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-library-member	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryMemberService	exempt		授权面本身：工具化等于改权限；不接	@rain	2027-06-30
+pms	knowledge-library	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryService	exempt		REST 端点按 pms:kb:library:query 与 pms:kb:library:update 收（PmsKnowledgeLibraryController），服务内判库管理员与创建人；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	knowledge-library-template	cn.iocoder.yudao.module.pms.service.kb.library.PmsKnowledgeLibraryTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	knowledge-recycle	cn.iocoder.yudao.module.pms.service.kb.recycle.PmsKnowledgeRecycleService	exempt		REST 端点按 pms:kb:library:delete 收（PmsKnowledgeRecycleController），回收站内容经库成员与内容权限校验；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	iteration	cn.iocoder.yudao.module.pms.service.pm.iteration.PmsIterationService	seam	PmsProjectGovernance		@rain	2027-06-30
+pms	project-announcement	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectAnnouncementService	exempt		REST 端点按 pms:pm:project:query 与 pms:pm:project:update 收（PmsProjectAnnouncementController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	project-favorite	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectFavoriteService	exempt		REST 端点按 pms:pm:project:query 收（PmsProjectFavoriteController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	project-group	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectGroupService	exempt		个人视图配置，无跨人问题	@rain	2027-06-30
+pms	project-member	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectMemberService	exempt		授权面本身：工具化等于改权限；不接	@rain	2027-06-30
+pms	project	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectService	seam	PmsProjectGovernance		@rain	2027-06-30
+pms	project-template	cn.iocoder.yudao.module.pms.service.pm.project.PmsProjectTemplateService	exempt		管理面配置（D4 甲）	@rain	2027-06-30
+pms	workbench	cn.iocoder.yudao.module.pms.service.pm.workbench.PmsWorkbenchService	exempt		REST 端点按 pms:pm:work-item:query 与 pms:pm:iteration:query 收（PmsWorkbenchController），服务内经项目成员判定；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	work-item-activity	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemActivityService	seam	PmsWorkItemActivityGovernance		@rain	2027-06-30
+pms	work-item-board	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemBoardService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item-comment	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemCommentService	exempt		REST 端点按 pms:pm:work-item:query 与 pms:pm:work-item:update 收（PmsWorkItemCommentController），服务内判评论属主；工具面无引用（本服务未被任何 *Tools 调用）	@rain	2027-06-30
+pms	work-item-label	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemLabelService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemService	seam	PmsProjectGovernance		@rain	2027-06-30
+pms	work-item-status	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemStatusService	exempt		项目级配置（D4 甲）	@rain	2027-06-30
+pms	work-item-user-sort	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemUserSortService	exempt		个人排序簿记，无 AI 问题	@rain	2027-06-30
+pms	work-item-work-log	cn.iocoder.yudao.module.pms.service.pm.workitem.PmsWorkItemWorkLogService	seam	PmsProjectGovernance		@rain	2027-06-30
 server	products	cn.iocoder.yudao.module.products.service.products.ProductsService	seam	ProductsGovernance			
 system	admin-auth	cn.iocoder.yudao.module.system.service.auth.AdminAuthService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	admin-user	cn.iocoder.yudao.module.system.service.user.AdminUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
@@ -162,18 +242,18 @@ system	dict-type	cn.iocoder.yudao.module.system.service.dict.DictTypeService	exe
 system	login-log	cn.iocoder.yudao.module.system.service.logger.LoginLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	mail-account	cn.iocoder.yudao.module.system.service.mail.MailAccountService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	mail-log	cn.iocoder.yudao.module.system.service.mail.MailLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	mail-send	cn.iocoder.yudao.module.system.service.mail.MailSendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	mail-send	cn.iocoder.yudao.module.system.service.mail.MailSendService	exempt		内部发送接口：无自有表/DO；唯一的 REST 触点是邮件模板页的测试发送（MailTemplateController，system:mail-template:send-mail）；工具面无引用	@rain	2027-09-30
 system	mail-template	cn.iocoder.yudao.module.system.service.mail.MailTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	member	cn.iocoder.yudao.module.system.service.member.MemberService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	member	cn.iocoder.yudao.module.system.service.member.MemberService	exempt		内部转调面（无 controller）：按会员编号读手机号/邮箱，返回的是 member 模块的 PII 字段；无工具路径	@rain	2027-09-30
 system	menu	cn.iocoder.yudao.module.system.service.permission.MenuService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	notice	cn.iocoder.yudao.module.system.service.notice.NoticeService	seam	SystemNoticeGovernance			
 system	notify-message	cn.iocoder.yudao.module.system.service.notify.NotifyMessageService	seam	SystemNotifyMessageGovernance			
-system	notify-send	cn.iocoder.yudao.module.system.service.notify.NotifySendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	notify-send	cn.iocoder.yudao.module.system.service.notify.NotifySendService	exempt		内部发送接口：无自有表/DO；唯一的 REST 触点是站内信模板页的测试发送（NotifyTemplateController，system:notify-template:send-notify）；工具面无引用	@rain	2027-09-30
 system	notify-template	cn.iocoder.yudao.module.system.service.notify.NotifyTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	oauth2-approve	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ApproveService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-approve	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ApproveService	exempt		认证面：OAuth2 授权确认记录的读写，端点对 app 开放（OAuth2OpenController，无 @PreAuthorize 是 OAuth2 协议所需）；工具面无引用	@rain	2027-09-30
 system	oauth2-client	cn.iocoder.yudao.module.system.service.oauth2.OAuth2ClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	oauth2-code	cn.iocoder.yudao.module.system.service.oauth2.OAuth2CodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	oauth2-grant	cn.iocoder.yudao.module.system.service.oauth2.OAuth2GrantService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	oauth2-grant	cn.iocoder.yudao.module.system.service.oauth2.OAuth2GrantService	exempt		认证面：OAuth2 授权码签发与令牌兑换，端点对 app 开放（OAuth2OpenController，无 @PreAuthorize 是 OAuth2 协议所需）；工具面无引用	@rain	2027-09-30
 system	oauth2-token	cn.iocoder.yudao.module.system.service.oauth2.OAuth2TokenService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	operate-log	cn.iocoder.yudao.module.system.service.logger.OperateLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	permission	cn.iocoder.yudao.module.system.service.permission.PermissionService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
@@ -182,7 +262,7 @@ system	role	cn.iocoder.yudao.module.system.service.permission.RoleService	exempt
 system	sms-channel	cn.iocoder.yudao.module.system.service.sms.SmsChannelService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	sms-code	cn.iocoder.yudao.module.system.service.sms.SmsCodeService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	sms-log	cn.iocoder.yudao.module.system.service.sms.SmsLogService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
-system	sms-send	cn.iocoder.yudao.module.system.service.sms.SmsSendService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
+system	sms-send	cn.iocoder.yudao.module.system.service.sms.SmsSendService	exempt		内部发送接口：无自有表/DO；REST 触点是短信模板页的测试发送（SmsTemplateController，system:sms-template:send-sms）与供应商回调（SmsCallbackController）；工具面无引用	@rain	2027-09-30
 system	sms-template	cn.iocoder.yudao.module.system.service.sms.SmsTemplateService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	social-client	cn.iocoder.yudao.module.system.service.social.SocialClientService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30
 system	social-user	cn.iocoder.yudao.module.system.service.social.SocialUserService	exempt		上游管理面豁免（D4 甲）	@rain	2027-09-30

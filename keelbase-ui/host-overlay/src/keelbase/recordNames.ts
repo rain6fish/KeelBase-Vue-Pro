@@ -29,18 +29,29 @@ interface NamedRecord {
 
 /**
  * 本宿主每个**写**工具落在哪种记录上 —— 抄自工具自己在 Host Java 侧的 `resultType()` 声明，与
- * `labels.ts` 抄工具名是同一条口径（译它的声明，不从拼写猜）。
+ * `labels.ts` 抄工具名是同一条口径（译它的声明，不从拼写猜）。运行时自带的两个样例工具
+ * （`escalate_customer` / `delete_project`）也在这张表里：它们的声明同样只有一处，而第三问要的正是它。
  *
  * **为什么需要它。** 一次**被扣下或被拒**的调用不写台账（什么都没进系统），运行时只留一条确认记录：
- * 工具名加它当时要用的参数。确认记录答得出「落在哪条记录」，却不说那是**哪种**记录，而线缆上的
- * `/ai/tools` 不发 `resultType`。没有这张表，那一格就只能说「未记录」，尽管运行时其实记着。
+ * 工具名加它当时要用的参数；一次**被闸门拦下**的调用连确认记录都没有，运行时把键写在审计行自己的句末。
+ * 两条路**都**只有工具名与键，却都不说那是**哪种**记录，而线缆上的 `/ai/tools` 不发 `resultType`。
+ * 没有这张表，那一格就只能说「未记录」，尽管运行时其实记着。
  *
  * 表里没有的工具回空串：那一格只画主键、不编一个类型词 —— 编一个比缺一个更糟。
  *
  * Which record type each **write** tool of this host lands on — copied from the tool's own
  * `resultType()` declaration on the host's Java side, the same rule `labels.ts` follows for tool names
- * (translate the declaration, never guess from the spelling). A tool not in the table gets an empty
- * string: the cell draws the key alone rather than inventing a type word.
+ * (translate the declaration, never guess from the spelling). The runtime's own two sample tools
+ * (`escalate_customer` / `delete_project`) are in this table too: their declaration also lives in one
+ * place, and that is exactly what the third question asks for.
+ *
+ * **Why it is needed.** A **held or refused** call writes no ledger row (nothing entered the system) and
+ * leaves only a confirmation record — the tool and the arguments it would have used; a **gate-blocked**
+ * call has not even that, and the runtime writes the key at the end of the audit row's own sentence. Both
+ * roads give a tool name and a key and neither says which **kind** of record it is, while `/ai/tools` on
+ * the wire carries no `resultType`. Without this table the cell could only say 「未记录」 although the
+ * runtime did record it. A tool not in the table gets an empty string: the cell draws the key alone
+ * rather than inventing a type word.
  */
 const TOOL_RESULT_TYPES: Record<string, string> = {
   create_crm_customer: 'crm_customer',
@@ -63,6 +74,8 @@ const TOOL_RESULT_TYPES: Record<string, string> = {
   mark_notify_message_read: 'system_notify_message',
   mark_all_notify_messages_read: 'system_notify_message',
   create_generated_products: 'products',
+  escalate_customer: 'follow_up',
+  delete_project: 'pm_project',
 }
 
 /** 一个工具写的是哪种记录；本控制台认不出这个工具时回空串。 */
@@ -70,6 +83,18 @@ const TOOL_RESULT_TYPES: Record<string, string> = {
 export function toolResultType(toolName: string | null | undefined): string {
   return (toolName ? TOOL_RESULT_TYPES[toolName] : '') ?? ''
 }
+
+/**
+ * 本控制台认得出的记录种类，去重、保持声明次序。审计检索的种类下拉由它生成 —— 一种记录可不可查，
+ * 取决于消息表里有没有它的**业务词**（`keelbase.record.*`），而不是取决于另一张手写的清单：
+ * 加一个词，就多一种可查的对象，不必改代码。
+ *
+ * The record kinds this console can place, deduplicated, in declaration order. The audit search's kind
+ * select is built from it — whether a kind is searchable depends on the message tree having a **business
+ * word** for it (`keelbase.record.*`), not on a second hand-written list: add a word and that kind
+ * becomes searchable, with no code change.
+ */
+export const RECORD_TYPES: string[] = [...new Set(Object.values(TOOL_RESULT_TYPES))]
 
 const ROUTE = '/keelbase/record-names'
 
@@ -108,4 +133,53 @@ export async function resolveRecordName(
   }
   cache.set(key, name)
   return name
+}
+
+/**
+ * 一次问一批引用：回一张 `类型#主键` → 名字（已掩码）的表，宿主答不上的**不在表里** —— 由调用方决定那一格
+ * 怎么措辞，本模块不替它编一个词。已经问过的引用不再发请求（与单条那条同一个缓存，否定答案也缓存）。
+ *
+ * 批量是给**表格列**用的：写入台账与行动中心的「目标」列每一行都要一个名字，一行一条请求就成了整页一屏
+ * 二十条。这条端点本来就收逗号分隔的一串引用，故一次问完。
+ *
+ * Asks about a batch of references at once: a `type#key` → name (masked) table. A reference the host
+ * cannot answer is **not in the table** — the caller decides how that cell reads, and this module does
+ * not invent a word for it. References already asked about cost no request (same cache as the single
+ * call, negative answers included). The batch exists for a **table column**: the write ledger and the
+ * action centre name every row, so one request per row would be a screenful of requests; the face takes
+ * a comma-separated list, so one call covers them.
+ */
+export async function resolveRecordNames(
+  refs: Array<{ type?: string | null; id?: string | number | null }>,
+): Promise<Map<string, string>> {
+  const wanted = new Map<string, { type: string; id: string | number }>()
+  for (const ref of refs) {
+    if (!ref || !ref.type || ref.id === null || ref.id === undefined || ref.id === '') continue
+    wanted.set(keyOf(ref.type, ref.id), { type: ref.type, id: ref.id })
+  }
+  const ask: Array<{ type: string; id: string | number }> = []
+  for (const [key, ref] of wanted) {
+    if (cache.get(key) === undefined) ask.push(ref)
+  }
+  if (ask.length) {
+    try {
+      const rows = (await request.get({
+        url: ROUTE,
+        params: { refs: ask.map((r) => `${r.type}:${r.id}`).join(',') },
+      })) as NamedRecord[] | null
+      for (const ref of ask) cache.set(keyOf(ref.type, ref.id), '')
+      for (const row of rows || []) {
+        if (row?.type) cache.set(keyOf(row.type, row.id), row.name ?? '')
+      }
+    } catch {
+      // 一次没问成，这一批就当没名字；引用仍留空表，下一次再问。
+      // One failed call leaves this batch unnamed; the page asks again next time.
+    }
+  }
+  const named = new Map<string, string>()
+  for (const key of wanted.keys()) {
+    const name = cache.get(key)
+    if (name) named.set(key, name)
+  }
+  return named
 }

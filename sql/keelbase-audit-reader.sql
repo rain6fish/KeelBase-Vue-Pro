@@ -12,9 +12,10 @@
 -- 该角色发给 `common`：角色是**独立身份**，不该混进普通用户。
 --
 -- 为什么授予这几页：它们是四个读面的宿主入口。审计链与操作审计是「审计」；审计链上的链校验是「证据」；
--- 写入台账是「副作用」；行动中心是「确认」（该页读的是**调用方本人**的待决项，全局确认队列只有接口、
--- 本宿主没有页面）。工具清单与策略中心与 Java 侧审计读者的读面同形，一并授予；策略的写入口在运行时是
--- `update`，不在本角色的规则里，故保存会 403。
+-- 写入台账是「副作用」；行动中心是「确认」（该页读**调用方本人**的待决项，另有一张「等待第二人批准」卡
+-- 读全局确认队列，但**只有管理员**发那次请求 —— 审计读者看不到那张卡，也不会收到 403 提示）。工具清单与
+-- 策略中心与 Java 侧审计读者的读面同形，一并授予；策略的写入口在运行时是 `update`，不在本角色的规则里，
+-- 故保存会 403。
 --
 -- **不授予**：对抗证明（它会驱动运行时、产生执行）、决策轨迹（调用方自己的会话，是应用用户面），
 -- 以及所有系统管理 / 用户 / 配置菜单。
@@ -44,10 +45,11 @@
 --
 -- Why these pages: they are the host entries to the four read faces. The audit chain and the operations
 -- audit are "audit"; the chain verification on the audit page is "evidence"; the write ledger is "side
--- effects"; the action centre is "confirmations" (that page reads the caller's **own** pending items — the
--- global confirmation queue exists as an endpoint but has no page in this host). The tool inventory and
--- the policy centre are granted because they are the same read faces the Java-side audit reader holds;
--- the policy's write entry is `update`, which this role's rules do not contain, so saving answers 403.
+-- effects"; the action centre is "confirmations" (it reads the caller's **own** pending items, and carries a
+-- "waiting for a second person" card over the global confirmation queue — but **only an administrator** makes
+-- that read, so an audit reader sees no such card and no 403 toast). The tool inventory and the policy centre
+-- are granted because they are the same read faces the Java-side audit reader holds; the policy's write entry
+-- is `update`, which this role's rules do not contain, so saving answers 403.
 --
 -- **Not granted**: the security showcase (it drives the runtime and produces executions), the
 -- conversation trace (the caller's own conversations, an application-user face), and every system /

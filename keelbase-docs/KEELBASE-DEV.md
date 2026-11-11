@@ -60,13 +60,32 @@ bash scripts/jdk25.sh mvn -pl yudao-server -am -DskipTests -Dmaven.test.skip=tru
 that are not wired into the server. The artifact is a fat jar under `yudao-server/target/`. This
 assumes `mvn` is on `PATH`; the datastore below additionally needs Docker.
 
+**Check what the build actually resolved.** The host pins a *released* runtime, and a released
+coordinate is one Maven will not re-fetch once a local copy is present — so an `mvn install` of the same
+version on this machine silently shadows the published jar, and every reading stays green. Measured
+2026-10-26: `0.1.11` pinned and published, the artefact embedding a locally rebuilt `4b203bb3…` instead
+of the published `8a2c34dc…`. Those two were equivalent only because nobody had changed the sources,
+and nothing in the build would have said so either way.
+
+```bash
+node scripts/check-runtime-pin-bytes.mjs --jar yudao-server/target/yudao-server.jar
+```
+
+It reads the pin from the POMs, hashes the three jars inside the artefact, and compares each against
+the `.sha1` the publishing repository serves. A mismatch is red and names both hashes; being unable to
+read the published hash is red too — that is "cannot decide", not "fine". `scripts/run-server.sh` runs
+it before every stack start, and CI runs the repository-surface form right after building. When it is
+red, move the locally installed copies aside and resolve again — they are under
+`~/.m2/repository/cn/com/keelbase/<artifact>/<version>/`, and the shadowing entries are the ones whose
+`_remote.repositories` reads `artifact>=` with no `.md5`/`.sha1` sidecars.
+
 ### A prepared Maven repository, for building with no network — 离线构建：备好一份 Maven 本地库
 
 **中文块在前、英文块在后 —— 本仓的块顺序与其它仓相反。**
 
 钉在 pom 里的 `keelbase4j` 版本可能比任何一份现成基线库都新（2026-11-02 的基线库只有 0.1.14，而 pom 钉
-0.1.16）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
-**完全离线**的机器上，同一个构建会以「找不到 0.1.16」失败。先把这一层补进本地库：
+0.1.17）。联网机器上这不是问题：根 `pom.xml` 自己声明了 huaweicloud / aliyun 两个仓库，Maven 会去下载。
+**完全离线**的机器上，同一个构建会以「找不到 0.1.17」失败。先把这一层补进本地库：
 
 ```bash
 # 1) 复制基线库（源库只读），缺的版本按根 pom 的镜像解析进目标库
@@ -87,8 +106,8 @@ bash scripts/jdk25.sh mvn -o -Dmaven.repo.local=<target-m2> -pl yudao-server -am
 跑完整条验证，那两层也得预先备好——本脚本没有覆盖它们。
 
 The pinned `keelbase4j` version can be newer than any prepared baseline (the 2026-11-02 baseline had only
-0.1.14 while the poms pin 0.1.16). Online that is fine — the root `pom.xml` declares the huaweicloud and
-aliyun repositories itself, so Maven downloads it. **Fully offline**, the same build fails on "0.1.16 not
+0.1.14 while the poms pin 0.1.17). Online that is fine — the root `pom.xml` declares the huaweicloud and
+aliyun repositories itself, so Maven downloads it. **Fully offline**, the same build fails on "0.1.17 not
 found". Put that layer into a local repository first:
 
 ```bash
@@ -136,6 +155,30 @@ can be pointed at a different stack without editing anything.
 | `--yudao.access-log.enable=true` | the host's profile ships this **off**, which leaves the API access-log table empty — and the dashboard's "interface calls" figure is read from that table, so it sat at zero. A command-line argument outranks the profile yaml, so this turns it on without editing upstream. Each request now writes a row: that is the cost, and it is why the value is a parameter rather than a constant. Set `ACCESS_LOG=false` to put it back |
 | `--spring.datasource.dynamic.druid.validation-query="SELECT 1"` | the host's own value is `SELECT 1 FROM DUAL`, which is MySQL — PostgreSQL has no `DUAL` |
 | `--spring.datasource.dynamic.datasource.master.type=com.zaxxer.hikari.HikariDataSource` | **the pool.** See below — with Druid, about half of all logins fail |
+
+### SKILL tools: off in a fresh deployment, until an administrator enables them
+
+A deployment that has never had a policy written for it can use **no skill at all**. When an agent's
+SKILL tools are assembled, `YudaoAi1ToolGovernor` registers every non-read tool and writes
+`enabled:false` for it (`GovernancePolicyStore.ensureDisabled`). Seven SKILL tools land behind that
+gate — `Bash`, `BashOutput`, `Edit`, `KillShell`, `Read`, `Write` and `Skill`. `Skill` is the tool that
+only loads `SKILL.md`; disabling it means the model cannot even read a skill's instructions. Only
+`Glob`, `Grep` and `ListDirectory` are R1 reads and run straight away.
+
+This is the policy's default, not a defect in the seam: every call still reaches the
+`GovernedExecutionEngine`, a blocked call leaves one `blocked` audit row (with `tool_enabled` marked as
+the failed check), and the model is told the call did not run. The boundary page states it in its
+"Out of the box" column for the ai1 SKILL row.
+
+To enable a tool: open **Policy Center** in the governance menu, tick **Enabled** on
+that tool and save. Enabling `Skill` alone makes skill descriptions readable; enabling the shell and
+file tools is what lets a skill *do* anything, and those are the ones with real effects on this host —
+they run here, and an external write has no confirmation and no side-effect ledger row (the declared
+`external-effect-no-ledger` gap).
+
+Whether `Skill` should ship enabled is a product decision under review: moving it into the read set
+would make new deployments able to read skill content while leaving existing ones untouched, since
+their policy rows were already written.
 
 ## The pool had to be swapped, and why
 

@@ -64,6 +64,60 @@
       </el-form-item>
     </el-form>
 
+    <!--
+      按业务对象 + 区间查，并把六问导成 CSV。对象只按**类型 + 主键**判等：显示文本会被掩码、会被翻译，
+      不能当键用。查询走的是本页**已有的几条读面**（审计行、写入台账、确认记录、记录名），扫描有上界、
+      扫到哪儿就说哪儿 —— 运行时那条审计读面没有对象与终点这两个筛选（见模块头）。
+      导出的六列就是本页渲染的那六格，故文件不会与屏幕漂开。
+
+      Search by business object + range, and export the six answers as CSV. The object is compared by
+      **type + key** only: the text shown is masked and translated, so it cannot be the key. The search
+      runs over the **faces this page already reads** (audit rows, write ledger, confirmation records,
+      record names); the scan is bounded and says where it stopped — the runtime's audit read face has
+      neither the object filter nor the end of the range (see the module header). The CSV's six columns
+      are exactly the six cells this page renders, so the file cannot drift from the screen.
+    -->
+    <el-form :inline="true" :model="objectQuery" class="-mb-15px" @submit.prevent>
+      <el-form-item :label="t('keelbase.audit.colObject')">
+        <el-select v-model="objectQuery.resultType" clearable class="!w-180px">
+          <el-option :label="t('keelbase.audit.objectAny')" value="" />
+          <el-option v-for="kind in recordTypes" :key="kind" :label="t(`keelbase.record.${kind}`)" :value="kind" />
+        </el-select>
+      </el-form-item>
+      <el-form-item :label="t('keelbase.audit.objectKey')">
+        <el-input v-model="objectQuery.resultId" clearable placeholder="#9005" class="!w-140px" @keyup.enter="runQuery" />
+      </el-form-item>
+      <el-form-item :label="t('keelbase.audit.until')">
+        <el-date-picker
+          v-model="until"
+          type="datetime"
+          :placeholder="t('keelbase.audit.untilPlaceholder')"
+          class="!w-220px"
+        />
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" :loading="queryRunning" @click="runQuery">
+          {{ t('keelbase.audit.search') }}
+        </el-button>
+        <el-button :disabled="!queryRows.length || queryRunning" @click="void exportSix()">
+          {{ t('keelbase.audit.exportCsv') }}
+        </el-button>
+      </el-form-item>
+    </el-form>
+
+    <!-- 扫到哪儿、命中几行、有没有到上界 —— 查询的边界要说出来，不然「没有行」会被读成「没有这件事」。 -->
+    <!-- Where the scan went, how many rows matched, whether it hit its bound — an unspoken bound makes
+         "no rows" read as "nothing happened". -->
+    <div v-if="queryRan" class="query-status">
+      {{ t('keelbase.audit.queryHits', { n: queryRows.length }) }}
+      <!-- 区间照写出来：「起始」与上面的列表共用同一个控件，不说出来读者不会知道这次查的是哪一段。 -->
+      <!-- The range is spelled out: its start shares the list's control above, and an unspoken window
+           leaves the reader guessing which slice this was. -->
+      <span class="muted"> · {{ rangeText() }}</span>
+      <span v-if="queryTruncated" class="query-warn"> · {{ t('keelbase.audit.scanBound') }}</span>
+    </div>
+    <div v-if="exportError" class="text-[var(--el-color-danger)] mb-10px">{{ exportError }}</div>
+
     <!-- 覆盖声明（`D57`）：这一页读到哪、到不了哪些路径 —— 只写事实。 -->
     <!-- Coverage statement (`D57`): what this page reads, and which paths it cannot reach. -->
     <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">{{ t('keelbase.coverage.auditChain') }}</div>
@@ -166,6 +220,15 @@
       <el-table-column :label="t('keelbase.audit.colWho')" width="170">
         <template #default="{ row }">
           <div>{{ callerName(row.userId) }}</div>
+          <!--
+            `YD-45`：裁决行上这个人是**作裁决的那位**，不是调用方。行为那列只说「确认」时说不出这一层，
+            故在这里点名。只认 `approved` / `declined`：同一种动作的 `attempted` 行是一次重试，不是裁决。
+
+            `YD-45`: on a decision row this person is **the decider**, not the caller. The action column
+            only says "confirmation" and cannot carry that distinction, so it is named here. Only
+            `approved` / `declined` count — an `attempted` row of the same action is a retry, not a decision.
+          -->
+          <el-tag v-if="deciderText(row)" size="small" effect="plain">{{ deciderText(row) }}</el-tag>
           <!-- 没有 id 的行**不画那一行**：`#—` 读起来像一个坏掉的 id，而不是「这次没人可挂」。 -->
           <div v-if="row.userId" class="muted">#{{ row.userId }}</div>
         </template>
@@ -279,9 +342,18 @@ import {
   toolLabelKey,
 } from '@/keelbase/labels'
 import { resolveCallerNames } from '@/keelbase/callerNames'
+import {
+  CSV_QUESTION_KEYS,
+  CsvLeak,
+  csvFilename,
+  csvText,
+  instantOf,
+  objectRefOf,
+  selectRows,
+} from '@/keelbase/auditQuery.mjs'
 import { maskTitle } from '@/keelbase/mask'
-import { resolveRecordName, toolResultType } from '@/keelbase/recordNames'
-import { composeSix, objectLine, zonedTime } from '@/keelbase/sixQuestions.mjs'
+import { RECORD_TYPES, resolveRecordName, resolveRecordNames, toolResultType } from '@/keelbase/recordNames'
+import { approverOf, composeSix, objectLine, recordedObjectIn, zonedTime } from '@/keelbase/sixQuestions.mjs'
 import { timeText } from '@/keelbase/time'
 
 defineOptions({ name: 'KeelbaseGovernanceAuditChain' })
@@ -420,9 +492,65 @@ const PROPOSAL_WINDOW = 50
 
 const query = reactive<{ userId: string; isError: string }>({ userId: '', isError: '' })
 
+/**
+ * 按业务对象 + 区间查。`since` 与上面的列表**共用一个窗口起点**（同一条读面同一个含义），`until` 只属于
+ * 这次检索：运行时那条面没有终点，故终点在**本地**施加 —— 页面把这件事说出来，而不是假装服务端筛过。
+ *
+ * The object + range search. It shares the list's window **start** (`since` — same face, same meaning);
+ * `until` belongs to the search alone: the runtime's face has no end, so the end is applied **locally**
+ * — and the page says so rather than pretending the server filtered it.
+ */
+const objectQuery = reactive<{ resultType: string; resultId: string }>({ resultType: '', resultId: '' })
+const until = ref<Date | null>(null)
+const queryRows = ref<AuditRow[]>([])
+const queryRan = ref(false)
+const queryTruncated = ref(false)
+const queryRunning = ref(false)
+const exportError = ref('')
+/** 这次检索实际扫到的那两窗证据 —— 导出时六问按它配，而不是按列表用的那一小窗。 */
+/** The two evidence windows this search actually scanned — the export pairs by these, not by the
+ *  small window the list uses. */
+const scanEffects = ref<EffectRow[]>([])
+const scanProposals = ref<ConfirmationItem[]>([])
+/** 这次检索扫到的**全部**审计行（含没命中的那些）：批准人那一问要从这里配裁决行，而不是列表那一小窗。 */
+/** Every audit row this search scanned (the non-matches too): the approver is paired from here, not from
+ *  the list's small window. */
+const scanAuditRows = ref<AuditRow[]>([])
+
+/** 种类的下拉只列**消息表里有业务词**的记录种类：加一个词就多一种可查的对象，不必改代码。 */
+/** The kind select lists only kinds the message tree has a business word for: add a word and the kind
+ *  becomes searchable, with no code change. */
+const recordTypes = RECORD_TYPES.filter((kind) => te(`keelbase.record.${kind}`))
+
+/** 审计行一次取 200（运行时的上限），最多 5 页 —— 1000 行是那条面能走到的深度（`offset` 上限也是 1000）。 */
+/** Audit rows: 200 a page (the runtime's cap), 5 pages at most — 1000 rows is as deep as that face goes
+ *  (`offset` is capped at 1000 too). */
+const SCAN_LIMIT = 200
+const SCAN_PAGES = 5
+/** 台账与确认记录各自的窗口：100 一页，台账最多往回 3 页。 */
+/** The ledger's and confirmation queue's windows: 100 a page, the ledger back 3 pages at most. */
+const LEDGER_PAGE = 100
+const LEDGER_PAGES = 3
+const PROPOSAL_LIMIT = 100
+
 function callerName(id: string | null | undefined): string {
   if (!id) return '—'
   return names.value[String(id)] ?? String(id)
+}
+
+/**
+ * 裁决行上「谁」那一格的标签：这个人批准了或拒绝了这次调用。读不了的两行（`attempted` 重试、别的
+ * `tool_confirmation` 形态）不贴标签 —— 一个贴错标签的裁决者比不贴更糟。
+ *
+ * The tag on the "who" cell of a decision row: this person approved or declined the call. Rows this
+ * page cannot read as a decision (`attempted` retries, other `tool_confirmation` shapes) get no tag —
+ * a mislabelled decider is worse than none.
+ */
+function deciderText(row: AuditRow): string {
+  if (row.action !== 'tool_confirmation') return ''
+  if (row.outcome === 'approved') return t('keelbase.audit.approverTag')
+  if (row.outcome === 'declined') return t('keelbase.audit.declinerTag')
+  return ''
 }
 
 /**
@@ -612,12 +740,39 @@ function objectOf(row: AuditRow): string {
   return objectLine({
     effect: e,
     proposal,
+    recorded: recordedObjectOf(row, e, proposal),
     hostNowName: hostNowNameOf(e),
     proposalName: proposalNameOf(proposal),
     mask: maskTitle,
     t,
     te,
   }).text
+}
+
+/**
+ * 被**闸门拦下**的调用既没有台账行、也没有提议时，它本来落在哪条记录上 —— 读运行时写在那条审计行
+ * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。
+ *
+ * 表格那一列与展开的六问**都从这里取**：同一条审计行的第三问只该有一个答案。两处各拼一份，正是它们
+ * 会给出两个答案的方式（2026-11-08 走查实测：列上说「未记录」、展开说「项目 · #1」）。
+ *
+ * Which record a **gate-blocked** call was about when it has neither a ledger row nor a proposal — the key
+ * the runtime wrote at the end of that audit row's own sentence (see `recordedObjectIn`), with the kind
+ * taken from the tool's own declaration.
+ *
+ * The table column and the expanded six answers **both take it from here**: one audit row must answer its
+ * third question one way. Composing it twice at the two call sites is exactly how they came to disagree
+ * (measured on a real stack, 2026-11-08: the column read 「未记录」 while the expansion read 「项目 · #1」).
+ */
+function recordedObjectOf(
+  row: AuditRow,
+  effect: EffectRow | null,
+  proposal: { resultType: string; resultId: number | string } | null,
+): { resultType: string; resultId: number } | null {
+  const recordedId = effect || proposal ? null : recordedObjectIn(row)
+  return recordedId === null || !row.tool
+    ? null
+    : { resultType: toolResultType(row.tool), resultId: recordedId }
 }
 
 /**
@@ -629,11 +784,23 @@ function objectOf(row: AuditRow): string {
 function sixOf(row: AuditRow) {
   const e = recordOf(row)
   const proposal = e ? null : proposalArgumentOf(row)
+  // 与表格那一列同一份（见 `recordedObjectOf`），故同一行的第三问不会两处两个答案。
+  // The same value the table column takes (see `recordedObjectOf`), so one row cannot answer its third
+  // question two ways.
+  const recorded = recordedObjectOf(row, e, proposal)
+  // 第五问的**人**只来自这次操作自己的证据链：同会话、同工具、五秒内、恰好一行裁决（见 `approverOf`）。
+  // 这一页只拿得到已载入的那些行；配不上就回落到「这一行没有记下」。
+  // The fifth question's **person** comes only from this operation's own evidence chain: same conversation,
+  // same tool, within five seconds, exactly one decision row (see `approverOf`). This page holds only the
+  // rows it has loaded; no match falls back to "this row does not record who".
+  const approver = approverOf(row, rows.value)
   return composeSix({
     row,
     callerName: row.userId ? callerName(row.userId) : '',
     effect: e,
     proposal,
+    recorded,
+    approverName: approver ? names.value[String(approver.userId)] ?? String(approver.userId) : '',
     hostNowName: hostNowNameOf(e),
     proposalName: proposalNameOf(proposal),
     recordState: e ? recordState(e) : '',
@@ -711,6 +878,172 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
   if (severity === 'high') return 'danger'
   if (severity === 'medium') return 'warning'
   return 'info'
+}
+
+/**
+ * 从窗口起点往后读审计行，最多 `SCAN_PAGES` 页。`complete=false` 表示**到了上界**：区间里更早的行没读到，
+ * 页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
+ *
+ * Reads audit rows from the window's start, at most `SCAN_PAGES` pages. `complete=false` means the
+ * **bound was hit**: older rows in the range were not read, and the page has to say so — an unspoken
+ * bound turns "no rows" into "nothing happened".
+ */
+async function scanAudit(sinceIso: string | undefined) {
+  const all: AuditRow[] = []
+  for (let page = 0; page < SCAN_PAGES; page += 1) {
+    const chunk = await auditApi.logs({ since: sinceIso, limit: SCAN_LIMIT, offset: page * SCAN_LIMIT })
+    all.push(...chunk)
+    if (chunk.length < SCAN_LIMIT) return { rows: all, complete: true }
+  }
+  return { rows: all, complete: false }
+}
+
+/**
+ * 台账从**最新**一页往回走（`/ai/tool-effects` 是最旧在前，故取末页），最多 `LEDGER_PAGES` 页；走到
+ * 比窗口起点更早的一行就停。扫到的行按时间升序拼好，与那条面自己的次序一致。
+ *
+ * The ledger walks back from the **newest** page (`/ai/tool-effects` is oldest-first, so the last page
+ * is taken), at most `LEDGER_PAGES` pages, and stops once a row older than the window's start is seen.
+ * The rows are joined in time order, the order that face itself uses.
+ */
+async function scanLedger(from: Date | null) {
+  const head = await effectApi.list(1, 1)
+  const last = Math.max(1, Math.ceil(head.total / LEDGER_PAGE))
+  const items: EffectRow[] = []
+  for (let step = 0; step < LEDGER_PAGES; step += 1) {
+    const page = last - step
+    if (page < 1) return { items, complete: true }
+    const chunk = await effectApi.list(page, LEDGER_PAGE)
+    items.unshift(...chunk.items)
+    const oldest = instantOf(chunk.items[0]?.createdAt)
+    if (from && oldest !== null && oldest <= from.getTime()) return { items, complete: true }
+  }
+  return { items, complete: last - LEDGER_PAGES < 1 }
+}
+
+/** 这次检索的区间，两头都写出来（没给的那一头是 `—`）。 / The range this search used, both ends written
+ *  out (a missing end reads `—`). */
+function rangeText(): string {
+  return `${zonedTime(since.value?.toISOString())} → ${zonedTime(until.value?.toISOString())}`
+}
+
+/**
+ * 跑一次检索：读三窗证据 → 按「对象 + 区间」挑行。对象的三条来路与页面同一条证据链（台账 → 确认记录 →
+ * 行末的键），全部由 `objectRefOf` 在一个地方做。
+ *
+ * Runs one search: read the three evidence windows, then pick rows by "object + range". The object's
+ * three roads are the page's own evidence chain (ledger → confirmation record → the key at the end of
+ * the row), all of it done in one place by `objectRefOf`.
+ */
+async function runQuery() {
+  queryRunning.value = true
+  exportError.value = ''
+  try {
+    const audit = await scanAudit(since.value ? since.value.toISOString() : undefined)
+    const ledger = await scanLedger(since.value)
+    let proposals: ConfirmationItem[] = []
+    try {
+      proposals = (await confirmationApi.listAll(1, PROPOSAL_LIMIT)).items
+    } catch {
+      proposals = []
+    }
+    scanAuditRows.value = audit.rows
+    scanEffects.value = ledger.items
+    scanProposals.value = proposals
+    const wanted = {
+      resultType: objectQuery.resultType || '',
+      resultId: String(objectQuery.resultId || '').trim().replace(/^#/, ''),
+    }
+    const picked = selectRows(audit.rows, {
+      object: wanted.resultType || wanted.resultId ? wanted : null,
+      since: since.value,
+      until: until.value,
+      effects: ledger.items,
+      proposals,
+      resultTypeOf: toolResultType,
+    })
+    queryRows.value = picked.map((entry) => entry.row)
+    queryTruncated.value = !audit.complete || !ledger.complete || proposals.length >= PROPOSAL_LIMIT
+    queryRan.value = true
+  } catch (e) {
+    queryRows.value = []
+    queryTruncated.value = false
+    queryRan.value = true
+    exportError.value = runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
+  } finally {
+    queryRunning.value = false
+  }
+}
+
+/**
+ * 导出六问 CSV。六列就是本页渲染的那六格 —— 用的是**同一个** `sixOf`，故文件不会与屏幕漂开。
+ * 任何一格带内部名时整份拒绝（`csvText` 抛 `CsvLeak`），错误里只说**是哪一问**，不回显那串名字。
+ *
+ * Exports the six answers as CSV. The six columns are exactly the six cells this page renders — the
+ * **same** `sixOf` composes them, so the file cannot drift from the screen. A cell carrying an internal
+ * name refuses the whole export (`csvText` throws `CsvLeak`), and the error names **which question**
+ * without echoing the name.
+ */
+async function exportSix() {
+  exportError.value = ''
+  try {
+    const labels = CSV_QUESTION_KEYS.map((key) => t(`keelbase.sixQ.${key}`))
+    const callers = await resolveCallerNames(queryRows.value.map((row) => row.userId))
+    names.value = { ...names.value, ...callers }
+    const refs = queryRows.value
+      .map((row) =>
+        objectRefOf(row, {
+          effects: scanEffects.value,
+          proposals: scanProposals.value,
+          resultTypeOf: toolResultType,
+        }),
+      )
+      .filter((ref): ref is { resultType: string; resultId: number | string } => Boolean(ref))
+    const named = await resolveRecordNames(refs.map((ref) => ({ type: ref.resultType, id: ref.resultId })))
+    const merged = { ...recordNames.value }
+    for (const [key, name] of named) merged[key] = name
+    recordNames.value = merged
+    // 六问按这次检索扫到的那几窗配（台账、确认记录，以及配批准人用的审计行）；配完换回列表自己那一小窗
+    // （同步区间内，不会被渲染读到半态）。
+    // The six answers pair by the windows this search scanned (ledger, confirmation records, and the
+    // audit rows the approver is paired from); they are put back afterwards (all synchronous, so no
+    // render can observe the half state).
+    const prior = { rows: rows.value, effects: effects.value, proposals: proposals.value }
+    rows.value = scanAuditRows.value
+    effects.value = scanEffects.value
+    proposals.value = scanProposals.value
+    let answerRows: Array<{ answers: ReturnType<typeof sixOf> }>
+    try {
+      answerRows = queryRows.value.map((row) => ({ answers: sixOf(row) }))
+    } finally {
+      rows.value = prior.rows
+      effects.value = prior.effects
+      proposals.value = prior.proposals
+    }
+    downloadCsv(csvFilename(), csvText(answerRows, labels))
+  } catch (e) {
+    exportError.value =
+      e instanceof CsvLeak
+        ? t('keelbase.audit.exportRefused', { column: t(`keelbase.sixQ.${e.column}`) })
+        : runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
+  }
+}
+
+/**
+ * 存成文件。前置一个 BOM：Excel 读 UTF-8 的 CSV 时不带它会把中文读成乱码，而这一列里全是中文的业务词。
+ *
+ * Saves the file. It is prefixed with a BOM: without it Excel reads a UTF-8 CSV as mojibake, and these
+ * columns are business words in Chinese.
+ */
+function downloadCsv(filename: string, text: string) {
+  const url = URL.createObjectURL(new Blob([String.fromCharCode(0xfeff) + text], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }
 
 /**
@@ -839,6 +1172,14 @@ onMounted(() => {
   margin-bottom: 10px;
   font-size: 13px;
   color: var(--el-text-color-regular);
+}
+.query-status {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+}
+.query-warn {
+  color: var(--el-color-warning);
 }
 .row-detail {
   display: flex;

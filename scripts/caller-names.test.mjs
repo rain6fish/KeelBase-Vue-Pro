@@ -52,4 +52,8 @@ test('the endpoint is bounded by its answer, not gated by a permission', () => {
   assert.ok(directory.includes('ai_audit_logs'), 'the answer is no longer bounded by the audit chain')
   assert.ok(directory.includes('system_operate_log'), 'the answer is no longer bounded by the operation audit')
   assert.ok(directory.includes('isAuditReader'), 'the ledger-wide answer is no longer limited to an audit reader')
+  // G-3（2026-11-08 走查）：管理员与审计读者同一范围 —— 最常打开审计页的是管理员，他过去只看到裸 id。
+  // G-3 (measured 2026-11-08): an administrator gets the audit reader's range — the administrator is the
+  // one who opens the audit page most, and used to see bare ids there.
+  assert.ok(directory.includes('administrators.isAdmin'), 'the administrator no longer reads the ledger-wide names (G-3)')
 })
