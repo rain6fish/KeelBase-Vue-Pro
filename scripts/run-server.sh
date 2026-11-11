@@ -21,6 +21,16 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"
 
 PORT="${PORT:-48080}"
+# 绑定地址。`SERVER_ADDRESS` 不说就不动：默认绑全部接口是既有 recipe 与各道门禁依赖的形状，
+# 只有明确要「这台机器上只绑回环」时才给（第六位读者规程 §4 即此），故它是输入、不是新的默认。
+# Binding address. Left untouched unless `SERVER_ADDRESS` says otherwise: all interfaces is the shape
+# the existing recipes and gates rely on, and loopback-only is wanted on a specific machine (the
+# sixth-reader runbook §4), so this is an input rather than a new default.
+SERVER_ADDRESS="${SERVER_ADDRESS:-}"
+BIND_ARGS=()
+if [ -n "$SERVER_ADDRESS" ]; then
+  BIND_ARGS+=("--server.address=$SERVER_ADDRESS")
+fi
 PG_HOST="${PG_HOST:-127.0.0.1}"
 PG_PORT="${PG_PORT:-54329}"
 PG_DB="${PG_DB:-ruoyi-vue-pro}"
@@ -94,6 +104,7 @@ fi
 
 exec bash "$HERE/jdk25.sh" java -jar "$JAR" \
   --server.port="$PORT" \
+  ${BIND_ARGS[@]+"${BIND_ARGS[@]}"} \
   --spring.profiles.active=local,keelbase \
   --spring.flyway.baseline-on-migrate=true --spring.flyway.baseline-version=0 \
   --spring.datasource.dynamic.datasource.master.type=com.zaxxer.hikari.HikariDataSource \
