@@ -153,3 +153,43 @@ FROM system_role r
 WHERE r.code = 'audit_reader' AND r.tenant_id = 1 AND r.deleted = 0
   AND NOT EXISTS (SELECT 1 FROM system_role_menu rm
                   WHERE rm.role_id = r.id AND rm.menu_id = 20029 AND rm.deleted = 0);
+
+-- 10) 宿主自己的操作日志（`system/operate-log`）—— 第六位读者复验第 4 条要的**第二入口**。
+--     AI 引起的一次 CRM 写，除了运行时那条审计行，宿主 `@LogRecord` 还会在 `system_operate_log`
+--     记一行（`bizId` = 运行时的 `resultId`）。读者要能按业务编号把两行并排读。故授予系统管理目录
+--     `1`、审计日志目录 `12`、操作日志页 `21` 与只读权限 `62`；**不授予**导出 `63`，更不给任何写。
+--     根目录 `1` 必须一起授予：菜单树从被授予的集合里找父项，父项不在，子项会被整段滤掉。
+-- 10) The host's own operate log (`system/operate-log`) — the **second entry** that clause 4 of the
+--     sixth-reader recheck needs. For a CRM write the AI caused, beside the runtime's audit row the
+--     host's `@LogRecord` writes a `system_operate_log` row (`bizId` = the runtime's `resultId`); the
+--     reader has to read the two side by side by business id. Grant the system directory `1`, the
+--     audit-log directory `12`, the operate-log page `21` and the read-only permission `62`; **not**
+--     export `63`, and no write. The root `1` has to come along: the menu tree looks its parents up in
+--     the granted set, and a missing parent drops the whole subtree.
+INSERT INTO system_role_menu (id, role_id, menu_id, creator, create_time, updater, update_time, deleted, tenant_id)
+SELECT 20082, r.id, 1, 'keelbase', now(), 'keelbase', now(), 0, 1
+FROM system_role r
+WHERE r.code = 'audit_reader' AND r.tenant_id = 1 AND r.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM system_role_menu rm
+                  WHERE rm.role_id = r.id AND rm.menu_id = 1 AND rm.deleted = 0);
+
+INSERT INTO system_role_menu (id, role_id, menu_id, creator, create_time, updater, update_time, deleted, tenant_id)
+SELECT 20049, r.id, 12, 'keelbase', now(), 'keelbase', now(), 0, 1
+FROM system_role r
+WHERE r.code = 'audit_reader' AND r.tenant_id = 1 AND r.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM system_role_menu rm
+                  WHERE rm.role_id = r.id AND rm.menu_id = 12 AND rm.deleted = 0);
+
+INSERT INTO system_role_menu (id, role_id, menu_id, creator, create_time, updater, update_time, deleted, tenant_id)
+SELECT 20050, r.id, 21, 'keelbase', now(), 'keelbase', now(), 0, 1
+FROM system_role r
+WHERE r.code = 'audit_reader' AND r.tenant_id = 1 AND r.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM system_role_menu rm
+                  WHERE rm.role_id = r.id AND rm.menu_id = 21 AND rm.deleted = 0);
+
+INSERT INTO system_role_menu (id, role_id, menu_id, creator, create_time, updater, update_time, deleted, tenant_id)
+SELECT 20081, r.id, 62, 'keelbase', now(), 'keelbase', now(), 0, 1
+FROM system_role r
+WHERE r.code = 'audit_reader' AND r.tenant_id = 1 AND r.deleted = 0
+  AND NOT EXISTS (SELECT 1 FROM system_role_menu rm
+                  WHERE rm.role_id = r.id AND rm.menu_id = 62 AND rm.deleted = 0);
