@@ -486,5 +486,5 @@ git diff upstream/master-jdk25 HEAD --stat
 | | |
 |---|---|
 | The runtime's side of this host | this directory (`KEELBASE-HOST.md`) |
-| The line's decisions and backlog | the project's private repository, `KeelBase-YuDao/` — not in this repository |
+| The line's decisions and backlog | the project's private repository, `KeelBase-Vue-Pro/` — not in this repository |
 | The spike that started this line | same, `KeelBase-RuoYi/Yudao真跑型Spike_2026-10-08.md` + `evidence-yudao-spike-2026-10-08/` |

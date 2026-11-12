@@ -356,7 +356,7 @@ const record = {
 writeFileSync(JSON_PATH, `${JSON.stringify(record, null, 2)}\n`);
 
 const md = [];
-md.push(`# KeelBase-YuDao Application Conformance（${STAMP}）`, '');
+md.push(`# KeelBase-Vue-Pro Application Conformance（${STAMP}）`, '');
 md.push(`- **应用**：${basename(ROOT)} @ \`${SHA}\`（core ${CORE}；未提交改动 ${DIRTY} 处）`);
 md.push(`- **${pass} 通过 · ${fail} 失败 · ${skip} 跳过** ｜ 总耗时 ${ELAPSED}s ｜ 判据：\`D28\` 红线 ⑤`, '');
 md.push('| # | 栏 | 断言 | 结果 | 详情 |', '|---|---|---|---|---|');

@@ -2,7 +2,7 @@
 
 > 英文：[README.md](README.md)
 
-本目录保存的是在 `demo2.keelbase.com.cn` 上应答的那个 KeelBase-YuDao 实例的部署。它就是 demo 机器上
+本目录保存的是在 `demo2.keelbase.com.cn` 上应答的那个 KeelBase-Vue-Pro 实例的部署。它就是 demo 机器上
 **实际在跑**的那套，放在这里是为了**让机器能从仓库重建，而不是从记忆重建**。
 
 ## 先决条件

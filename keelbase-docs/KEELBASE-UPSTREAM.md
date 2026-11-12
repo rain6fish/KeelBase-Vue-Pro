@@ -1,6 +1,6 @@
 # KEELBASE-UPSTREAM — how this line stands to the tree it was derived from
 
-> `D45`（2026-10-11）.** The decision lives in the private repository (`KeelBase-YuDao/决定索引.md`);
+> `D45`（2026-10-11）.** The decision lives in the private repository (`KeelBase-Vue-Pro/决定索引.md`);
 > this page is where someone about to change an upstream file will actually read it.
 
 This repository's history was started fresh from one upstream commit. It is not a fork in the merge

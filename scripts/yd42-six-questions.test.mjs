@@ -5,7 +5,7 @@
 // 透给读者的答案，那一次记 **0 格** —— 这一条不是补充说明，它是「不是有个页面就算」那颗钉子。
 //
 //     node --test scripts/yd42-six-questions.test.mjs
-//     KEELBASE_REPO_ROOT=D:/Rain6fish/KeelBase-YuDao node --test scripts/yd42-six-questions.test.mjs   # 改前的树：红
+//     KEELBASE_REPO_ROOT=D:/Rain6fish/KeelBase-Vue-Pro node --test scripts/yd42-six-questions.test.mjs   # 改前的树：红
 //
 // 三条操作是 2026-10-28 在真栈上跑出来的（宿主 48086，`admin` 一次改客户走自动放行、一次走本人确认、
 // 一次由本人拒绝），下面**行与台账的取值都是那次运行的原样**（`ai_audit_logs` 3454 / 3459 / 3464，
@@ -18,7 +18,7 @@
 // that is the nail in "having the page is not the point".
 //
 //     node --test scripts/yd42-six-questions.test.mjs
-//     KEELBASE_REPO_ROOT=D:/Rain6fish/KeelBase-YuDao node --test scripts/yd42-six-questions.test.mjs   # the tree before the change: red
+//     KEELBASE_REPO_ROOT=D:/Rain6fish/KeelBase-Vue-Pro node --test scripts/yd42-six-questions.test.mjs   # the tree before the change: red
 //
 // The three operations were run against a real stack on 2026-10-28 (host 48086: one customer update
 // auto-allowed, one confirmed by the caller, one the caller declined). The rows and ledger values below

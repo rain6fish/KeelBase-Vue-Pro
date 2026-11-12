@@ -2,7 +2,7 @@
 
 > 中文：[README.zh-CN.md](README.zh-CN.md)
 
-This directory holds the deployment of the KeelBase-YuDao instance that answers on
+This directory holds the deployment of the KeelBase-Vue-Pro instance that answers on
 `demo2.keelbase.com.cn`. It is what actually runs on the demo host, kept here so the host can be
 rebuilt from the repository rather than from memory.
 

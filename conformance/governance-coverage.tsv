@@ -1,4 +1,4 @@
-# KeelBase-YuDao 治理覆盖账本 —— 「完全接入」的唯一账本（M0）。
+# KeelBase-Vue-Pro 治理覆盖账本 —— 「完全接入」的唯一账本（M0）。
 #
 # 部署范围里每个业务 service 恰好一行，四态之一：
 #   seam       某个 *Governance 的点切**点名**这个 service —— REST 与工具同享收窄；
@@ -15,7 +15,7 @@
 #       node scripts/check-exempt-claims.mjs             # 每条 exempt 理由都要被它自己声明的断言证实
 # 列：module  object  service  posture  evidence  reason  owner  recheck
 #
-# KeelBase-YuDao governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
+# KeelBase-Vue-Pro governance-coverage ledger — the single ledger behind "fully onboarded" (M0).
 #
 # One row per business service in the deployed scope, in exactly one of four postures:
 #   seam       some *Governance pointcut **names** this service — REST and tools share the narrowing;

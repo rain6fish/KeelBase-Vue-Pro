@@ -1,4 +1,4 @@
-# KeelBase-YuDao — onboarding a business module
+# KeelBase-Vue-Pro — onboarding a business module
 
 > Chinese: [KEELBASE-MODULE-ONBOARDING.zh-CN.md](KEELBASE-MODULE-ONBOARDING.zh-CN.md)
 

@@ -1,4 +1,4 @@
-# KeelBase-YuDao CI.
+# KeelBase-Vue-Pro CI.
 #
 # Upstream ships two workflows of its own — `maven.yml` and `yudao-ui-admin.yml` — and both are
 # dormant here: they trigger on `master`, while this repository's branch is `main`. They are
@@ -28,7 +28,7 @@
 #   rendered-copy        every line of copy this layer's UI **renders** — locale messages through
 #                        vue-i18n, template text through Vue's parser, and every template **mounted**
 #                        through Vue's runtime so computed expressions are evaluated — carries no
-#                        literal `**` or backtick, so issue rain6fish/KeelBase-YuDao#3's class of
+#                        literal `**` or backtick, so issue rain6fish/KeelBase-Vue-Pro#3's class of
 #                        defect reddens CI rather than only a local build;
 #   governance-registry  every module this host governs declares itself, and the name it declares is
 #                        the one its own pointcuts point at — the set `YD-13` made countable;
@@ -101,7 +101,7 @@
 #                        而它离「不再成立」只差一个 `@Bean`；
 #   rendered-copy        这一层界面**渲染出来**的每一行字——词条经 vue-i18n、模板文本经 Vue 自己的解析器、
 #                        且每个模板再**真挂载**一次让表达式被求值——都不带字面的 `**` 或反引号，故 issue
-#                        rain6fish/KeelBase-YuDao#3 那一类缺陷在 CI 上就红，而不是只在本地构建里；
+#                        rain6fish/KeelBase-Vue-Pro#3 那一类缺陷在 CI 上就红，而不是只在本地构建里；
 #   governance-registry  本宿主治理的每个模块都**自报**，而它报的名字**就是**它自己 pointcut 所指的那一个
 #                        —— `YD-13` 让它**数得出来**的那个集合；
 #   coverage-ledger      *`governance-registry` 里的一个 step* —— 部署范围里每个业务 service 都在
@@ -322,7 +322,7 @@ jobs:
 
   # 渲染级的文案门禁一直都在，只是**只跑在本地构建里**：`scripts/check-rendered-copy.mjs` 由
   # `scripts/build-host-ui.sh` 的 2a 段调用，而 CI 上只有字符串级的 `scripts/i18n-no-markdown.test.mjs`
-  # ——它读词条文本，看不见模板，也看不见 vue-i18n 渲染之后的样子（issue `rain6fish/KeelBase-YuDao#3`
+  # ——它读词条文本，看不见模板，也看不见 vue-i18n 渲染之后的样子（issue `rain6fish/KeelBase-Vue-Pro#3`
   # 记的正是被原样画出来的 `**`）。这道 job 把同一条闸接进 CI：按 1b 段的顺序铺增量（删除清单 →
   # 覆盖目录 → 补丁，依序），然后跑两道闸门——解析级的那道，与把每个模板**真挂载**一次的姊妹闸。
   #
@@ -338,7 +338,7 @@ jobs:
   # The rendered-copy gate has always existed, but it ran only in the local build:
   # `scripts/check-rendered-copy.mjs` is called from `scripts/build-host-ui.sh` §2a, while CI had only the
   # string-level `scripts/i18n-no-markdown.test.mjs` — which reads message text and can see neither the
-  # templates nor what vue-i18n renders (issue `rain6fish/KeelBase-YuDao#3` is exactly a `**` drawn
+  # templates nor what vue-i18n renders (issue `rain6fish/KeelBase-Vue-Pro#3` is exactly a `**` drawn
   # literally). This job wires the same gate into CI: it lays the delta down in §1b's order (removals →
   # overlay → patches), then runs both gates — the parse-level one, and its sibling that **mounts**
   # every template so computed expressions are evaluated.
@@ -660,13 +660,13 @@ jobs:
       - name: The administrator's password is the seed's, and no gate keeps a copy
         run: node scripts/check-admin-credential.mjs
 
-      # The nine-page identity matrix (issue `rain6fish/KeelBase-YuDao#2`) says which role may open
+      # The nine-page identity matrix (issue `rain6fish/KeelBase-Vue-Pro#2`) says which role may open
       # which governance page: the audit reader gets all but the conversation trace and the showcase,
       # the ordinary role gets the caller-scoped pages, and the showcase goes to nobody. Grants are
       # spread over several seed files in three matching shapes (role by code, role by id, menu by
       # path), so one line can flip a cell while nothing else notices. This reads the seed text and
       # compares the matrix cell by cell; it starts no stack and opens no database. Pure Node.
-      # 九页身份矩阵（issue `rain6fish/KeelBase-YuDao#2`）说哪个角色能开哪一页治理页：审计读者拿到除决策
+      # 九页身份矩阵（issue `rain6fish/KeelBase-Vue-Pro#2`）说哪个角色能开哪一页治理页：审计读者拿到除决策
       # 轨迹与对抗证明外的全部；普通角色拿到按调用方限范围的那几页；对抗证明谁也不给。授予散在几份种子文件里、
       # 有三种匹配写法（角色按 code、角色按 id、菜单按路径），故一行就能翻转一格而别处毫无反应。这道检查读
       # 种子文本、逐格比对矩阵；不起栈、不连库。纯 Node。

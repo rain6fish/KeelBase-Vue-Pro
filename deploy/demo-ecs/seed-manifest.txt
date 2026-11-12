@@ -1,4 +1,4 @@
-# KeelBase-YuDao 部署种子清单 —— `bootstrap-db.sh` 的唯一来源。
+# KeelBase-Vue-Pro 部署种子清单 —— `bootstrap-db.sh` 的唯一来源。
 #
 # 每一份 `sql/keelbase-*.sql` 都必须在这里出现且只出现一次，三态之一：
 #
@@ -13,7 +13,7 @@
 #
 # ---
 #
-# KeelBase-YuDao deployment seed manifest — the single source for `bootstrap-db.sh`.
+# KeelBase-Vue-Pro deployment seed manifest — the single source for `bootstrap-db.sh`.
 #
 # Every `sql/keelbase-*.sql` appears here exactly once, in one of three states:
 #

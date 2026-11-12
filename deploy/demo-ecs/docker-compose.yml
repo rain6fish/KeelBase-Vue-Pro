@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# The KeelBase-YuDao instance behind demo2.keelbase.com.cn. Two containers: the Spring Boot server,
+# The KeelBase-Vue-Pro instance behind demo2.keelbase.com.cn. Two containers: the Spring Boot server,
 # and an nginx that serves the admin UI and forwards the API to it.
 #
 # It joins an **existing** network (`keelbase_default`) rather than creating one, because the
@@ -11,7 +11,7 @@
 # Secrets are not here. `PG_PASSWORD` and `AUDIT_KEY` are read from a sibling `.env`; see
 # `.env.example` for where each comes from and why the audit key must stay stable.
 #
-# KeelBase-YuDao 在 demo2.keelbase.com.cn 背后的实例。两个容器：Spring Boot 服务，以及一个提供后台
+# KeelBase-Vue-Pro 在 demo2.keelbase.com.cn 背后的实例。两个容器：Spring Boot 服务，以及一个提供后台
 # 界面、并把接口转发给它的 nginx。
 #
 # 它加入一个**既有**网络（`keelbase_default`）而不是自建，因为数据存储与宿主另一套栈共用：服务按名字连

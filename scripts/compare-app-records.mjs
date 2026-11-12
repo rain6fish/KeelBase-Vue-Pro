@@ -4,7 +4,7 @@
 // Read two hosts' application records against one shared list of assertions.
 //
 //   node scripts/compare-app-records.mjs
-//   node scripts/compare-app-records.mjs --ruoyi <record.json> --yudao <record.json>
+//   node scripts/compare-app-records.mjs --ruoyi <record.json> --vue-pro <record.json>
 //
 // This is the cheap half of `D43` ("do 丙 first"): it compares **records**, not live runs, so the two
 // hosts never have to be alive at the same time, and the frozen RuoYi line is read and not touched.
@@ -25,7 +25,7 @@
 // 两份宿主应用记录，对着**同一张断言清单**读。
 //
 //   node scripts/compare-app-records.mjs
-//   node scripts/compare-app-records.mjs --ruoyi <记录.json> --yudao <记录.json>
+//   node scripts/compare-app-records.mjs --ruoyi <记录.json> --vue-pro <记录.json>
 //
 // 这是 `D43` 的**便宜那一半**（「先做丙」）：它比的是**记录**、不是实时对跑，故两个宿主**从不需要同时活着**，
 // 而已冻结的 RuoYi 线**只读不动**。两边仍各自写自己的记录、用自己的栏位；这里加的是：两份都对着
@@ -45,7 +45,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SIBLING = resolve(ROOT, '..');
 
 const HOSTS = {
-  'KeelBase-YuDao': [join(ROOT, 'conformance/reports')],
+  'KeelBase-Vue-Pro': [join(ROOT, 'conformance/reports')],
   'KeelBase-RuoYi': [
     join(SIBLING, 'KeelBase-RuoYi/conformance/reports'),
     join(SIBLING, 'KeelBase-RuoYi/baseline-2026-10-09/app-conformance'),
@@ -85,7 +85,7 @@ function arg(name) {
 const skeleton = JSON.parse(readFileSync(join(ROOT, 'conformance/shared-assertions.json'), 'utf8'));
 const records = {};
 for (const host of Object.keys(HOSTS)) {
-  const explicit = arg(host === 'KeelBase-YuDao' ? 'yudao' : 'ruoyi');
+  const explicit = arg(host === 'KeelBase-Vue-Pro' ? 'vue-pro' : 'ruoyi');
   if (explicit) {
     const path = resolve(explicit);
     try {

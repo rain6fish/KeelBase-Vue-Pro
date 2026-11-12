@@ -396,5 +396,5 @@ git diff upstream/master-jdk25 HEAD --stat
 | | |
 |---|---|
 | 运行时的这一侧（本宿主） | 本目录（`KEELBASE-HOST.zh-CN.md`） |
-| 本线的决定与待办 | 项目的**私有仓** `KeelBase-YuDao/`——**不在本仓** |
+| 本线的决定与待办 | 项目的**私有仓** `KeelBase-Vue-Pro/`——**不在本仓** |
 | 起始本线的那次 Spike | 同上，`KeelBase-RuoYi/Yudao真跑型Spike_2026-10-08.md` + `evidence-yudao-spike-2026-10-08/` |

@@ -6,7 +6,7 @@
 //   node scripts/check-identity-matrix.mjs
 //   node scripts/check-identity-matrix.mjs --sql-dir <目录>   # 只用于反向证明：读一份临时拷贝
 //
-// 由来：公开 issue `rain6fish/KeelBase-YuDao#2` 记录了一张**逐格核过**的表 —— 审计读者能开审计链、
+// 由来：公开 issue `rain6fish/KeelBase-Vue-Pro#2` 记录了一张**逐格核过**的表 —— 审计读者能开审计链、
 // AI 行动中心、AI 写入台账、工具清单、操作审计、策略中心与治理边界；普通用户 `common` 能开行动中心、
 // 写入台账、决策轨迹与治理边界；决策轨迹按设计**不给**审计读者；对抗证明（`security-showcase`）**谁也不给**。
 // 用户 2026-10-25 已裁定这张表现状是对的，只剩一件事：让将来的授予变更**不能悄悄反转它**。
@@ -23,7 +23,7 @@
 // `check-seed-list.mjs` 里同样的取舍）。它也不替代 `check-audit-reader-write-controls.mjs`：那道钉
 // 「读者看到的页上没有写控件」，这道钉「读者到底拿不拿得到这一页」。
 //
-// Origin: the public issue `rain6fish/KeelBase-YuDao#2` records a table checked cell by cell — the
+// Origin: the public issue `rain6fish/KeelBase-Vue-Pro#2` records a table checked cell by cell — the
 // audit reader may open the audit chain, the action centre, the write ledger, the tool inventory, the
 // operations audit, the policy centre and the governance boundary; the ordinary `common` role may open
 // the action centre, the write ledger, the conversation trace and the boundary; the conversation trace
@@ -427,8 +427,8 @@ if (failures.length > 0) {
   console.error(`\n${failures.length} 处身份矩阵与种子 SQL 不一致（读的是 ${sqlDir}）：\n`)
   for (const f of failures) console.error(`  ✗ ${f}`)
   console.error(
-    `\n矩阵写在本脚本的 MATRIX 里，来源是 issue rain6fish/KeelBase-YuDao#2 与用户 2026-10-25 的裁定。\n` +
-      `The matrix lives in MATRIX in this script; it comes from issue rain6fish/KeelBase-YuDao#2 and the user's 2026-10-25 ruling.\n`,
+    `\n矩阵写在本脚本的 MATRIX 里，来源是 issue rain6fish/KeelBase-Vue-Pro#2 与用户 2026-10-25 的裁定。\n` +
+      `The matrix lives in MATRIX in this script; it comes from issue rain6fish/KeelBase-Vue-Pro#2 and the user's 2026-10-25 ruling.\n`,
   )
   process.exit(1)
 }

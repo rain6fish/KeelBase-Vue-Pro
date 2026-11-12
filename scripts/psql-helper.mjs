@@ -103,7 +103,7 @@ function loadPg() {
     resolve(repoRoot, '..', '.yd39-infra', 'node_modules', 'pg'),
     resolve(repoRoot, '.yd39-infra', 'node_modules', 'pg'),
     // Absolute host path of the embedded stack the recipe documents: a clone can live anywhere (for
-    // example D:/Rain6fish/.recipe-final-cold/KeelBase-YuDao) and still find pg without configuration.
+    // example D:/Rain6fish/.recipe-final-cold/KeelBase-Vue-Pro) and still find pg without configuration.
     // 绝对路径的 embedded 栈：克隆可以在任意位置（如 D:/Rain6fish/.recipe-final-cold/...），仍零配置。
     'D:/Rain6fish/.yd39-infra/node_modules/pg',
   ]) {

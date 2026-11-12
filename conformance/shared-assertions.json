@@ -13,7 +13,7 @@
       "name": "身份解析 / the caller is resolved to this host's own user",
       "carriedBy": {
         "KeelBase-RuoYi": { "column": "Permission" },
-        "KeelBase-YuDao": { "column": "Permission" }
+        "KeelBase-Vue-Pro": { "column": "Permission" }
       }
     },
     {
@@ -21,7 +21,7 @@
       "name": "越权拒绝 / access outside the caller's rows is refused",
       "carriedBy": {
         "KeelBase-RuoYi": { "column": "Permission" },
-        "KeelBase-YuDao": { "column": "Permission" }
+        "KeelBase-Vue-Pro": { "column": "Permission" }
       }
     },
     {
@@ -29,7 +29,7 @@
       "name": "高风险写被扣下 / a high-risk write is held for a human",
       "carriedBy": {
         "KeelBase-RuoYi": { "column": "Confirmation" },
-        "KeelBase-YuDao": { "column": "Confirmation" }
+        "KeelBase-Vue-Pro": { "column": "Confirmation" }
       }
     },
     {
@@ -37,7 +37,7 @@
       "name": "审计链校验 / the audit chain verifies over its own rows",
       "carriedBy": {
         "KeelBase-RuoYi": { "column": "Audit" },
-        "KeelBase-YuDao": { "column": "Audit" }
+        "KeelBase-Vue-Pro": { "column": "Audit" }
       }
     }
   ]

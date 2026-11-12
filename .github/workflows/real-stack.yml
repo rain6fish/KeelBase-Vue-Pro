@@ -1,4 +1,4 @@
-# KeelBase-YuDao · 真栈场景门（28 道）—— 一条作业，一整套栈。
+# KeelBase-Vue-Pro · 真栈场景门（28 道）—— 一条作业，一整套栈。
 #
 # `ci.yml` 里只有 `conformance` 一道作业要活栈；本仓另有 28 道 `scripts/run-*-scenarios.mjs`
 # 真栈门，此前只能在本机手工起栈、手工灌库、手工跑。本作业把那一串动作照原样搬上 GitHub
@@ -23,7 +23,7 @@
 #
 # ---
 #
-# KeelBase-YuDao · the 28 real-stack scenario gates — one job, one stack.
+# KeelBase-Vue-Pro · the 28 real-stack scenario gates — one job, one stack.
 #
 # `ci.yml` has exactly one job that needs a live stack (`conformance`); this repository also ships 28
 # `scripts/run-*-scenarios.mjs` gates that could only be run by hand — start the stack, seed it, build,
