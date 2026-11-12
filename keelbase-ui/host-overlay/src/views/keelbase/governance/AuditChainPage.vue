@@ -51,6 +51,7 @@
           type="datetime"
           :placeholder="t('keelbase.audit.sincePlaceholder')"
           class="!w-220px"
+          @change="clearQueryResults"
         />
       </el-form-item>
       <el-form-item :label="t('keelbase.audit.isError')">
@@ -79,13 +80,21 @@
     -->
     <el-form :inline="true" :model="objectQuery" class="-mb-15px" @submit.prevent>
       <el-form-item :label="t('keelbase.audit.colObject')">
-        <el-select v-model="objectQuery.resultType" clearable class="!w-180px">
+        <el-select v-model="objectQuery.resultType" clearable class="!w-180px" @change="clearQueryResults" @clear="clearQueryResults">
           <el-option :label="t('keelbase.audit.objectAny')" value="" />
           <el-option v-for="kind in recordTypes" :key="kind" :label="t(`keelbase.record.${kind}`)" :value="kind" />
         </el-select>
       </el-form-item>
       <el-form-item :label="t('keelbase.audit.objectKey')">
-        <el-input v-model="objectQuery.resultId" clearable placeholder="#9005" class="!w-140px" @keyup.enter="runQuery" />
+        <el-input
+          v-model="objectQuery.resultId"
+          clearable
+          placeholder="#9005"
+          class="!w-140px"
+          @keyup.enter="runQuery"
+          @input="clearQueryResults"
+          @clear="clearQueryResults"
+        />
       </el-form-item>
       <el-form-item :label="t('keelbase.audit.until')">
         <el-date-picker
@@ -93,14 +102,23 @@
           type="datetime"
           :placeholder="t('keelbase.audit.untilPlaceholder')"
           class="!w-220px"
+          @change="clearQueryResults"
         />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="queryRunning" @click="runQuery">
           {{ t('keelbase.audit.search') }}
         </el-button>
+        <el-button v-if="queryRan" @click="clearQueryResults()">
+          {{ t('keelbase.audit.clearSearch') }}
+        </el-button>
         <el-button :disabled="!queryRows.length || queryRunning" @click="void exportSix()">
           {{ t('keelbase.audit.exportCsv') }}
+        </el-button>
+        <!-- 第二份导出：编号 + 六问 + 判定依据。原六列业务 CSV 一个字符都不动。 -->
+        <!-- A second export: id + six answers + checks. The six-column business CSV is untouched. -->
+        <el-button :disabled="!queryRows.length || queryRunning" @click="void exportCheck()">
+          {{ t('keelbase.audit.exportCheck') }}
         </el-button>
       </el-form-item>
     </el-form>
@@ -169,8 +187,17 @@
     <div v-if="rowsError" class="text-[var(--el-color-danger)] mb-10px">{{ rowsError }}</div>
     <!-- A description of this page, said as such — the window is all the face gives. -->
     <!-- **本页**的描述，并如实这么说 —— 这条面给的就是一个窗口。 -->
-    <div v-if="rows.length && !rowsError" class="overview">{{ overview }}</div>
-    <el-table v-loading="rowsLoading" :data="rows" stripe @expand-change="(row: AuditRow) => void onExpand(row)">
+    <!-- 表格渲染**屏幕上该看的那一份**：检索跑过之后是命中那份，清空后回到普通列表。 -->
+    <!-- The table renders **what the screen is about**: the matched set after a search, the plain list
+         once it is cleared. -->
+    <div v-if="displayRows.length && !rowsError" class="overview">{{ overview }}</div>
+    <el-table
+      v-loading="rowsLoading"
+      :data="displayRows"
+      stripe
+      :empty-text="queryRan ? t('keelbase.audit.queryEmpty') : undefined"
+      @expand-change="(row: AuditRow) => void onExpand(row)"
+    >
       <!-- Opening a row lays out the whole of it in one place: the sentence the list compresses. -->
       <!-- 摊开一行，就是把列表压住的那句话一次摆全。 -->
       <el-table-column type="expand">
@@ -260,7 +287,10 @@
       `/audit/logs` 回的是一个裸列表：它收一个窗口、把窗口里的东西给回来，**没有总数**可供分页。故
       这里是沿那个窗口前后走一步，并且**如实说出自己在哪**，而不是假装知道还剩多少。
     -->
-    <div class="pager">
+    <!-- 检索结果是这次扫描的**全部命中**，不按列表那 20 行一窗分页；故检索期间不画翻页。 -->
+    <!-- A search result is **every match** from that scan, not one window of the list's twenty; so the
+         pager is not drawn while a search is showing. -->
+    <div v-if="!queryRan" class="pager">
       <el-button size="small" :disabled="offset === 0 || rowsLoading" @click="step(-1)">
         {{ t('keelbase.audit.prev') }}
       </el-button>
@@ -343,10 +373,14 @@ import {
 } from '@/keelbase/labels'
 import { resolveCallerNames } from '@/keelbase/callerNames'
 import {
+  CHECK_COLUMN_KEYS,
   CSV_QUESTION_KEYS,
   CsvLeak,
+  checkCsvFilename,
+  checkCsvText,
   csvFilename,
   csvText,
+  displayRowsOf,
   instantOf,
   objectRefOf,
   selectRows,
@@ -517,6 +551,26 @@ const scanProposals = ref<ConfirmationItem[]>([])
  *  the list's small window. */
 const scanAuditRows = ref<AuditRow[]>([])
 
+/** 表格渲染哪一份行：检索跑过之后是命中那份，清空检索之后回到普通列表（见 `displayRowsOf`）。 */
+/** Which rows the table renders: the matched set once a search ran, the plain list once it is cleared
+ *  (see `displayRowsOf`). */
+const displayRows = computed(() =>
+  displayRowsOf({ queryRan: queryRan.value, queryRows: queryRows.value, rows: rows.value }),
+)
+
+/**
+ * 摊开一行时按**屏幕上这一份**去配对证据：检索结果用它扫描到的那几窗，普通列表用列表自己那一小窗。
+ * 否则表格收了窄、展开却仍按 50 行的旧窗口答，第三问会在这三条命中上说「未记录」。
+ *
+ * Opening a row pairs its evidence against **what is on screen**: a search pairs against the windows it
+ * scanned, the plain list against its own small one. Otherwise the table narrows while the expansion
+ * still answers from the old 50-row window, and the third question says 「not recorded」 on the very
+ * rows the search just matched.
+ */
+const viewRows = computed(() => (queryRan.value ? scanAuditRows.value : rows.value))
+const viewEffects = computed(() => (queryRan.value ? scanEffects.value : effects.value))
+const viewProposals = computed(() => (queryRan.value ? scanProposals.value : proposals.value))
+
 /** 种类的下拉只列**消息表里有业务词**的记录种类：加一个词就多一种可查的对象，不必改代码。 */
 /** The kind select lists only kinds the message tree has a business word for: add a word and the kind
  *  becomes searchable, with no code change. */
@@ -590,6 +644,25 @@ function checkText(name: string): string {
   return te(key) ? t(key) : name
 }
 
+/**
+ * 判定依据压成一行，给核对 CSV 用：每道检查一句「通过/未通过 + 名字」，行上没有依据时如实写「未记录」。
+ * 这一段与展开里画的是同一份 `checksOf`，故文件不会与屏幕漂开。
+ *
+ * The checks squeezed onto one line for the verification CSV: one "passed/failed + name" per check, and
+ * 「not recorded」 when the row recorded none. It reads the same `checksOf` the expansion draws, so the
+ * file cannot drift from the screen.
+ */
+function checksTextOf(row: AuditRow): string {
+  const checks = checksOf(row)
+  if (!checks.length) return t('keelbase.audit.checksNotRecorded')
+  return checks
+    .map((c) => {
+      const mark = c.ok ? t('keelbase.audit.checkPassed') : t('keelbase.audit.checkFailed')
+      return `${mark} ${checkText(c.name)}${c.note ? ` (${c.note})` : ''}`
+    })
+    .join(' · ')
+}
+
 function actionText(action: string | null | undefined): string {
   const key = actionLabelKey(action)
   return key ? t(key) : (action || '—')
@@ -654,7 +727,7 @@ function whatText(row: AuditRow): string {
 function recordOf(row: AuditRow): EffectRow | null {
   if (!row.tool) return null
   const at = Date.parse(row.createdAt)
-  const near = effects.value.filter(
+  const near = viewEffects.value.filter(
     (e) => e.toolName === row.tool && Math.abs(Date.parse(e.createdAt) - at) <= 5000,
   )
   return near.length === 1 ? near[0] : null
@@ -676,7 +749,7 @@ function recordOf(row: AuditRow): EffectRow | null {
 function proposalOf(row: AuditRow): ConfirmationItem | null {
   if (!row.tool) return null
   const at = Date.parse(row.createdAt)
-  const near = proposals.value.filter((c) => {
+  const near = viewProposals.value.filter((c) => {
     if (c.toolName !== row.tool) return false
     if (Math.abs(Date.parse(c.createdAt) - at) <= 5000) return true
     return Boolean(c.decidedAt) && Math.abs(Date.parse(c.decidedAt as string) - at) <= 5000
@@ -793,7 +866,7 @@ function sixOf(row: AuditRow) {
   // The fifth question's **person** comes only from this operation's own evidence chain: same conversation,
   // same tool, within five seconds, exactly one decision row (see `approverOf`). This page holds only the
   // rows it has loaded; no match falls back to "this row does not record who".
-  const approver = approverOf(row, rows.value)
+  const approver = approverOf(row, viewRows.value)
   return composeSix({
     row,
     callerName: row.userId ? callerName(row.userId) : '',
@@ -839,16 +912,16 @@ function meaningText(row: AuditRow): string {
  */
 const overview = computed(() => {
   const counts = new Map<string, number>()
-  for (const row of rows.value) {
+  for (const row of displayRows.value) {
     const key = effectiveOutcome(row)
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
   const parts = OVERVIEW_ORDER.filter((o) => counts.has(o)).map(
     (o) => `${t(`keelbase.vocab.outcome.${o}`)} ${counts.get(o)}`,
   )
-  const tools = new Set(rows.value.map((r) => r.tool).filter(Boolean)).size
-  const callers = new Set(rows.value.map((r) => r.userId).filter(Boolean)).size
-  const head = t('keelbase.audit.overviewRows', { n: rows.value.length })
+  const tools = new Set(displayRows.value.map((r) => r.tool).filter(Boolean)).size
+  const callers = new Set(displayRows.value.map((r) => r.userId).filter(Boolean)).size
+  const head = t('keelbase.audit.overviewRows', { n: displayRows.value.length })
   const scope = t('keelbase.audit.overviewScope', { tools, callers })
   return `${head}${parts.length ? '：' + parts.join(' · ') : ''} ｜ ${scope}`
 })
@@ -928,17 +1001,47 @@ function rangeText(): string {
 }
 
 /**
+ * 回到普通列表。检索结果只对**那一组条件**成立：条件一改、或者读者按了「清空检索」/「筛选」/「刷新」，
+ * 那份命中就过期了，故一律回到列表。
+ *
+ * Back to the plain list. A search result holds only for **the conditions it ran under**: change one, or
+ * press 「clear search」/「filter」/「refresh」, and the matched set is stale — so it goes back to the list.
+ */
+function clearQueryResults() {
+  queryRan.value = false
+  queryRows.value = []
+  queryTruncated.value = false
+  scanAuditRows.value = []
+  scanEffects.value = []
+  scanProposals.value = []
+  exportError.value = ''
+}
+
+/**
  * 跑一次检索：读三窗证据 → 按「对象 + 区间」挑行。对象的三条来路与页面同一条证据链（台账 → 确认记录 →
  * 行末的键），全部由 `objectRefOf` 在一个地方做。
+ *
+ * 对象与终点都没填时，这次「检索」就是把列表按当前的调用方/起点/状态筛一遍，故回到普通列表，而不是
+ * 用一个空条件装成一次检索。
  *
  * Runs one search: read the three evidence windows, then pick rows by "object + range". The object's
  * three roads are the page's own evidence chain (ledger → confirmation record → the key at the end of
  * the row), all of it done in one place by `objectRefOf`.
+ *
+ * With neither an object nor an end of the range filled in, this "search" is just the list under the
+ * current caller / start / status filters — so it returns to the plain list instead of dressing an
+ * empty condition up as a search.
  */
 async function runQuery() {
   queryRunning.value = true
   exportError.value = ''
   try {
+    const wantedType = objectQuery.resultType || ''
+    const wantedKey = String(objectQuery.resultId || '').trim().replace(/^#/, '')
+    if (!wantedType && !wantedKey && !until.value) {
+      reload()
+      return
+    }
     const audit = await scanAudit(since.value ? since.value.toISOString() : undefined)
     const ledger = await scanLedger(since.value)
     let proposals: ConfirmationItem[] = []
@@ -1025,6 +1128,72 @@ async function exportSix() {
     exportError.value =
       e instanceof CsvLeak
         ? t('keelbase.audit.exportRefused', { column: t(`keelbase.sixQ.${e.column}`) })
+        : runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
+  }
+}
+
+/** 核对 CSV 某一列在读者语言里的名字（六问之外的列也各有一格）。 */
+/** One verification CSV column's name in the reader's language (the columns outside the six have theirs too). */
+function exportColumnLabel(column: string): string {
+  if (column === 'id') return t('keelbase.audit.colId')
+  if (column === 'checks') return t('keelbase.audit.colChecks')
+  return t(`keelbase.sixQ.${column}`)
+}
+
+/**
+ * 导出**核对 CSV**：编号 + 六问 + 判定依据。它是**另一份**导出，原六列业务 CSV 原样保留 —— 那一份是
+ * U1 的验收口径，故不往里加列。编号取审计行的 `id`，读者拿回去能直接对回链上的行号；判定依据取这一行
+ * 自己记下的检查，没有就写「未记录」。
+ *
+ * 六问仍由 `sixOf` 组合（与屏幕同一份），任何一格带内部名时整份拒绝，错误只说哪一列。
+ *
+ * Exports the **verification CSV**: id + the six answers + the checks. It is a **second** export; the
+ * original six-column business CSV stays exactly as it is — that one is U1's acceptance reading, so no
+ * column is added to it. The id is the audit row's `id`, so a line matches back to the chain; the checks
+ * are the ones that row recorded, and a row with none says 「not recorded」.
+ *
+ * The six answers are still composed by `sixOf` (the same one the screen draws); a cell carrying an
+ * internal name refuses the whole file, and the error names the column only.
+ */
+async function exportCheck() {
+  exportError.value = ''
+  try {
+    const labels = CHECK_COLUMN_KEYS.map((key) => exportColumnLabel(key))
+    const callers = await resolveCallerNames(queryRows.value.map((row) => row.userId))
+    names.value = { ...names.value, ...callers }
+    const refs = queryRows.value
+      .map((row) =>
+        objectRefOf(row, {
+          effects: scanEffects.value,
+          proposals: scanProposals.value,
+          resultTypeOf: toolResultType,
+        }),
+      )
+      .filter((ref): ref is { resultType: string; resultId: number | string } => Boolean(ref))
+    const named = await resolveRecordNames(refs.map((ref) => ({ type: ref.resultType, id: ref.resultId })))
+    const merged = { ...recordNames.value }
+    for (const [key, name] of named) merged[key] = name
+    recordNames.value = merged
+    // 与 `exportSix` 同一条做法：六问按这次检索扫到的那几窗配，配完换回列表自己那一小窗。
+    // Same as `exportSix`: the six answers pair by the windows this search scanned, then the list's own
+    // small windows are put back.
+    const prior = { rows: rows.value, effects: effects.value, proposals: proposals.value }
+    rows.value = scanAuditRows.value
+    effects.value = scanEffects.value
+    proposals.value = scanProposals.value
+    let entryRows: Array<{ id: number | string; answers: ReturnType<typeof sixOf>; checks: string }>
+    try {
+      entryRows = queryRows.value.map((row) => ({ id: row.id, answers: sixOf(row), checks: checksTextOf(row) }))
+    } finally {
+      rows.value = prior.rows
+      effects.value = prior.effects
+      proposals.value = prior.proposals
+    }
+    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels))
+  } catch (e) {
+    exportError.value =
+      e instanceof CsvLeak
+        ? t('keelbase.audit.exportRefused', { column: exportColumnLabel(e.column) })
         : runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
   }
 }
@@ -1144,6 +1313,9 @@ async function loadRows() {
 }
 
 function reload() {
+  // 列表的筛选与刷新都会离开检索结果：那份命中只对原来那组条件成立。
+  // Filtering or refreshing the list leaves the search result: that set held only for its own conditions.
+  clearQueryResults()
   offset.value = 0
   void loadRows()
   // 声明跟的是**时间窗**、不是页码 —— 翻一页还是同一个窗口。

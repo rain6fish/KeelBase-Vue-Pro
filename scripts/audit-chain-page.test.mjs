@@ -285,10 +285,74 @@ test('an approval row takes its approver from the decision row, never from the i
   // inventory** — the inventory answers today's gate, while the row is a past call.
   assert.match(script, /import \{[^}]*\bapproverOf\b[^}]*\} from '@\/keelbase\/sixQuestions\.mjs'/,
     'the page does not import the approver matcher')
-  assert.match(script, /const approver = approverOf\(row, rows\.value\)/,
+  assert.match(script, /const approver = approverOf\(row, viewRows\.value\)/,
     'the page does not pair the decision row from the audit rows it holds')
   assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? String\(approver\.userId\) : ''/,
     'the paired approver is not resolved to a name (or the empty answer is not explicit)')
   assert.match(script, /composeSix\(\{[\s\S]*?\bapproverName:/, 'the six answers no longer receive the approver')
   assert.doesNotMatch(script, /approverOf\(row, inventory/, 'the approver is being answered from the inventory')
+})
+
+// ── 第六位读者复验剩下的三项（2026-11-11）──────────────────────────────────────────────────────────
+// ── The three findings left by the sixth reader recheck (2026-11-11) ───────────────────────────────
+
+test('D-1: a search narrows the table to its matches, and clearing restores the list', () => {
+  // 读者按「客户 · 主键 2 · 一整天」检索，页面答「命中 3 行」，表格仍是 20 行 —— 检索只肯报数、不肯挑行。
+  // 表格必须渲染**这次检索的那一份**；条件一改、按清空/筛选/刷新就回到普通列表，翻页也不再压在检索结果上。
+  //
+  // The reader searched customer #2 over one day, the page answered "3 rows matched", and the table still
+  // showed 20 — the search would count but not pick. The table must render **this search's set**; changing
+  // a condition or pressing clear/filter/refresh returns to the plain list, and the pager is not drawn
+  // over a search result.
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(template, /:data="displayRows"/, 'the table does not render the displayed rows')
+  assert.match(
+    script,
+    /const displayRows = computed\(\(\) =>\s*displayRowsOf\(\{ queryRan: queryRan\.value, queryRows: queryRows\.value, rows: rows\.value \}\)/,
+    'displayRows is not derived from displayRowsOf',
+  )
+  assert.match(script, /function clearQueryResults\(\)/, 'there is no way back to the plain list')
+  assert.match(template, /@click="clearQueryResults\(\)"/, 'the clear-search control is not wired')
+  assert.match(template, /v-if="!queryRan" class="pager"/, 'the pager is still drawn over a search result')
+  assert.match(script, /for \(const row of displayRows\.value\)/, 'the summary still counts the list window')
+  assert.match(
+    template,
+    /:empty-text="queryRan \? t\('keelbase\.audit\.queryEmpty'\)/,
+    'an empty search result keeps the generic empty text',
+  )
+})
+
+test('D-6: a decision row answers ⑤ as the decision itself', () => {
+  // `#29` 已批准：列表「谁」是「批准人」，而展开的五问是 `—`。裁决行本身就是那次裁决，第五问要点名同一行
+  // 的裁决人并说明这一点；执行行上「第二人批准」那一句不动。
+  //
+  // `#29` approved: the list's "who" says Approver while the expansion's fifth question says `—`. A
+  // decision row **is** that decision, so the fifth question names its own decider and says so; the
+  // execution row's "a second person approved it" sentence is untouched.
+  const six = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/sixQuestions.mjs'), 'utf8')
+  assert.match(six, /outcome === 'approved' && action === 'tool_confirmation'/,
+    'a decision row still falls through to the bare marker')
+  assert.match(six, /keelbase\.sixQ\.confirmDecisionApproved/, 'the decision row has no sentence of its own')
+  assert.match(six, /action: row\?\.action/, 'composeSix is not told which action the row is')
+  // 第二人批准那一档仍走 `approverName`
+  assert.match(six, /if \(approverName\) \{\s*return \{ text: `\$\{approverName\} \$\{t\('keelbase\.sixQ\.confirmSecondPerson'\)\}`/)
+})
+
+test('D-8: a second export carries the id and the checks, and the six-column one is untouched', () => {
+  // 核对 CSV：编号 + 六问 + 判定依据。原六列业务 CSV 一个字符都不动（U1 的验收口径）。
+  // The verification CSV: id + the six answers + the checks. The original six-column business CSV is
+  // untouched, cell for cell (U1's acceptance reading).
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
+  assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
+  assert.match(script, /async function exportCheck\(\)/)
+  assert.match(script, /checkCsvText\(entryRows, labels\)/, 'the second export does not go through checkCsvText')
+  assert.match(script, /checksTextOf\(row\)/, 'the second export does not carry the checks')
+  assert.match(script, /CHECK_COLUMN_KEYS\.map\(/, 'the second export hardcodes its columns')
+  assert.match(script, /checkCsvFilename\(\)/)
+  assert.match(query, /export const CHECK_COLUMN_KEYS = \['id', \.\.\.SIX_QUESTIONS, 'checks'\]/)
+  assert.match(query, /export function checkCsvText\(/)
+  assert.match(script, /csvText\(answerRows, labels\)/, 'the six-column export no longer uses csvText')
+  assert.match(script, /answerRows = queryRows\.value\.map\(\(row\) => \(\{ answers: sixOf\(row\) \}\)\)/,
+    'the six-column export no longer composes exactly six answers')
 })
