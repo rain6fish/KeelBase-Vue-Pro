@@ -187,6 +187,22 @@ export function selectRows(rows, { object = null, since, until, effects = [], pr
 }
 
 /**
+ * 表格该渲染哪一份行：检索跑过之后是那份命中，检索清空（`queryRan=false`）之后回到普通列表。
+ *
+ * 单独成一个纯函数，是为了让「命中 3 行时表格就是 3 行、清空后回到 20 行」可以当测试直接跑，
+ * 而不是只靠读一遍模板去相信它。
+ *
+ * Which rows the table renders: the matched set once a search has run, the plain list again after
+ * the search is cleared (`queryRan=false`).
+ *
+ * It is a pure function so that "three hits means three rows, and clearing brings back twenty" can be
+ * run as a test instead of believed by reading the template.
+ */
+export function displayRowsOf({ queryRan, queryRows, rows }) {
+  return queryRan ? (queryRows || []) : (rows || [])
+}
+
+/**
  * 导出的**整个文件**都不许带内部名。命中时抛出的错只说**是哪一问**，不把那串内部名回显出去 ——
  * 否则拒绝导出这件事本身，就把内部名印到了屏幕上。
  *
@@ -257,4 +273,71 @@ export function csvFilename(at = new Date()) {
     `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}` +
     `-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`
   return `audit-six-${stamp}.csv`
+}
+
+/**
+ * 核对 CSV 的列：**编号 + 六问 + 判定依据**。它是**另一份**导出，原六列业务 CSV 一个字符都不动 ——
+ * 那份是 U1 的验收口径，加一列就会让「六列就是页面那六格」这句话不再成立。
+ *
+ * 编号取审计行的 `id`（写成 `#31`，与页面上指着它的方式一致），判定依据取这一行自己记下的那几道检查；
+ * 行上没有依据时写「未记录」，**不**留空。读者拿这份文件回去，行号对得上链上的行，检查也看得见。
+ *
+ * The verification CSV's columns: **id + the six answers + the checks**. It is a **second** export; the
+ * original six-column business CSV is untouched, cell for cell — that one is U1's acceptance reading, and
+ * adding a column to it would make "the six columns are the six cells on screen" stop being true.
+ *
+ * The id is the audit row's `id` (written `#31`, how the page itself points at the row), and the checks
+ * are the ones that row recorded; a row that recorded none says 「not recorded」 rather than going blank.
+ * Taking this file away, a reader can match a line back to the chain and see the checks that ran.
+ */
+export const CHECK_COLUMN_KEYS = ['id', ...SIX_QUESTIONS, 'checks']
+
+/**
+ * 核对 CSV 的正文。与 `csvText` 同一条转义与泄漏规则：缺答案写 `—`，任何一格带内部名就整份拒绝，
+ * 且错误只说**是哪一列**。`entryRows` 的每一项是 `{ id, answers, checks }`。
+ *
+ * The verification CSV's body. The same escaping and leak rules as `csvText`: a missing answer is `—`, any
+ * cell carrying an internal name refuses the whole file, and the error names **which column** only. Each
+ * entry of `entryRows` is `{ id, answers, checks }`.
+ */
+export function checkCsvText(entryRows, labels) {
+  if (!Array.isArray(labels) || labels.length !== CHECK_COLUMN_KEYS.length) {
+    throw new Error(`the verification CSV has exactly ${CHECK_COLUMN_KEYS.length} columns`)
+  }
+  labels.forEach((label, i) => {
+    if (leaksIn(label).length) throw new CsvLeak(CHECK_COLUMN_KEYS[i])
+  })
+  const lines = [labels.map(csvField).join(',')]
+  for (const entry of entryRows || []) {
+    const answers = entry?.answers
+    if (!Array.isArray(answers) || answers.length !== SIX_QUESTIONS.length) {
+      throw new Error(`a row must carry exactly ${SIX_QUESTIONS.length} answers`)
+    }
+    const byKey = new Map(answers.map((a) => [a.key, a]))
+    const answerCells = SIX_QUESTIONS.map((key) => {
+      const answer = byKey.get(key)
+      if (!answer) throw new Error(`the row has no answer for "${key}"`)
+      const text = answer.text === null || answer.text === undefined || answer.text === '' ? BLANK : String(answer.text)
+      if (leaksIn(text).length) throw new CsvLeak(key)
+      return text
+    })
+    const id = entry?.id
+    const idCell = id === null || id === undefined || id === '' ? BLANK : `#${id}`
+    if (leaksIn(idCell).length) throw new CsvLeak('id')
+    const checks =
+      entry?.checks === null || entry?.checks === undefined || entry?.checks === '' ? BLANK : String(entry.checks)
+    if (leaksIn(checks).length) throw new CsvLeak('checks')
+    lines.push([idCell, ...answerCells, checks].map(csvField).join(','))
+  }
+  return lines.join('\r\n') + '\r\n'
+}
+
+/** 核对 CSV 的文件名：`audit-check-YYYYMMDD-HHMMSS.csv`，按本地时间。 */
+/** The verification CSV's file name: `audit-check-YYYYMMDD-HHMMSS.csv`, local time. */
+export function checkCsvFilename(at = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0')
+  const stamp =
+    `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}` +
+    `-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`
+  return `audit-check-${stamp}.csv`
 }

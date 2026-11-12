@@ -200,6 +200,8 @@ export function gateFromRow(row) {
  * 本人」；要求第二人批准的那一档，**这一行只记「要第二个人」、不记是谁**，批准人记在**同一次操作的另一行**
  * 上（`tool_confirmation/approved` 的 `user_id`）。调用方把**已经按这条证据链配到的**那个人交进来时
  * （见 `approverOf`），这一格就点名；配不到时如实说没有 —— 不拿隔壁那一行的时间去凑一个人。
+ * 裁决行自己（`action=tool_confirmation`、`outcome=approved/declined`）就是那次裁决：它点名同一行的
+ * 裁决人，并说明这一行本身就是裁决 —— 不把一个没有解释的 `—` 留给读者。
  *
  * ⑤ who confirmed — answered from **the gate this row recorded** (see `gateFromRow`), not guessed from
  * the tool's setting today.
@@ -209,14 +211,28 @@ export function gateFromRow(row) {
  * needed and not who**; the approver lives on **another row of the same operation** (`tool_confirmation/
  * approved`, whose `user_id` is the decider). When the caller hands in the person it already matched
  * through that evidence chain (see `approverOf`), this cell names them; when there is no match it says
- * so, rather than pairing a neighbour row by its timestamp.
+ * so, rather than pairing a neighbour row by its timestamp. A decision row itself (`action=
+ * tool_confirmation`, `outcome=approved/declined`) **is** that decision: it names the decider on the
+ * same row and says the row is the decision — it does not leave an unexplained `—`.
  */
-export function confirmationLine({ gate, outcome, callerName, approverName, t }) {
+export function confirmationLine({ gate, action, outcome, callerName, approverName, t }) {
   if (outcome === 'pending') {
     return { text: `${callerName || t('keelbase.sixQ.someone')} ${t('keelbase.sixQ.confirmWaiting')}`, answered: true }
   }
   if (outcome === 'declined') {
     return { text: `${callerName || t('keelbase.sixQ.someone')} ${t('keelbase.sixQ.confirmDeclined')}`, answered: true }
+  }
+  // 裁决行本身就是这次裁决：「谁」那一格已经是裁决人（`deciderText` 贴着「批准人」），第五问不能留一个
+  // 没有解释的 `—`。它点名同一个人，并说明这一行的性质；执行行上「第二人批准了这次写」那一句不受影响。
+  //
+  // A decision row **is** the decision: the "who" cell already carries the decider (tagged 「批准人」), so
+  // the fifth question cannot stay an unexplained `—`. It names that same person and says what this row
+  // is; the execution row's "a second person approved it" sentence is untouched.
+  if (outcome === 'approved' && action === 'tool_confirmation') {
+    return {
+      text: `${callerName || t('keelbase.sixQ.someone')} ${t('keelbase.sixQ.confirmDecisionApproved')}`,
+      answered: true,
+    }
   }
   if (gate === 'auto') {
     return { text: t('keelbase.sixQ.confirmNotNeeded'), answered: true }
@@ -382,7 +398,14 @@ export function objectLine({ effect, proposal, recorded, hostNowName, proposalNa
 export function composeSix({ row, callerName, effect, proposal, recorded, hostNowName, proposalName, approverName, recordState, mask, resultWord, resultMeaning, t, te }) {
   const object = objectLine({ effect, proposal, recorded, hostNowName, proposalName, state: recordState, mask, t, te })
   const change = changeLine({ effect, hostNowName, mask, t, te })
-  const confirmation = confirmationLine({ gate: gateFromRow(row), outcome: row?.outcome, callerName, approverName, t })
+  const confirmation = confirmationLine({
+    gate: gateFromRow(row),
+    action: row?.action,
+    outcome: row?.outcome,
+    callerName,
+    approverName,
+    t,
+  })
   return [
     { key: 'who', label: 'who', text: callerName ? `${callerName}${row?.userId ? `（${t('keelbase.sixQ.account')} #${row.userId}）` : ''}` : t('keelbase.sixQ.someone'), answered: Boolean(callerName) },
     { key: 'when', label: 'when', text: zonedTime(row?.createdAt), answered: Boolean(row?.createdAt) },
