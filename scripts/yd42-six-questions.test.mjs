@@ -60,6 +60,8 @@ const MESSAGES = {
   'keelbase.sixQ.confirmDeclined': 'refused it, inside the conversation',
   'keelbase.sixQ.confirmApprovalUnrecorded': 'a second person approved it — this row does not record who',
   'keelbase.sixQ.confirmSecondPerson': 'approved it — a second person, not the operator',
+  'keelbase.sixQ.confirmDecisionApproved':
+    'approved this write (this row is the decision itself; the approver is the person under Who)',
   'keelbase.sixQ.confirmBlocked': 'no one can — this tool is held at a blocking risk level',
   'keelbase.sixQ.objectUnrecorded': 'not recorded — this call wrote no record',
   'keelbase.sixQ.objectUnnamed': 'a business object this console has no name for',
@@ -624,6 +626,40 @@ test('with no paired approver the approval row still says the row does not recor
   const confirmation = answers.find((a) => a.key === 'confirmation')
   assert.equal(confirmation.answered, false, 'an unpaired approval row must not be answered from elsewhere')
   assert.equal(confirmation.text, t('keelbase.sixQ.confirmApprovalUnrecorded'))
+})
+
+// ── D-6：裁决行自己的第五问 ─────────────────────────────────────────────────────────────────────────
+// ── D-6: the decision row's own fifth question ─────────────────────────────────────────────────────
+test('a decision row answers ⑤ with its own decider, not a bare —', () => {
+  // 读者展开 `#29`（已批准）时，列表「谁」写着批准人，而第五问是一个 `—`。裁决行**就是**那次裁决：
+  // 第五问点名同一行的裁决人，并说明这一行本身就是裁决。
+  //
+  // Expanding `#29` (approved), the reader saw the approver under "who" while the fifth question was a
+  // bare `—`. A decision row **is** that decision: the fifth question names its own decider and says the
+  // row is the decision.
+  const answers = six.composeSix({
+    row: DECISION_ROW,
+    callerName: 'Audit Approver',
+    effect: null,
+    proposal: null,
+    recorded: null,
+    hostNowName: '',
+    recordState: '',
+    mask,
+    resultWord: 'Approved',
+    resultMeaning: 'A person approved it, so it will run',
+    t,
+    te,
+  })
+  const confirmation = answers.find((a) => a.key === 'confirmation')
+  assert.equal(confirmation.answered, true, 'the decision row still leaves the fifth question unanswered')
+  assert.equal(
+    confirmation.text,
+    `Audit Approver ${t('keelbase.sixQ.confirmDecisionApproved')}`,
+    `the decision row does not name its own decider: ${confirmation.text}`,
+  )
+  assert.doesNotMatch(confirmation.text, /^\s*—\s*$/, 'the cell is still an unexplained marker')
+  assert.deepEqual(six.leaksIn(confirmation.text), [], 'the decision answer leaks an internal name')
 })
 
 // ── G3：`follow_up` 与 `pm_project` 有业务名 ─────────────────────────────────────────────────────
