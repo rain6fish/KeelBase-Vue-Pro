@@ -165,6 +165,89 @@ test('selection: kind + key, kind alone, key alone', () => {
 const answersOf = (texts) =>
   SIX_QUESTIONS.map((key, i) => ({ key, label: key, text: texts[i], answered: Boolean(texts[i]) }))
 
+test('after a search the table shows the matched rows, and clearing brings the list back', () => {
+  // 读者 #31/#30/#29 那次：「命中 3 行」而表格仍是 20 行。表格渲染的必须是**这次检索的那一份**；
+  // 检索清空（`queryRan=false`）之后回到普通列表。
+  //
+  // The reader's #31/#30/#29 run: "3 rows matched" while the table still showed 20. The table must render
+  // **the set this search picked**; once the search is cleared (`queryRan=false`) the plain list is back.
+  const rows = Array.from({ length: 20 }, (_, i) => ({ id: i + 1 }))
+  const queryRows = rows.slice(0, 3)
+  assert.deepEqual(
+    q.displayRowsOf({ queryRan: true, queryRows, rows }).map((row) => row.id),
+    [1, 2, 3],
+    'the matched rows are not what the table renders',
+  )
+  assert.equal(q.displayRowsOf({ queryRan: true, queryRows, rows }).length, 3)
+  assert.equal(q.displayRowsOf({ queryRan: false, queryRows, rows }).length, 20, 'clearing did not restore the list')
+  assert.equal(q.displayRowsOf({ queryRan: false, queryRows: [], rows }), rows)
+})
+
+const CHECK_LABELS = ['ID', ...LABELS, 'Checks']
+
+test('the verification CSV carries the row id, the six answers and the checks', () => {
+  // 读者第五感：导出的六列里没有 #31/#30/#29，也没有判定依据，拿回去对不回链上的行号。第二份导出
+  // 把编号与检查带上；原六列 CSV 仍然**恰好六列**（U1 的验收口径）。
+  //
+  // The reader's fifth point: the export carried neither #31/#30/#29 nor the checks, so a line could not
+  // be matched back to the chain. The second export carries them; the original six-column CSV still has
+  // **exactly six columns** (U1's acceptance reading).
+  const answers = answersOf([
+    'KeelBase',
+    '2026-11-11 12:11:46 UTC+08:00',
+    'Customer · #2',
+    'a new record: it has no before',
+    'KeelBase approved this write',
+    'Executed',
+  ])
+  const text = q.checkCsvText(
+    [{ id: 31, answers, checks: 'passed Risk level (R5 is always blocked)' }],
+    CHECK_LABELS,
+  )
+  const lines = text.trimEnd().split('\r\n')
+  assert.equal(lines.length, 2, 'a header and one row')
+  assert.deepEqual(lines[0].split(','), CHECK_LABELS)
+  const cells = lines[1].split(',')
+  assert.equal(cells.length, 8, `the verification row has ${cells.length} columns, not 8`)
+  assert.equal(cells[0], '#31', 'the verification row does not carry the audit row id')
+  assert.equal(cells[7], 'passed Risk level (R5 is always blocked)')
+  assert.deepEqual(q.CHECK_COLUMN_KEYS, ['id', ...SIX_QUESTIONS, 'checks'])
+  assert.equal(q.CSV_QUESTION_KEYS.length, 6, 'the six-column export stopped being six columns')
+})
+
+test('the verification CSV has one row per hit and says — when a row recorded nothing', () => {
+  const answers = answersOf(['KeelBase', '2026-11-11 12:11:46 UTC+08:00', 'Customer · #2', '—', '—', 'Approved'])
+  const text = q.checkCsvText(
+    [
+      { id: 31, answers, checks: 'passed Risk level' },
+      { id: 30, answers, checks: '' },
+    ],
+    CHECK_LABELS,
+  )
+  const lines = text.trimEnd().split('\r\n')
+  assert.equal(lines.length, 3, 'three hits must be three data rows plus a header')
+  assert.equal(lines[1].split(',')[0], '#31')
+  assert.equal(lines[2].split(',')[0], '#30')
+  assert.equal(lines[2].split(',')[7], '—', 'a row with no checks must not export as a blank cell')
+})
+
+test('a verification cell carrying an internal name refuses the whole file, naming only the column', () => {
+  const answers = answersOf(['KeelBase', '2026-11-11 12:11:46 UTC+08:00', 'Customer · #2', '—', '—', 'Executed'])
+  assert.throws(
+    () => q.checkCsvText([{ id: 31, answers, checks: 'passed role_allowed' }], CHECK_LABELS),
+    (error) => {
+      assert.equal(error.name, 'CsvLeak')
+      assert.equal(error.column, 'checks', 'the error does not name the column that leaked')
+      assert.doesNotMatch(error.message, /role_allowed/, 'the refusal echoes the internal name')
+      return true
+    },
+  )
+})
+
+test('the verification file name says what it is, without an internal name', () => {
+  assert.equal(q.checkCsvFilename(new Date(2026, 10, 11, 14, 31, 19)), 'audit-check-20261111-143119.csv')
+})
+
 test('the CSV has exactly the six columns, in the auditors’ order, headed by the six business words', () => {
   const answers = answersOf([
     '张三（account #1）',
