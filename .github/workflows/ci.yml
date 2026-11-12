@@ -1067,7 +1067,7 @@ jobs:
             host.log
           if-no-files-found: warn
 
-  # 五道真栈场景门：公告（37）· 文件（39）· BPM 三条接缝（47 / 43 / 36）· FMS 四个读接缝（87）· 旁路审计（44）。
+  # 五道真栈场景门：公告（37）· 文件（39）· BPM 三条接缝（47 / 43 / 36）· FMS 四个读接缝（87）· 旁路审计（38）。
   # 它们此前只在各自会话的隔离栈上手跑过，读数只活在交接件里 —— 切面被改坏时没有任何一道闸会红。这道 job 把
   # 「真栈绿」变成推送的必要条件：一套隔离 PG/Redis、一次宿主构建、一次灌种子，然后每道门一个 step。
   #
@@ -1075,7 +1075,7 @@ jobs:
   # 头部的说明）。故这里没有任何 `if:` 跳过的门 —— 跑不了就是一桩要报的事，而不是静默略过。
   #
   # The five real-stack scenario gates: notices (37), infra files (39), the three BPM seams (47 / 43 / 36),
-  # the four FMS read seams (87), and the bypass audit (44). Each had been driven by hand against a
+  # the four FMS read seams (87), and the bypass audit (38). Each had been driven by hand against a
   # session-local isolated stack, and the readings lived only in hand-off notes — nothing went red when a
   # seam was broken afterwards. This job makes "green on a live stack" a condition of pushing: one isolated
   # PostgreSQL/Redis pair, one host build, one seed load, then one step per gate.
@@ -1306,7 +1306,7 @@ jobs:
       # The bypass audit: the gate starts a **second** host itself (`keelbase.bypassAudit.enabled=false`), so
       # the datastore knobs are handed to it here; that host's log lands in `gates/evidence/` and is uploaded
       # with the artifacts.
-      - name: Gate — bypass audit (26 ok expected)
+      - name: Gate — bypass audit (38 ok expected)
         timeout-minutes: 25
         env:
           HOST_URL: http://127.0.0.1:48090
