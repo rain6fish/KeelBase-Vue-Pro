@@ -240,10 +240,14 @@
               <span>
                 {{ targetText(row) }}
                 <!-- 掩码那句话属于**真有过名字**的情形。运行时与宿主都没答内容时说「已掩码」，是在描述
-                     一件没人做过的事。 -->
+                     一件没人做过的事。这里那句话也点了下方那条业务腿：那张表是**宿主自己的日志**、按
+                     宿主的读权限显示，故这句话不能声称本控制台什么都不打印。 -->
                 <!-- The masking note belongs to a name that exists. Where neither the runtime nor the
-                     host answers one, saying "masked" would describe an act nobody performed. -->
-                <span v-if="targetNamed(row)" class="muted">{{ t('keelbase.effects.maskedNote') }}</span>
+                     host answers one, saying "masked" would describe an act nobody performed. Here the
+                     note also names the business leg below it: that table is the host's own log, shown
+                     under the host's read permission, so this sentence must not claim the console prints
+                     nothing. -->
+                <span v-if="targetNamed(row)" class="muted">{{ t('keelbase.effects.maskedNoteHostLog') }}</span>
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>

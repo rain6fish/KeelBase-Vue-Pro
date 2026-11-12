@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,789 @@
+@@ -1,4 +1,790 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -186,7 +186,8 @@ index 96269a8..2611a9b 100644
 +      statusRevoked: 'Revoked',
 +      colTargetId: 'Record id',
 +      colState: 'Record state',
-+      maskedNote: '(masked — this console does not print what a record is about)',
++      maskedNote: '(record name masked)',
++      maskedNoteHostLog: '(record name masked; the host log below is shown under the host\'s read permission)',
 +      targetUnnamed: 'name not registered',
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
@@ -746,9 +747,9 @@ index 96269a8..2611a9b 100644
 +      account: 'account',
 +      someone: 'Someone',
 +      confirmNotNeeded: 'No confirmation needed — this tool is set to run on its own',
-+      confirmSelf: 'confirmed it themselves, inside the conversation',
++      confirmSelf: 'confirmed it themselves (in-band; client not recorded)',
 +      confirmWaiting: 'has not answered yet — the write is still waiting',
-+      confirmDeclined: 'refused it, inside the conversation',
++      confirmDeclined: 'refused it (in-band; client not recorded)',
 +      confirmApprovalUnrecorded: 'a second person approved it — this row does not record who',
 +      confirmSecondPerson: 'approved it — a second person, not the operator',
 +      confirmDecisionApproved: 'approved this write (this row is the decision itself; the approver is the person under Who)',
@@ -796,7 +797,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,781 @@
+@@ -1,4 +1,782 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -980,7 +981,8 @@ index 35f1e1a..856d201 100644
 +      statusRevoked: '已撤销',
 +      colTargetId: '记录编号',
 +      colState: '记录状态',
-+      maskedNote: '（已掩码 —— 本控制台不打印记录的内容）',
++      maskedNote: '（记录名已掩码）',
++      maskedNoteHostLog: '（记录名已掩码；下方宿主业务日志按宿主的读权限显示）',
 +      targetUnnamed: '未登记名称',
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
@@ -1532,9 +1534,9 @@ index 35f1e1a..856d201 100644
 +      account: '账号',
 +      someone: '某人',
 +      confirmNotNeeded: '无需确认 —— 这个工具被设为自动放行',
-+      confirmSelf: '确认了这次写（本人，对话内）',
++      confirmSelf: '确认了这次写（本人确认；客户端未记）',
 +      confirmWaiting: '还没有确认 —— 这次写仍在等',
-+      confirmDeclined: '拒绝了这次写（对话内）',
++      confirmDeclined: '拒绝了这次写（本人拒绝；客户端未记）',
 +      confirmApprovalUnrecorded: '由第二人批准 —— 这一行没有记下批准人是谁',
 +      confirmSecondPerson: '批准了这次写（第二人，不是操作者本人）',
 +      confirmDecisionApproved: '批准了这次写（这一行本身就是这次裁决；批准人见「谁」）',

@@ -196,8 +196,9 @@ export function gateFromRow(row) {
 /**
  * ⑤ 谁确认 —— 按**这一行记下的那道闸**（见 `gateFromRow`）回答，不按工具当下的设定猜。
  *
- * 自动放行写「无需确认」；要求本人确认的写「本人确认（对话内）」—— 因为那道闸的定义就是「等操作者
- * 本人」；要求第二人批准的那一档，**这一行只记「要第二个人」、不记是谁**，批准人记在**同一次操作的另一行**
+ * 自动放行写「无需确认」；要求本人确认的写「本人确认；客户端未记」—— 那道闸只说明这次确认是**本人、
+ * 带内**完成的，审计行没有记下它来自哪个客户端（浏览器、命令行还是内嵌面板），故这一格不写「对话内」。
+ * 要求第二人批准的那一档，**这一行只记「要第二个人」、不记是谁**，批准人记在**同一次操作的另一行**
  * 上（`tool_confirmation/approved` 的 `user_id`）。调用方把**已经按这条证据链配到的**那个人交进来时
  * （见 `approverOf`），这一格就点名；配不到时如实说没有 —— 不拿隔壁那一行的时间去凑一个人。
  * 裁决行自己（`action=tool_confirmation`、`outcome=approved/declined`）就是那次裁决：它点名同一行的
@@ -206,8 +207,9 @@ export function gateFromRow(row) {
  * ⑤ who confirmed — answered from **the gate this row recorded** (see `gateFromRow`), not guessed from
  * the tool's setting today.
  *
- * An auto-allowed call says 「无需确认」. A tool that asks the operator says 「本人确认（对话内）」, because
- * that is what the gate means. On the second-person tier **this row records that a second person is
+ * An auto-allowed call says 「无需确认」. A tool that asks the operator says 「本人确认；客户端未记」: the
+ * gate says the caller confirmed in-band, and this row does not record which client they used, so this
+ * cell claims no conversation. On the second-person tier **this row records that a second person is
  * needed and not who**; the approver lives on **another row of the same operation** (`tool_confirmation/
  * approved`, whose `user_id` is the decider). When the caller hands in the person it already matched
  * through that evidence chain (see `approverOf`), this cell names them; when there is no match it says
