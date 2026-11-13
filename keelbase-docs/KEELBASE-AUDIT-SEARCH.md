@@ -111,13 +111,22 @@ does not echo the text — otherwise refusing the export would print the interna
 The page reports "matched N rows in what was scanned" and, when a cap was hit, says so. A range older
 than the audit scan can reach answers **"not covered"**, not an empty result.
 
-## 7. The change that would remove the bound (not implemented)
+## 7. The change that removes the bound — landed on the read face
 
-`GET /audit/logs` would take `until` (and, optionally, `resultType` + `resultId`), so the search is a
-query rather than a scan. That is a change to the runtime's **read face**: the Java runtime, the
-TypeScript reference implementation and the contract's endpoint declaration have to move together,
-and a filter the runtime cannot apply must keep being refused. It is **not** part of this slice; the
-week plan's stop condition is not triggered, because the slice needs no new contract field.
+`GET /audit/logs` now takes `until` and an object (`objectType` + `objectId`), so the search is a
+query rather than a full-window scan. That is a change to the runtime's **read face**: the
+TypeScript reference implementation already had the two filters; the **Java runtime** took them in
+its `objectRange` change (`AuditController` / `AuditService`, resolved through the ledger: the
+effects carrying that pair give their execution ids, and the rows of exactly those executions are
+the answer). A filter the runtime cannot apply is still refused — half an object filter is a 400,
+and a deployment with no ledger answers 503 rather than an empty page. No contract field was added:
+the endpoint's parameters are not part of the frozen row schema, and the reference's slice added
+the same two without touching it.
+
+The page sends all three alongside `since`. An older runtime ignores the unknown query parameters
+and the console's own narrowing still decides, so the answer is the same under either and only the
+number of rows scanned differs. The console's ledger and confirmation windows are still bounded:
+they supply the object **label** and the evidence of blocked or refused rows, not the row selection.
 
 ## 8. What the slice is verified by
 
