@@ -356,3 +356,24 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   assert.match(script, /answerRows = queryRows\.value\.map\(\(row\) => \(\{ answers: sixOf\(row\) \}\)\)/,
     'the six-column export no longer composes exactly six answers')
 })
+
+test('the search hands the range end and the object to the read face', () => {
+  // U1 的宿主侧收口：对象 + 区间以前只在控制台本地收窄（读面只收起点）。现在两样都发给读面，
+  // 会施加它们的运行时回一份已经收窄的列表；旧运行时忽略未知参数，本地收窄仍决定结果。
+  // The host side of U1: object + range used to be narrowed only on the console (the read face took a
+  // start but no end). Both now go to the read face; a runtime that applies them answers an already
+  // narrowed list, and an older one ignores the unknown parameters while the local narrowing decides.
+  const scan = script.slice(
+    script.indexOf('async function scanAudit'),
+    script.indexOf('async function scanLedger'),
+  )
+  for (const param of ['until: untilIso', 'objectType: object?.type', 'objectId: object?.id']) {
+    assert.ok(scan.includes(param), `scanAudit does not pass \`${param}\` to the read face`)
+  }
+  const runStart = script.indexOf('async function runQuery')
+  const runRest = script.slice(runStart)
+  const runNext = runRest.indexOf('async function ', 10)
+  const run = runNext === -1 ? runRest : runRest.slice(0, runNext)
+  assert.match(run, /wantedType && wantedKey/, 'half an object filter is the only thing sent')
+  assert.match(run, /until\.value \? until\.value\.toISOString\(\)/, 'the range end is not passed to scanAudit')
+})

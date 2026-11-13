@@ -176,6 +176,19 @@ export interface ConfirmationItem {
 export interface AuditLogQuery {
   userId?: string
   since?: string
+  /**
+   * The **end** of the range, and the business object, are read-face filters as of the runtime's
+   * `objectRange` release. An older runtime ignores unknown query parameters, so passing them is
+   * forward-compatible: the page's own window/object narrowing still runs and still decides, and on
+   * a runtime that applies them the scan comes back already narrowed.
+   *
+   * 区间的**终点**与业务对象，自运行时的 `objectRange` 起是读面自己的筛选。旧运行时忽略不认识的查询
+   * 参数，故传过去是向前兼容的：页面自己的区间/对象收窄照跑、照决定，而在会施加它们的运行时上，扫回来的
+   * 已经收窄过。
+   */
+  until?: string
+  objectType?: string
+  objectId?: string
   isError?: string
   limit?: number
   offset?: number

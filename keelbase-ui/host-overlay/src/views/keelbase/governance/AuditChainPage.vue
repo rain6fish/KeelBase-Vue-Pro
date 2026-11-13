@@ -957,14 +957,32 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
  * 从窗口起点往后读审计行，最多 `SCAN_PAGES` 页。`complete=false` 表示**到了上界**：区间里更早的行没读到，
  * 页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
  *
+ * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，旧运行时忽略这两个参数、
+ * 页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在扫回来的行数。
+ *
  * Reads audit rows from the window's start, at most `SCAN_PAGES` pages. `complete=false` means the
  * **bound was hit**: older rows in the range were not read, and the page has to say so — an unspoken
  * bound turns "no rows" into "nothing happened".
+ *
+ * The range's end and the business object go to the read face too: a runtime that applies them answers
+ * an already narrowed list, and an older one ignores the two parameters while the page's own narrowing
+ * still decides — so the answer is the same under either, and only the number of rows scanned differs.
  */
-async function scanAudit(sinceIso: string | undefined) {
+async function scanAudit(
+  sinceIso: string | undefined,
+  untilIso?: string,
+  object?: { type: string; id: string },
+) {
   const all: AuditRow[] = []
   for (let page = 0; page < SCAN_PAGES; page += 1) {
-    const chunk = await auditApi.logs({ since: sinceIso, limit: SCAN_LIMIT, offset: page * SCAN_LIMIT })
+    const chunk = await auditApi.logs({
+      since: sinceIso,
+      until: untilIso,
+      objectType: object?.type || undefined,
+      objectId: object?.id || undefined,
+      limit: SCAN_LIMIT,
+      offset: page * SCAN_LIMIT,
+    })
     all.push(...chunk)
     if (chunk.length < SCAN_LIMIT) return { rows: all, complete: true }
   }
@@ -1042,7 +1060,16 @@ async function runQuery() {
       reload()
       return
     }
-    const audit = await scanAudit(since.value ? since.value.toISOString() : undefined)
+    // Both halves of an object filter go to the read face together; sending only one would be a 400
+    // on a runtime that applies them, and the page only ever asks with both.
+    // 对象过滤的两半一起发给读面；只发一半在会施加它的运行时上是 400，而页面从来只用两半一起问。
+    const objectForServer =
+      wantedType && wantedKey ? { type: wantedType, id: wantedKey } : undefined
+    const audit = await scanAudit(
+      since.value ? since.value.toISOString() : undefined,
+      until.value ? until.value.toISOString() : undefined,
+      objectForServer,
+    )
     const ledger = await scanLedger(since.value)
     let proposals: ConfirmationItem[] = []
     try {
