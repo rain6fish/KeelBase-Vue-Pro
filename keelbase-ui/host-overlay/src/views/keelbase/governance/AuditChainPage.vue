@@ -191,6 +191,17 @@
     <!-- The table renders **what the screen is about**: the matched set after a search, the plain list
          once it is cleared. -->
     <div v-if="displayRows.length && !rowsError" class="overview">{{ overview }}</div>
+    <!--
+      第六位读者（2026-11-13）问过三件读不出的事：对象名为什么被掩、`账号 #n` 是谁、筛选的「状态」与结果词
+      是什么关系。三句都由这一行一次说清 —— 只解释读法，不改任何判定。
+
+      The sixth reader (2026-11-13) asked three things the page did not say: why a record name is masked, who
+      「账号 #n」 is, and how the status filter relates to the result words. One line answers all three — it
+      explains the reading only, and changes no verdict.
+    -->
+    <div v-if="displayRows.length" class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
+      {{ t('keelbase.audit.rowsHint') }}
+    </div>
     <el-table
       v-loading="rowsLoading"
       :data="displayRows"

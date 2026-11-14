@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,790 @@
+@@ -1,4 +1,794 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -46,15 +46,17 @@ index 96269a8..2611a9b 100644
 +      checkPassed: 'passed',
 +      checkFailed: 'failed',
 +      checksNote: 'The checks this call passed or failed, as the runtime recorded them.',
++      rowsHint:
++        'Reading these rows: an object’s name is masked after its first character (the rest is replaced by asterisks), because a record’s own text is personal data and this console prints only enough to tell rows apart. “Account #n” is the host’s own user id, named when the host’s directory can resolve it. The “Status” filter asks whether the row recorded an error; the “Result” column says how far the call got (Executed, Attempted, Pending, Approved …) — two different questions, not two words for one.',
 +      check: {
-+        risk_policy: 'Risk level (R5 is always blocked)',
++        risk_policy: 'Risk level (R5 is always blocked) — every tool declares a level from R0 to R5, and an R5 call is refused on the level alone, before policy is consulted',
 +        tool_enabled: 'Enabled by governance policy',
 +        role_allowed: 'Role allowlist',
 +        feature_flag: 'Feature flag',
 +        admin_only: 'Administrators only',
 +        agent_read_only: 'Agent read-only',
 +      },
-+      attemptedHint: 'records the attempt only — its outcome is on the adjacent row',
++      attemptedHint: 'records the attempt only — the “Executed” row for the same object is usually its outcome',
 +      toolDeclared: 'The tool says',
 +      toolUnnamed: 'a tool with no business name yet — this call is on the chain, but the page cannot say what it did',
 +      meaning: 'What that means',
@@ -188,6 +190,8 @@ index 96269a8..2611a9b 100644
 +      colState: 'Record state',
 +      maskedNote: '(record name masked)',
 +      maskedNoteHostLog: '(record name masked; the host log below is shown under the host\'s read permission)',
++      writesHint:
++        'Reading this table: “Who” is the caller recorded on that row itself — a dash means the row records nobody, not that a name failed to load, and the console does not borrow one from another trail. A bare number in the host log below is that host’s own user id (the same person the audit chain calls “Account #n”). A target is masked after its first character: a record’s own text is personal data.',
 +      targetUnnamed: 'name not registered',
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
@@ -384,7 +388,7 @@ index 96269a8..2611a9b 100644
 +      cardTitle: 'Coverage statement',
 +      verdict_complete: 'Complete',
 +      verdict_partial: 'Partial',
-+      verdict_unknown: 'Unknown (one reading was unavailable)',
++      verdict_unknown: 'Unknown — recorded gaps (see below)',
 +      severity_high: 'High',
 +      severity_medium: 'Medium',
 +      severity_low: 'Low',
@@ -392,7 +396,7 @@ index 96269a8..2611a9b 100644
 +      noGaps: 'No known gaps for this window',
 +      registry: 'Gap registry revision {rev}',
 +      verdictUnknownNote:
-+        'Unknown means one reading did not arrive. So this page cannot say everything is covered, and cannot promise the list above is complete. What is listed is what is known for certain.',
++        'Unknown means this page cannot claim full coverage: the gaps listed above are recorded and apply here. The readings themselves arrived — what is missing is coverage, not data. So this page neither says everything is covered nor promises the list is complete; what is listed is what is known for certain.',
 +      gap: {
 +        'chain-tail-deletion':
 +          'A valid hash chain proves the recorded rows are internally consistent; it does not prove that no row was removed from the tail.',
@@ -646,7 +650,7 @@ index 96269a8..2611a9b 100644
 +      rename_demo01_contact: 'Rename a demo contact in this host’s infra module (held for a human; a row outside the caller’s scope is refused after approval).',
 +    },
 +    meaning: {
-+      attempted: 'Only the attempt is recorded — its outcome is the row next to it',
++      attempted: 'Only the attempt is recorded — the “Executed” row for the same object is usually its outcome',
 +      executed: 'It really happened; the write is in the system',
 +      executedRead: 'It really ran; this was a read — nothing in the system was changed',
 +      executedUnknown: 'It really ran',
@@ -797,7 +801,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,782 @@
+@@ -1,4 +1,786 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -841,15 +845,17 @@ index 35f1e1a..856d201 100644
 +      checkPassed: '通过',
 +      checkFailed: '未通过',
 +      checksNote: '这次调用通过或被拒的那几道检查，由运行时记下。',
++      rowsHint:
++        '读这几行：对象名称只留首字符、其余换成星号，因为一条记录自己的文字属于个人数据，本控制台只印到「分得清是哪一行」为止。「账号 #n」是宿主用户表里的编号，宿主名录答得出名字时就印名字。「状态」筛选问的是这一行有没有记下出错；「结果」列说的是这次调用走到了哪一步（已执行、试过、待决、已批准……）—— 两个问题，不是一套词的两个说法。',
 +      check: {
-+        risk_policy: '风险级（R5 恒阻断）',
++        risk_policy: '风险级（R5 恒阻断）—— 每个工具声明一个 R0 到 R5 的风险级，R5 的调用只按风险级就被拒，策略还没被查看',
 +        tool_enabled: '治理策略是否启用',
 +        role_allowed: '角色白名单',
 +        feature_flag: '特性开关',
 +        admin_only: '仅限管理员',
 +        agent_read_only: 'agent 是否只读',
 +      },
-+      attemptedHint: '只记「试过」——它的结局在相邻那一行',
++      attemptedHint: '只记「试过」——同一对象的「已执行」行通常是它的结局',
 +      toolDeclared: '工具自述',
 +      toolUnnamed: '一个还没有登记业务名的工具 —— 这次调用在链上，但本页说不出它的业务动作',
 +      meaning: '这意味着',
@@ -983,6 +989,8 @@ index 35f1e1a..856d201 100644
 +      colState: '记录状态',
 +      maskedNote: '（记录名已掩码）',
 +      maskedNoteHostLog: '（记录名已掩码；下方宿主业务日志按宿主的读权限显示）',
++      writesHint:
++        '读这张表：「谁」是那一行自己记下的调用方 —— 一个破折号表示这一行没有记下谁，不是名字没取到，控制台也不会从别的轨上借一个名字。下方宿主日志里单独一个数字是宿主自己的用户编号（与审计链的「账号 #n」是同一个人）。目标名称只留首字符、其余换成星号 —— 一条记录自己的文字属于个人数据。',
 +      targetUnnamed: '未登记名称',
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
@@ -1176,7 +1184,7 @@ index 35f1e1a..856d201 100644
 +      cardTitle: '覆盖声明',
 +      verdict_complete: '完整',
 +      verdict_partial: '部分',
-+      verdict_unknown: '未知（缺一项读数）',
++      verdict_unknown: '未知 —— 有已登记的缺口（见下方）',
 +      severity_high: '高',
 +      severity_medium: '中',
 +      severity_low: '低',
@@ -1184,7 +1192,7 @@ index 35f1e1a..856d201 100644
 +      noGaps: '本口径下没有已知缺口',
 +      registry: '缺口登记表版本 {rev}',
 +      verdictUnknownNote:
-+        '「未知」= 这一页有一项数据没取到。所以它不能说「都覆盖了」，也不能保证上面列的就是全部；上面列出的，是确定知道的那部分。',
++        '「未知」= 这一页不能说「都覆盖了」：上面列出的是已登记、且适用于本口径的缺口。读数本身都到了 —— 缺的是覆盖，不是读数。所以它既不说「都覆盖了」，也不保证上面列的就是全部；上面列出的，是确定知道的那部分。',
 +      gap: {
 +        'chain-tail-deletion': '哈希链校验通过只能证明已记录的行内部一致，不能证明末尾没有整行被删掉。',
 +        'host-ai-path-not-governed': '宿主自己有一条不经治理引擎的 AI 路径，它的工具调用不在本证据包的覆盖范围内。',
@@ -1434,7 +1442,7 @@ index 35f1e1a..856d201 100644
 +      rename_demo01_contact: '修改本宿主 infra 模块里一条示例联系人的名称（引擎先扣下等人；调用方范围外的行即使批准了也会被拒）。',
 +    },
 +    meaning: {
-+      attempted: '只记「试过」—— 它的结局在相邻那一行',
++      attempted: '只记「试过」—— 同一对象的「已执行」行通常是它的结局',
 +      executed: '真的执行了，写已经在系统里',
 +      executedRead: '真的执行了，但这是一次查询 —— 系统里的数据没有被改动',
 +      executedUnknown: '真的执行了',

@@ -208,6 +208,15 @@
       </el-button>
     </template>
 
+    <!--
+      第六位读者（2026-11-13）问：「谁」那一列的破折号是不是表示没记操作人？宿主日志里那个裸数字是谁？
+      下面这行把三件事一次说清（破折号、数字 id、目标掩码），只解释读法，不改任何判定。
+
+      The sixth reader (2026-11-13) asked whether the dash in 「谁」 means no operator was recorded, and who
+      the bare number in the host log is. The line below answers all three (dash, numeric id, masked target)
+      — it explains the reading only, and changes no verdict.
+    -->
+    <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">{{ t('keelbase.effects.writesHint') }}</div>
     <div v-if="effectsError" class="text-[var(--el-color-danger)] mb-10px">{{ effectsError }}</div>
     <el-table v-loading="effectsLoading" :data="effects" stripe @expand-change="onExpand">
       <!-- One panel, because the row is the evidence for both. Opened, it lays out the record the
@@ -233,7 +242,13 @@
         <template #default="{ row }">
           <div class="row-detail">
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colTool') }}</span><span>{{ toolText(row.toolName) }}</span></div>
-            <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colResultType') }}</span><span>{{ row.resultType || '—' }}</span></div>
+            <div class="d-row">
+              <span class="d-key">{{ t('keelbase.effects.colResultType') }}</span>
+              <span>
+                {{ resultTypeText(row.resultType) }}
+                <span v-if="resultTypeText(row.resultType) !== (row.resultType || '—')" class="muted">{{ row.resultType }}</span>
+              </span>
+            </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colTargetId') }}</span><span>{{ idText(row.resultId) }}</span></div>
             <div class="d-row">
               <span class="d-key">{{ t('keelbase.effects.colTarget') }}</span>
@@ -296,7 +311,12 @@
           {{ targetText(row) }} <span class="muted">{{ idText(row.resultId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column :label="t('keelbase.effects.colResultType')" prop="resultType" width="150" />
+      <el-table-column :label="t('keelbase.effects.colResultType')" width="150">
+        <template #default="{ row }">
+          <div>{{ resultTypeText(row.resultType) }}</div>
+          <div v-if="resultTypeText(row.resultType) !== (row.resultType || '—')" class="muted">{{ row.resultType }}</div>
+        </template>
+      </el-table-column>
       <el-table-column :label="t('keelbase.effects.colStatus')" width="120" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
@@ -346,7 +366,7 @@ import {
 import { resolveCallerNames } from '@/keelbase/callerNames'
 import { resolveRecordNames } from '@/keelbase/recordNames'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
-import { toolLabelKey } from '@/keelbase/labels'
+import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
@@ -361,6 +381,21 @@ const { canWrite } = useConsoleWriteAllowed()
 /** 全局确认队列只有管理员够得到；「是不是我自己发起的」也要用到当前用户。 */
 /** Only an administrator reaches the global queue, and "is this one mine" needs the current user too. */
 const { isAdmin, userId: myUserId } = useConsoleAdministrator()
+
+/**
+ * 结果类型，用读者的语言：控制台认识的类型按业务词说（`crm_customer` → 客户），不认识的取值**原样**显示
+ * —— 不隐藏，也不从拼写去猜。第六位读者（2026-11-13）点名过 `crm_customer`「不像普通业务人员会使用的
+ * 名称」；词表本来就有，只是这一页没用它。
+ *
+ * The result type in the reader's language: a type this console knows is said in business words
+ * (`crm_customer` → customer), and an unknown value is shown **as itself** — never hidden, never guessed
+ * from its spelling. The sixth reader (2026-11-13) named `crm_customer` as a word no business reader uses;
+ * the vocabulary already existed, this page just did not use it.
+ */
+function resultTypeText(value: string | null | undefined): string {
+  const key = resultTypeLabelKey(value)
+  return key ? t(key) : value || '—'
+}
 
 /** The tool in the reader's language, falling back to the registered name. */
 /** 工具名，用读者的语言；不认识就保留注册名。 */
