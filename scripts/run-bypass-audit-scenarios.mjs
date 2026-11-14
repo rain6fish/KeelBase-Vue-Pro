@@ -49,6 +49,38 @@
 // a gate's sake), so every assertion is scoped to `occurred_at >= this run's start` — reruns and concurrent runs
 // do not interfere, which is the rule every gate on this line follows (scope by a name, never count the table).
 //
+// **这个时间下界不够定位「这一条」行**：场景 2 与场景 3 写的是同一条路径，只按时间收窄仍会读到**上一场景**的
+// 行。故每个场景在发起请求前记下 `max(id)` 水位，之后只认 `id > 水位` 的行 —— 那是本轮这一条请求留下的行，
+// 不是「本运行里最后一行」。
+//
+// **旁路留痕是异步写出的**：请求线程只入队，单线程回收端以最多 1 s 的轮询取走再插入。于是「请求返回」与
+// 「行可读」之间隔着最多一个轮询周期。若在请求返回的下一刻就地计数，读到的是**还没有这一行**；而一句
+// `rows[rows.length - 1]` 更糟 —— 行缺席时它拿到的是**之前某一场景**的行（同一路径），于是「线缆 200」
+// 在缺行时**假绿**。故本门每一条读数都**等留痕稳定**：每 200 ms 读一次，连续 1.6 s 不变即取，一次最多等
+// 3 s。1.6 s = 1 s 轮询 + 余量；3 s 是硬上限，不是期望耗时。断言一条都没放宽：等待只决定**何时**读，
+// 不改变**读什么**。
+//
+// **负向控制 `BYPASS_GATE_NO_WAIT=1`** 把等待整个关掉、只读一次。那条读数**应当变红** —— 它证明等待是承重的，
+// 而不是为了让门变绿加上的。只在取证时用；CI 不设它。
+//
+// The time bound alone cannot single out "this" row: scenarios 2 and 3 write the same path, so a time-scoped
+// read still sees the **previous scenario's** row. Each scenario therefore records a `max(id)` watermark before
+// its request and accepts only rows with `id > watermark` — the row this request left, not "the last row of
+// this run".
+//
+// **The trail is written asynchronously**: the request thread only enqueues, and a single drain thread takes
+// rows off the queue by a poll of up to 1 s and inserts them. So "the request returned" and "the row is
+// readable" are up to one poll apart. Counting the instant a request returns reads *not yet*; and
+// `rows[rows.length - 1]` is worse — with the row absent it picks an **earlier scenario's** row on the same
+// path, so "wire 200" is falsely green. Every reading here therefore **waits for the trail to settle**: one
+// read every 200 ms, taken once the reading has not changed for 1.6 s, at most 3 s per reading. 1.6 s is the
+// 1 s poll plus margin; 3 s is a ceiling, not the expected cost. No assertion is relaxed: the wait decides
+// **when** to read, never **what** to read.
+//
+// **The negative control `BYPASS_GATE_NO_WAIT=1`** turns the waits off and reads once. That reading **must be
+// red** — it proves the waits are load-bearing rather than added to turn the gate green. For evidence runs
+// only; CI never sets it.
+//
 // Everything it creates, it removes again. **Bypass rows and audit rows stay on purpose** — they are the
 // readings this gate exists to leave behind.
 import { execFileSync, spawn } from 'node:child_process';
@@ -101,6 +133,45 @@ const bad = (name, expected, got) => {
 const check = (name, expected, got) => (String(expected) === String(got) ? ok(name) : bad(name, expected, got));
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 
+// 读数的等待：见文件头「旁路留痕是异步写出的」。 / Settling a reading: see the header note on async writes.
+const WAIT_MS = Number(process.env.BYPASS_GATE_WAIT_MS || 3000);
+const POLL_MS = 200;
+const QUIET_MS = 1600;
+const NO_WAIT = process.env.BYPASS_GATE_NO_WAIT === '1';
+if (NO_WAIT) {
+  console.log('  note  NEGATIVE CONTROL — waits are off; this run is expected to be RED and is not a pass');
+}
+
+/**
+ * 读一次、再读，直到读数连续 `QUIET_MS` 不变；最多等 `WAIT_MS`。返回**稳定后**的那次读数。
+ *
+ * `read` 每次都真去读库 —— 缓存的读数会把这个门变成「等自己」，而不是等留痕。
+ * `BYPASS_GATE_NO_WAIT=1` 时只读一次（负向控制）。
+ *
+ * Read, then read again, until the reading has not changed for `QUIET_MS`; wait at most `WAIT_MS`, and
+ * return the **settled** reading. `read` hits the database every time — a cached reading would have the gate
+ * waiting on itself rather than on the trail. With `BYPASS_GATE_NO_WAIT=1` it reads exactly once.
+ */
+async function settled(read) {
+  if (NO_WAIT) return read();
+  const end = Date.now() + WAIT_MS;
+  let last = read();
+  let signature = JSON.stringify(last);
+  let quietSince = Date.now();
+  while (Date.now() < end) {
+    await sleep(POLL_MS);
+    last = read();
+    const next = JSON.stringify(last);
+    if (next !== signature) {
+      signature = next;
+      quietSince = Date.now();
+    } else if (Date.now() - quietSince >= QUIET_MS) {
+      return last;
+    }
+  }
+  return last;
+}
+
 const psql = (sql) => execFileSync(
   'docker', ['exec', '-i', '-e', 'PGPASSWORD=password', PG, 'psql', '-U', 'root', '-d', DB, '-tAc', sql],
   { encoding: 'utf8' }).trim();
@@ -108,18 +179,32 @@ const psql = (sql) => execFileSync(
 /** 本轮开始时刻：所有断言按它收窄。 / This run's start: every assertion is scoped by it. */
 const startedAt = new Date().toISOString();
 
-const bypassRows = () => {
-  const out = psql(`select method || '|' || path || '|' || coalesce(module, '') || '|' || coalesce(object_name, '')`
-    + ` || '|' || http_status || '|' || coalesce(result_code::text, 'null') || '|' || coalesce(caller_id::text, 'null')`
-    + ` || '|' || coalesce(body_length::text, 'null') || '|' || coalesce(body_sha256, 'null')`
-    + ` || '|' || coalesce(body_fields, 'null')`
-    + ` from keelbase_bypass_log where occurred_at >= '${startedAt}' order by id`);
-  return out === '' ? [] : out.split('\n').map((line) => {
-    const [method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields] =
-      line.split('|');
-    return { method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields };
-  });
-};
+const ROW_COLUMNS = `select method || '|' || path || '|' || coalesce(module, '') || '|' || coalesce(object_name, '')`
+  + ` || '|' || http_status || '|' || coalesce(result_code::text, 'null') || '|' || coalesce(caller_id::text, 'null')`
+  + ` || '|' || coalesce(body_length::text, 'null') || '|' || coalesce(body_sha256, 'null')`
+  + ` || '|' || coalesce(body_fields, 'null')`;
+
+const parseRows = (out) => (out === '' ? [] : out.split('\n').map((line) => {
+  const [method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields] =
+    line.split('|');
+  return { method, path, module, object, httpStatus, resultCode, callerId, bodyLength, bodySha256, bodyFields };
+}));
+
+const bypassRows = () => parseRows(psql(`${ROW_COLUMNS} from keelbase_bypass_log`
+  + ` where occurred_at >= '${startedAt}' order by id`));
+
+/**
+ * 水位之后的行 —— 用来定位**这一条请求**留下的行。同一条路径在本次运行里会被写两次（场景 2 与 3），
+ * 故只按运行开始时刻收窄不够；`id > 水位` 才是「这一次」。
+ *
+ * Rows above an id watermark — how a **single request's** row is singled out. The same path is written twice
+ * in one run (scenarios 2 and 3), so this run's start is not enough; `id > watermark` is "this time".
+ */
+const bypassRowsAfter = (sinceId) => parseRows(psql(`${ROW_COLUMNS} from keelbase_bypass_log`
+  + ` where id > ${sinceId} order by id`));
+
+/** 请求前的水位。 / The watermark taken before a request. */
+const maxRowId = () => Number(psql('select coalesce(max(id), 0) from keelbase_bypass_log'));
 const countSince = () => Number(psql(
   `select count(*) from keelbase_bypass_log where occurred_at >= '${startedAt}'`));
 
@@ -374,10 +459,13 @@ console.log(`  note  dict type used: ${dictType}`);
 // A read is not a write: the trail covers writes only, and reads already have their own access log.
 const before1 = countSince();
 await api('/system/dict-data/page?pageNo=1&pageSize=1', { token });
-check('1. a GET adds no bypass row', before1, countSince());
+// 「没有行」也要等：留痕迟到的话，立刻读到的「没有」会把一条晚到的行读成没记。
+// "No row" waits too: with an immediate read, a late row would be read as never recorded.
+check('1. a GET adds no bypass row', before1, await settled(countSince));
 
 // ── 2 · 一次写恰一行，两个码都对 ─────────────────────────────────────────────────────────────────────
 // One write, exactly one row — and the envelope's code says the write was accepted.
+const before2Id = maxRowId();
 const created = await api('/system/dict-data/create', {
   method: 'POST', token,
   body: { dictType, label: marker, value: marker, sort: 0, status: 0 }
@@ -399,9 +487,14 @@ putBack = () => {
     psql(`delete from system_dict_type where type = '${createdType}'`);
   }
 };
-check('2. a console write adds exactly one bypass row', before1 + 1, countSince());
+// 「恰一行」仍按**整表**口径（水位之后新增了几行），与改动前 `countSince()` 的断言同义；路径只用来定位内容。
+// "Exactly one" stays **table-wide** (how many rows appeared above the watermark) — the same meaning the old
+// `countSince()` assertion had; the path is only used to find the row's content.
+const fresh2 = await settled(() => bypassRowsAfter(before2Id));
+check('2. a console write adds exactly one bypass row', 1, fresh2.length);
 {
-  const row = bypassRows().find((r) => r.path === '/admin-api/system/dict-data/create');
+  const rows2 = fresh2.filter((r) => r.path === '/admin-api/system/dict-data/create');
+  const row = rows2[rows2.length - 1];
   check('2. the row names the method', 'POST', row?.method);
   check('2. the row names the module', 'system', row?.module);
   check('2. the row names the business object', 'dict-data', row?.object);
@@ -419,7 +512,7 @@ check('2. a console write adds exactly one bypass row', before1 + 1, countSince(
 // ── 3 · 业务拒绝藏在 HTTP 200 里 ────────────────────────────────────────────────────────────────────
 // The mistake this scenario exists to catch: a refusal that the wire calls 200. Both codes are recorded,
 // so a reader can tell "answered" from "succeeded".
-const before3 = countSince();
+const before3Id = maxRowId();
 const refused = await api('/system/dict-data/create', {
   method: 'POST', token,
   body: { dictType, label: `${marker}-dup`, value: marker, sort: 0, status: 0 } // same value ⇒ the module refuses
@@ -427,9 +520,13 @@ const refused = await api('/system/dict-data/create', {
 check('3. the refusal still answered 200 on the wire', 200, refused.status);
 check('3. the refusal carried a non-zero envelope code', true,
   refused.json !== null && refused.json.code !== 0);
-check('3. a refused write still leaves its row', before3 + 1, countSince());
+// 按水位只认**这一次**的写：同一条路径上已有场景 2 的行，取「本运行最后一行」会把那一行读成这一次的。
+// The watermark accepts only **this** write: scenario 2 already left a row on the same path, and "the run's
+// last row" would read that one as this one's.
+const fresh3 = await settled(() => bypassRowsAfter(before3Id));
+check('3. a refused write still leaves its row', 1, fresh3.length);
 {
-  const rows = bypassRows().filter((r) => r.path === '/admin-api/system/dict-data/create');
+  const rows = fresh3.filter((r) => r.path === '/admin-api/system/dict-data/create');
   const latest = rows[rows.length - 1];
   check('3. the row keeps the wire status', 200, latest?.httpStatus);
   check('3. the row keeps the envelope code, not the wire status', refused.json?.code, latest?.resultCode);
@@ -442,13 +539,15 @@ check('3. a refused write still leaves its row', before3 + 1, countSince());
 //
 // 没有端点的写也留一行。**宿主连这个也用信封答** —— 实测是 HTTP 200 带 `code 501`，不是裸 404 —— 这正是旁路行
 // 要存两个码的第二个理由：只看到「200」的人会把一次没有落点的写当成成功。
-const before4 = countSince();
+const before4Id = maxRowId();
 const notFound = await api('/crm/contract/definitely-not-an-endpoint', { method: 'POST', token, body: {} });
 check('4. the unknown endpoint answered 200 on the wire', 200, notFound.status);
 check('4. with a non-zero envelope code', true, notFound.json !== null && notFound.json.code !== 0);
-check('4. an unserved write still leaves its row', before4 + 1, countSince());
+const fresh4 = await settled(() => bypassRowsAfter(before4Id));
+check('4. an unserved write still leaves its row', 1, fresh4.length);
 {
-  const row = bypassRows().find((r) => r.path === '/admin-api/crm/contract/definitely-not-an-endpoint');
+  const rows4 = fresh4.filter((r) => r.path === '/admin-api/crm/contract/definitely-not-an-endpoint');
+  const row = rows4[rows4.length - 1];
   check('4. the row keeps the wire status', notFound.status, row?.httpStatus);
   check('4. the row keeps the envelope code', notFound.json?.code, row?.resultCode);
 }
@@ -457,14 +556,14 @@ check('4. an unserved write still leaves its row', before4 + 1, countSince());
 // Credentials are never recorded: a copy of a password in a readable table is a leak in itself.
 const before5 = countSince();
 await api('/system/auth/login', { method: 'POST', body: { username: ADMIN_USER, password: 'not-the-password' } });
-check('5. a login attempt leaves no bypass row', before5, countSince());
+check('5. a login attempt leaves no bypass row', before5, await settled(countSince));
 
 // ── 6 · 受治理的那条路不重行 ───────────────────────────────────────────────────────────────────────
 // The governed tool path runs in-process; the conversation route is `/admin/`, not `/admin-api/`. Neither
 // crosses the trail, so this is zero rows by shape — not by de-duplicating afterwards.
 const before6 = countSince();
 await api('/ai/chat/stream', { method: 'POST', token, base: '/admin', body: { message: marker } });
-check('6. the conversation route leaves no bypass row', before6, countSince());
+check('6. the conversation route leaves no bypass row', before6, await settled(countSince));
 
 // ── 7 · 开关关闭 ⇒ 零行且行为不变 ──────────────────────────────────────────────────────────────────────
 // 开关的语义是「不装」：`keelbase.bypass-audit.enabled=false` 时过滤器根本不注册，于是一次写既不留行、也与
@@ -502,10 +601,10 @@ try {
     if (offWrite.json?.code === 0) offCreatedId = offWrite.json.data;
     check('7. the write still landed its row', 1,
       Number(psql(`select count(*) from system_dict_data where value = '${offMarker}'`)));
-    // 留痕是异步的；给它一个窗口，好让「也没有迟到的那一行」同样是一个读数。
-    // The trail is asynchronous; give it a window so "no late row either" is a reading too.
-    await sleep(2000);
-    check('7. the switch-off write left no bypass row', before7, countSince());
+    // 留痕是异步的；等它稳定，好让「也没有迟到的那一行」同样是一个读数（与其它「没有行」处同一个窗口）。
+    // The trail is asynchronous; wait for it to settle so "no late row either" is a reading too — the same
+    // window every other "no row" assertion uses.
+    check('7. the switch-off write left no bypass row', before7, await settled(countSince));
   }
 } finally {
   await stopOffHost();
@@ -516,7 +615,7 @@ try {
 // `result_code` is null — and the request body is the user's question, so it is not read. A session id that
 // does not exist is enough: the service answers an error event on the stream, which is exactly the shape
 // this scenario is about (a streamed answer, not an envelope).
-const before8 = countSince();
+const before8Id = maxRowId();
 const streamed = await api('/ai1/session/message/send-stream', {
   method: 'POST', token, accept: 'text/event-stream',
   body: { sessionId: 999999999, content: marker }
@@ -524,9 +623,11 @@ const streamed = await api('/ai1/session/message/send-stream', {
 check('8. the streaming write answered 200 on the wire', 200, streamed.status);
 check('8. the answer is an event stream, not an envelope', true,
   (streamed.text ?? '').includes('event:') || (streamed.text ?? '').includes('data:'));
-check('8. a streaming write leaves exactly one row', before8 + 1, countSince());
+const fresh8 = await settled(() => bypassRowsAfter(before8Id));
+check('8. a streaming write leaves exactly one row', 1, fresh8.length);
 {
-  const row = bypassRows().find((r) => r.path === '/admin-api/ai1/session/message/send-stream');
+  const rows8 = fresh8.filter((r) => r.path === '/admin-api/ai1/session/message/send-stream');
+  const row = rows8[rows8.length - 1];
   check('8. the row is a POST', 'POST', row?.method);
   check('8. the row has no business code: no envelope was produced', 'null', row?.resultCode);
   check('8. the streaming request body was not read', 'null', row?.bodyLength);
@@ -543,7 +644,8 @@ check('9. no body value reached any column', false, rowTextSince().includes(mark
 // Three writes were sent to the recording host (one accepted, one refused, one unserved), the streaming write
 // is a fourth, and the dict type is one more when the database had none; the switch-off host's write leaves
 // nothing — that many rows is the whole reading.
-check('10. the run left exactly the writes it made', 4 + (createdType !== null ? 1 : 0), countSince());
+check('10. the run left exactly the writes it made', 4 + (createdType !== null ? 1 : 0),
+  await settled(countSince));
 
 runPutBack();
 psql('select 1'); // 收尾之后再碰一次库：删不掉时这里会抛，而不是悄悄留一行。
