@@ -21,7 +21,7 @@
 
 **系列长文** —— 这些决定背后的长文，分「AI 执行治理」「AI 审计证据」两条线：[知乎文集](https://www.zhihu.com/people/56-10-10-68)。
 
-<!-- BEGIN keelbase-family:zh sha256:ddb20e7b71e425335b08f45a50267ef8d129c1a7944e56da83ec6a71eae6bd3c -->
+<!-- BEGIN keelbase-family:zh sha256:bd6604380e5cd42646536719d4376e038e112097da873316ad9f9c8514d15426 -->
 ## 🧬 KeelBase 家族
 
 <p align="center">
@@ -47,7 +47,7 @@
 
 | 仓 | 角色 | 技术栈 | 状态 |
 |---|---|---|---|
-| [`KeelBase`](https://github.com/rain6fish/KeelBase) | 参考实现 · 产品文档 · 演示 | TypeScript · NestJS · Vue · Flutter · Taro | 活跃 |
+| [`KeelBase`](https://github.com/rain6fish/KeelBase) | 参考实现 · 产品文档 · 演示 | TypeScript · NestJS · Vue · Flutter | 活跃 |
 | [`KeelBase4J`](https://github.com/rain6fish/KeelBase4J) | 同一协议的 Java 载体 | Java 17 · Spring Boot | 活跃 |
 | [`KeelBase-java-starter`](https://github.com/rain6fish/KeelBase-java-starter) | 把存量 Java/Spring 系统接成受治理的 AI 工具 | Maven · Gradle | 0.1.x |
 | [`KeelBase-Vue-Pro`](https://github.com/rain6fish/KeelBase-Vue-Pro) | 宿主适配——芋道平台上的治理层 | Java · Vue 3 | 活跃 |

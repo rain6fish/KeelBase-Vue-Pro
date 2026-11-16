@@ -23,7 +23,7 @@ identity bridge, tool governance, confirmation, decision trace, audit and revoke
 
 **Articles** — the long-form essays behind these decisions, on AI execution governance and AI audit evidence: [keelbase.hashnode.dev](https://keelbase.hashnode.dev/).
 
-<!-- BEGIN keelbase-family:en sha256:a9018cd792f0bda42726d79527bdb0310a1da0e268d2b05f2fed603dab417db6 -->
+<!-- BEGIN keelbase-family:en sha256:aed694b448c84bebfff1900d68c48f799065575a6bfe8e28ce458c130fd953dc -->
 ## 🧬 The KeelBase family
 
 <p align="center">
@@ -50,7 +50,7 @@ identity bridge, tool governance, confirmation, decision trace, audit and revoke
 
 | Repository | Role | Stack | Status |
 |---|---|---|---|
-| [`KeelBase`](https://github.com/rain6fish/KeelBase) | Reference implementation · product documentation · demo | TypeScript · NestJS · Vue · Flutter · Taro | active |
+| [`KeelBase`](https://github.com/rain6fish/KeelBase) | Reference implementation · product documentation · demo | TypeScript · NestJS · Vue · Flutter | active |
 | [`KeelBase4J`](https://github.com/rain6fish/KeelBase4J) | The Java carrier of the same protocol | Java 17 · Spring Boot | active |
 | [`KeelBase-java-starter`](https://github.com/rain6fish/KeelBase-java-starter) | Wire an existing Java/Spring system in as governed AI tools | Maven · Gradle | 0.1.x |
 | [`KeelBase-Vue-Pro`](https://github.com/rain6fish/KeelBase-Vue-Pro) | Host adapter — the governance layer on a yudao platform | Java · Vue 3 | active |
