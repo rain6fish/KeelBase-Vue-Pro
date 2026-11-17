@@ -171,8 +171,8 @@
        returns and the page never asked for. -->
   <ContentWrap :title="t('keelbase.actionCenter.historyTitle')">
     <template #header>
-      <el-tag v-if="decided.length" size="small" effect="plain">
-        {{ t('keelbase.actionCenter.historyCount', { n: decided.length }) }}
+      <el-tag v-if="historyRows.length" size="small" effect="plain">
+        {{ t('keelbase.actionCenter.historyCount', { n: historyRows.length }) }}
       </el-tag>
       <el-button class="ml-auto" size="small" :loading="pendingLoading" @click="loadPending">
         {{ t('keelbase.common.refresh') }}
@@ -180,14 +180,20 @@
     </template>
 
     <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">{{ t('keelbase.actionCenter.historyHint') }}</div>
+    <div v-if="approverHistoryError" class="text-[var(--el-color-danger)] mb-10px">{{ approverHistoryError }}</div>
 
-    <el-empty v-if="!decided.length" :description="t('keelbase.actionCenter.historyEmpty')" />
+    <el-empty v-if="!historyRows.length" :description="t('keelbase.actionCenter.historyEmpty')" />
     <div v-else>
-      <div v-for="h in decided" :key="h.token" class="row">
+      <div v-for="h in historyRows" :key="h.token" class="row">
         <div class="row-main">
           <div class="row-head">
             <span class="font-weight-medium">{{ toolText(h.toolName) }}</span>
             <el-tag :type="historyTagType(h)" size="small">{{ historyOutcome(h) }}</el-tag>
+          </div>
+          <!-- 这一笔是别人发起、由当前这个人作为第二批准人裁决的 —— 说清楚，免得读者以为它是自己发起的。 -->
+          <!-- This one was raised by someone else and decided by the current person as the second approver — say so. -->
+          <div v-if="approverDecidedTokens.has(h.token)" class="row-step">
+            {{ t('keelbase.actionCenter.historyApproverNote') }}
           </div>
           <div class="row-step">{{ t('keelbase.actionCenter.stepReached', { step: historyStep(h) }) }}</div>
           <div v-if="historyReason(h)" class="row-reason">
@@ -370,6 +376,7 @@ import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
+import { pairDecidedByApprover } from '@/keelbase/approverDecisions.mjs'
 import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
 
 defineOptions({ name: 'KeelbaseGovernanceActionCenter' })
@@ -466,8 +473,35 @@ const pending = ref<ConfirmationItem[]>([])
 /** Decisions that have already been taken — the endpoint answers them when `status` is left out. */
 /** 已经裁决过的记录 —— 不带 `status` 时端点就会把它们答回来。 */
 const decided = ref<ConfirmationItem[]>([])
+/**
+ * 别人发起、由**当前这个人**作为第二批准人裁决过的行。`/ai/my/confirmations` 只答调用方自己发起的
+ * `mode=immediate` 行，故 R4 那一笔不在它里面 —— 这一半从全局队列与自己的审计裁决行配出来（见
+ * `loadApproverDecisions`）。它只对管理员有内容：只有管理员能裁决。
+ *
+ * Rows raised by someone else and decided by **this person** as the second approver.
+ * `/ai/my/confirmations` answers only the caller's own `immediate` rows, so an R4 row is not in it; this
+ * half is paired from the global queue and the caller's own decision audit rows (see
+ * `loadApproverDecisions`). It is only non-empty for an administrator, the only role that may decide.
+ */
+const decidedAsApprover = ref<ConfirmationItem[]>([])
+const approverHistoryError = ref('')
 const pendingLoading = ref(false)
 const deciding = ref<string | null>(null)
+
+/** 这一页展示的裁决：自己发起的那些，加上自己作为第二批准人裁决的那些，按裁决时刻从新到旧。 */
+/** The decisions this page lists: the caller's own, plus those they decided as the second approver, newest first. */
+function decidedAtMs(row: ConfirmationItem): number {
+  const at = Date.parse(row.decidedAt ?? row.createdAt ?? '')
+  return Number.isNaN(at) ? 0 : at
+}
+
+const historyRows = computed(() => {
+  const byToken = new Map<string, ConfirmationItem>()
+  for (const row of [...decided.value, ...decidedAsApprover.value]) byToken.set(row.token, row)
+  return [...byToken.values()].sort((a, b) => decidedAtMs(b) - decidedAtMs(a))
+})
+
+const approverDecidedTokens = computed(() => new Set(decidedAsApprover.value.map((row) => row.token)))
 
 /**
  * 等待第二人批准的全局队列。它**不是**「我的待决」：`/ai/my/confirmations` 只答 `mode=immediate`，
@@ -644,6 +678,52 @@ function initiatedByMe(c: ConfirmationItem): boolean {
 }
 
 /**
+ * 「最近裁决」的另一半：别人发起、由**我**裁决过的行。
+ *
+ * 确认记录的投影不带裁决人 id（冻结对象里没有这个字段），而那次裁决在审计链上另有一行：
+ * `action=tool_confirmation`、`outcome=approved|declined`，它的 `user_id` 就是裁决人。故按调用方读
+ * `/audit/logs?userId=` 拿我自己的裁决行，再把它配到全局队列里**已裁决**的 approval 行上。两条记录之间
+ * 没有共同的键，故唯一诚实的配法是 **同一工具、五秒之内、恰好一个候选** —— 与发起人配对、轨迹上的裁决人
+ * 配对用的同一条规则。配不上（没有、或不止一个）就**不列**：把别人的裁决说成自己的，比少一行更糟。
+ *
+ * 读失败不拖垮那张待批卡：这里只清空这一半，并在卡片上说一句「这次没有读到」，而不是把它画成
+ * 「你没有裁决过」。
+ *
+ * The other half of "recent decisions": rows raised by someone else and decided by **me**.
+ *
+ * The confirmation projection carries no approver id (the frozen object has no such field), while the
+ * decision has its own audit row — `action=tool_confirmation`, `outcome=approved|declined` — whose
+ * `user_id` is the decider. So read `/audit/logs?userId=` for my own decision rows, and pair each with a
+ * **decided** approval row from the global queue. The two records share no key, so the only honest match
+ * is **same tool, within five seconds, exactly one candidate** — the rule the initiator join and the
+ * trace's approver join already use. No match (none, or more than one) **lists nothing**: reporting
+ * someone else's decision as mine is worse than one row short.
+ *
+ * A failed read does not take the waiting card down with it: it clears this half only and says so on the
+ * card, rather than drawing it as "you have decided nothing".
+ */
+async function loadApproverDecisions(queue: ConfirmationItem[]) {
+  decidedAsApprover.value = []
+  approverHistoryError.value = ''
+  const me = myUserId.value
+  if (!me) return
+  const candidates = queue.filter((c) => c.mode === 'approval' && c.status !== 'pending' && c.decidedAt)
+  if (!candidates.length) return
+  let rows: AuditRow[] = []
+  try {
+    rows = await auditApi.logs({
+      userId: me,
+      since: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      limit: APPROVAL_AUDIT_LIMIT,
+    })
+  } catch (e) {
+    approverHistoryError.value = runtimeErrorMessage(e, t('keelbase.actionCenter.historyApproverUnread'))
+    return
+  }
+  decidedAsApprover.value = pairDecidedByApprover(queue, rows)
+}
+
+/**
  * 读那条只有管理员够得到的队列。拒绝（403）意味着角色表在这里不可靠：这张卡**不渲染、也不弹错** ——
  * 一个人人都会用的页面不该为一张不属于他的卡报错。其余失败才是这个管理员该看见的错误。
  *
@@ -660,6 +740,9 @@ async function loadApprovals() {
     approvalVisible.value = true
     approvalScanBound.value = bound
     approvalRows.value = items.filter((c) => c.mode === 'approval' && c.status === 'pending')
+    // 「最近裁决」的另一半用的是**同一份队列**：这里已经读过，就不再为它读第二遍。
+    // The other half of "recent decisions" reads the **same queue**: it is already here, so no second read.
+    await loadApproverDecisions(items)
     if (!approvalRows.value.length) {
       approvalInitiators.value = {}
       return
@@ -697,6 +780,8 @@ async function loadApprovals() {
       approvalVisible.value = false
       approvalRows.value = []
       approvalInitiators.value = {}
+      decidedAsApprover.value = []
+      approverHistoryError.value = ''
     } else {
       approvalVisible.value = true
       approvalError.value = runtimeErrorMessage(e, t('keelbase.common.loadFailed'))

@@ -113,6 +113,7 @@ test('both locale dictionaries carry every U2 key', () => {
     'initiatorLabel', 'initiatorNamed', 'initiatorIdOnly', 'initiatorUnknown',
     'approvalOwnRow', 'approvalExecuted', 'approvalDeclined', 'approvalRefused',
     'approvalUnknown', 'approvalFailed', 'approvalScanBound',
+    'historyApproverNote', 'historyApproverUnread',
   ]
   for (const key of required) {
     assert.ok(enKeys.has(key), `en.ts is missing ${key}`)

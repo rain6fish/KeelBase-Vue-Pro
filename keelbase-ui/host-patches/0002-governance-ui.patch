@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,794 @@
+@@ -1,4 +1,796 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -109,7 +109,9 @@ index 96269a8..2611a9b 100644
 +      historyTitle: 'Recent decisions',
 +      historyCount: '{n} records',
 +      historyEmpty: 'Nothing has been decided recently',
-+      historyHint: 'Only confirmations you raised in the last 24 hours are listed; older ones are not on this page.',
++      historyHint: 'Only decisions from the last 24 hours are listed: the confirmations you raised, and the approval rows you decided as the second approver. Older ones are not on this page.',
++      historyApproverNote: 'You decided this one as the second approver; it was raised by someone else.',
++      historyApproverUnread: 'The decisions you took as a second approver could not be read this time.',
 +      stepReached: 'Step reached: {step}',
 +      reasonLabel: 'Why: {reason}',
 +      decidedLabel: 'Decided at: {at}',
@@ -801,7 +803,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,786 @@
+@@ -1,4 +1,788 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -908,7 +910,9 @@ index 35f1e1a..856d201 100644
 +      historyTitle: '最近裁决',
 +      historyCount: '{n} 条记录',
 +      historyEmpty: '最近没有裁决过的记录',
-+      historyHint: '只列最近 24 小时内、由你本人发起的确认；更早的记录不在这一页。',
++      historyHint: '只列最近 24 小时内的裁决：由你本人发起的确认，以及你作为第二批准人裁决过的行；更早的记录不在这一页。',
++      historyApproverNote: '这一笔是别人发起的，你作为第二批准人裁决了它。',
++      historyApproverUnread: '这次没有读到「你作为第二批准人裁决过」的记录。',
 +      stepReached: '走到哪一步：{step}',
 +      reasonLabel: '为什么：{reason}',
 +      decidedLabel: '裁决时刻：{at}',
