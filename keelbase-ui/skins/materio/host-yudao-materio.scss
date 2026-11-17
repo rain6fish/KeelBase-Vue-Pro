@@ -49,6 +49,10 @@
   --transition-time-02: 0.2s;
   --layout-border-color: var(--el-border-color);
 
+  // The selected row's band is drawn inset from the row so it reads as a floating marker.
+  // 选中行的色带自该行内缩绘制，读起来才像一枚悬浮标记。
+  --keel-menu-band-inset: 2px;
+
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
   // 皮肤 var.css 里没有这个变量：yudao 用它铺登录页，留着宿主的深藏青会让唯一一屏完全落在皮肤之外。
@@ -61,6 +65,31 @@
   // 继承字号。取值用来源包文档里的 card-title 字号（1.125rem / 1.75rem）；写在适配层，不动 vendor 文件。
   --materio-card-title-size: 1.125rem;
   --materio-card-title-line-height: 1.75rem;
+}
+
+// Element Plus's light-N scale mixes N×10% white into the colour, so light-9 is the palest tint. The
+// vendored tokens mix the other way round — N% primary — which made light-9 nearly solid and rendered
+// plain buttons blue-on-blue (measured 2026-11-17 on the 新增 button). Restated here rather than in the
+// vendored file, so a future re-vendor cannot silently bring the inversion back. `!important` matches
+// the build's pin on the primary family; `html:root` matches the specificity of the authored blocks.
+// Element Plus 的 light-N 是往颜色里兑入 N×10% 的白色，故 light-9 是最浅的一档。vendor 的令牌方向反了
+// ——是 N% 主色——于是 light-9 几乎是实色，浅色按钮成了蓝底蓝字（2026-11-17 在「新增」按钮上实测）。
+// 改写在适配层而不是 vendor 文件里，这样以后重新 vendor 也不会悄悄把反向带回来。`!important` 对齐构建
+// 对主色族的钉住；`html:root` 对齐来源块的特异性。
+html:root {
+  --el-color-primary-light-3: color-mix(in srgb, var(--materio-primary) 70%, #fff) !important;
+  --el-color-primary-light-5: color-mix(in srgb, var(--materio-primary) 50%, #fff) !important;
+  --el-color-primary-light-7: color-mix(in srgb, var(--materio-primary) 30%, #fff) !important;
+  --el-color-primary-light-8: color-mix(in srgb, var(--materio-primary) 20%, #fff) !important;
+  --el-color-primary-light-9: color-mix(in srgb, var(--materio-primary) 10%, #fff) !important;
+}
+
+html:root.dark {
+  --el-color-primary-light-3: color-mix(in srgb, var(--materio-primary) 70%, var(--materio-background)) !important;
+  --el-color-primary-light-5: color-mix(in srgb, var(--materio-primary) 50%, var(--materio-background)) !important;
+  --el-color-primary-light-7: color-mix(in srgb, var(--materio-primary) 30%, var(--materio-background)) !important;
+  --el-color-primary-light-8: color-mix(in srgb, var(--materio-primary) 20%, var(--materio-background)) !important;
+  --el-color-primary-light-9: color-mix(in srgb, var(--materio-primary) 10%, var(--materio-background)) !important;
 }
 
 // Sidebar rows: Materio's navigation is a list of rounded rows on the surface, not full-bleed bands.
@@ -95,6 +124,193 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title:hover {
   background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
 }
 
+// ── the selected row ─────────────────────────────────────────────────────────────────────────────────
+// The band is the product skin's marker (right half-round, pale-to-primary gradient, white label), kept
+// here because it is the product's navigation language, not Materio's; the skin's own var.css only ever
+// named a flat tint. The host paints the row with --left-menu-bg-active-color at a scoped specificity,
+// so the row is cleared first and a pseudo-element draws the band, the same shape host-yudao.scss uses.
+// 选中行沿用**产品皮肤**的标记：右侧半圆、由浅到深的渐变、白色文字；皮肤的 var.css 只写过平色淡底。
+// 宿主以带作用域的权重给整行刷底色，故先把整行清空，再用伪元素画色带——与 host-yudao.scss 同一形状。
+html body .v-menu .el-menu .el-menu-item,
+html body .v-menu .el-menu .el-sub-menu.is-active > .el-sub-menu__title {
+  position: relative;
+}
+// `.el-menu--vertical` is there for weight: the host's own active rule names it, so a rule without it
+// loses the colour comparison and leaves the label in the primary colour on top of the primary band.
+// `.el-menu--vertical` 在这里是为了**权重**：宿主自己的选中规则点了它，少这一级就输掉颜色比较，标签
+// 会以主色压在渐变带上。
+html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active {
+  background-color: transparent !important;
+  color: #fff !important;
+}
+html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active::before {
+  content: "";
+  position: absolute;
+  top: var(--keel-menu-band-inset);
+  bottom: var(--keel-menu-band-inset);
+  left: 0;
+  right: 0;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+}
+html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active:hover {
+  background-color: transparent !important;
+  color: #fff !important;
+}
+html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active:hover::before {
+  background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+}
+
+// The same comparison one level down: the host's nested rule names the sub-menu too, so it carries one
+// more class term than the top-level one.
+// 下一层是同一次比较：宿主的嵌套规则把 sub-menu 也点上了，比顶层那条多一级类权重。
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-active {
+  background-color: transparent !important;
+  color: #fff !important;
+}
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-active::before {
+  content: "";
+  position: absolute;
+  top: var(--keel-menu-band-inset);
+  bottom: var(--keel-menu-band-inset);
+  left: 0;
+  right: 0;
+  border-radius: 0 999px 999px 0;
+  background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+}
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-active:hover::before {
+  background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+}
+
+// The band is positioned, so it would paint over the row's in-flow icon and label; both sit above it.
+// 色带是定位元素，会画在行的普通内容之上；图标与标签需要抬到它上面。
+html body .v-menu .el-menu .el-menu-item > *,
+html body .v-menu .el-menu .el-sub-menu__title > * {
+  position: relative;
+  z-index: 1;
+}
+
+// The open group that contains the current page is a container, not the current page: a paler band and
+// primary text, so the two do not read as the same thing.
+// 含当前页的那个已展开分组是**容器**、不是当前页：色带更浅、文字用主色，两者不会被读成同一件事。
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
+  background-color: transparent !important;
+  color: var(--el-color-primary) !important;
+}
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title::before {
+  content: "";
+  position: absolute;
+  top: var(--keel-menu-band-inset);
+  bottom: var(--keel-menu-band-inset);
+  left: 0;
+  right: 0;
+  border-radius: 0 999px 999px 0;
+  background-color: var(--el-color-primary-light-9);
+}
+
+// ── depth: icons only at the first level, markers below it ───────────────────────────────────────────
+// Same rule the product skin follows: one icon per entry identifies a top-level module; repeating it two
+// levels down is a second picture for something the label already says. Below the first level the icon
+// gives way to a marker whose shape carries the depth.
+// 与产品皮肤同一条规矩：一级项用图标认自己；往下两层再重复一遍，是给标签已经说过的东西再加一张图。
+// 一级之下图标让位给标记，深度由标记的形状承载。
+html body .v-menu .el-menu .el-sub-menu .el-menu .el-icon:not(.el-sub-menu__icon-arrow) {
+  display: none;
+}
+html body .v-menu .el-menu .el-sub-menu .el-menu .el-menu-item,
+html body .v-menu .el-menu .el-sub-menu .el-menu .el-sub-menu__title {
+  position: relative;
+}
+html body .v-menu .el-menu .el-sub-menu > .el-menu {
+  padding-left: 0 !important;
+}
+
+// 45px = the first level's label column: 16px of row padding + the 24px icon + its 5px gap (measured in
+// this host), so every level's label starts on the same line.
+// 45px = 一级的标签列：行内边距 16px + 图标 24px + 之间 5px（在本宿主实测），故每一级的标签都从同一条线起。
+html body .v-menu .el-menu .el-sub-menu .el-menu .el-menu-item {
+  padding-left: 45px !important;
+}
+html body .v-menu .el-menu .el-sub-menu .el-menu .el-sub-menu__title {
+  padding-left: 45px !important;
+}
+
+// Level 2: a 5px dot centred in the icon column (the icon box runs from 16px to 40px).
+// 二级：图标列居中的一个 5px 圆点（图标框从 16px 到 40px）。
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-menu-item::after {
+  content: "";
+  position: absolute;
+  left: 25.5px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.5;
+}
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title::after {
+  content: "";
+  position: absolute;
+  left: 25.5px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background-color: currentColor;
+  opacity: 0.5;
+}
+
+// Level 3: a short dash, stepped right with the label so the deeper level reads as a step.
+// 三级：一道短横，跟着标签右移，于是更深的一级读起来是一步。
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item {
+  padding-left: 57px !important;
+}
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title {
+  padding-left: 57px !important;
+}
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item::after {
+  content: "";
+  position: absolute;
+  left: 36px;
+  top: 50%;
+  width: 8px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background-color: currentColor;
+  opacity: 0.5;
+}
+html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title::after {
+  content: "";
+  position: absolute;
+  left: 36px;
+  top: 50%;
+  width: 8px;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background-color: currentColor;
+  opacity: 0.5;
+}
+
+// The chevron that says "this one has children" sits beside the label, not pinned to the far end of the
+// row: it belongs to the text it qualifies. Element Plus keeps it absolutely positioned against the
+// title's full width, which also reserved the same amount as padding-right; with it back in flow that
+// reservation is no longer needed.
+// 表示「这一项有子级」的箭头跟在标签**旁边**，而不是钉在行尾：它属于它所修饰的那段文字。Element Plus 把
+// 它按标题整宽绝对定位、并留出等量的右内边距；放回普通流之后，那份预留也就不需要了。
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title .el-sub-menu__icon-arrow {
+  position: static;
+  width: auto;
+  height: auto;
+  top: auto;
+  right: auto;
+  margin: 0 0 0 6px;
+  vertical-align: middle;
+}
+
 // Collapsed rail: the active row keeps the same tint and picks up the same rounding.
 // 折叠态：激活行沿用同一层淡色，并同样收圆角。
 html body .v-menu .el-menu.el-menu--collapse .el-menu-item.is-active {
@@ -104,21 +320,62 @@ html body .v-menu .el-menu.el-menu--collapse .el-sub-menu.is-active > .el-sub-me
   border-radius: var(--materio-radius);
 }
 
-// The collapsed sidebar's submenu is teleported into a popper outside `.v-menu`; it needs the
-// surface treatment and a readable hover of its own.
-// 折叠侧边栏的子菜单被 teleport 到 `.v-menu` 之外的 popper 里；它需要单独的表面样式与可读的悬停态。
-html body .v-menu-popper--vertical .el-menu--popup {
+// Menus teleported out of `.v-menu` — the collapsed sidebar's submenu and the horizontal menu's
+// dropdowns — need the surface treatment and a readable hover of their own. The host defaults the hover
+// to the sidebar background, which is invisible under a surface-coloured sidebar.
+// 被 teleport 出 `.v-menu` 的菜单——折叠侧栏的子菜单与横向菜单的下拉——需要单独的表面样式与可读的悬停态。
+// 宿主把悬停底色默认成侧边栏底色，在表面色的侧边栏下看不见。
+html body .v-menu-popper--vertical .el-menu--popup,
+html body .v-menu-popper--horizontal .el-menu--popup {
   padding: 4px;
   border: 1px solid var(--el-border-color);
   border-radius: var(--materio-radius);
   box-shadow: var(--materio-shadow-5);
 }
-html body .v-menu-popper--vertical .el-menu-item {
+html body .v-menu-popper--vertical .el-menu-item,
+html body .v-menu-popper--horizontal .el-menu-item {
   border-radius: var(--materio-radius-sm);
 }
-html body .v-menu-popper--vertical .el-menu-item:hover {
+html body .v-menu-popper--vertical .el-menu-item:hover,
+html body .v-menu-popper--vertical .el-sub-menu__title:hover,
+html body .v-menu-popper--horizontal .el-menu-item:hover,
+html body .v-menu-popper--horizontal .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
   background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+}
+html body .v-menu-popper--vertical .el-menu-item.is-active,
+html body .v-menu-popper--horizontal .el-menu-item.is-active {
+  color: var(--el-color-primary) !important;
+  background-color: color-mix(in srgb, var(--el-color-primary) 8%, transparent) !important;
+}
+
+// The two-column layout's rail is yudao markup, not a menu: its rows get the same inset and rounding as
+// the menu rows so the two columns read as one surface.
+// 双列布局的窄栏是 yudao 自己的标记、不是菜单：给它同样的内缩与圆角，使两列读成同一块表面。
+html body .v-tab-menu__item {
+  margin: 2px 6px;
+  border-radius: var(--materio-radius);
+}
+
+// On a dark surface the Materio primary (#2563eb) only reaches about 2.5:1 against it, so link and plain
+// button labels went dim (measured 2026-11-17). Their labels take a lighter mix of the same primary in
+// dark mode; the light-mode colours are untouched.
+// 在暗色表面上，Materio 主色（#2563eb）的对比度只有约 2.5:1，链接与浅色按钮的字发暗（2026-11-17 实测）。
+// 暗色下这些标签改用同一主色的浅一档；亮色不动。
+html:root.dark .el-button--primary.is-link,
+html:root.dark .el-button--primary.is-text,
+html:root.dark .el-button--primary.is-plain,
+html:root.dark .el-link.el-link--primary {
+  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+}
+html:root.dark .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
+  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+}
+html:root.dark .v-menu.v-menu--header .el-menu-item:hover,
+html:root.dark .v-menu.v-menu--header .el-sub-menu__title:hover,
+html:root.dark .v-menu.v-menu--header .el-menu-item.is-active,
+html:root.dark .v-menu.v-menu--header .el-sub-menu.is-active > .el-sub-menu__title {
+  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
 }
 
 // Tags view: yudao's square 2px chips become Materio's 4px rounded outline chips.
