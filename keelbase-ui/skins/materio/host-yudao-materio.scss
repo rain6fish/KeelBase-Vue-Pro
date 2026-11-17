@@ -45,13 +45,19 @@
 
   --app-content-padding: 24px;
   --app-content-bg-color: var(--materio-background);
-  --app-footer-height: 54px;
+  --app-footer-height: 56px;
   --transition-time-02: 0.2s;
   --layout-border-color: var(--el-border-color);
 
   // The selected row's band is drawn inset from the row so it reads as a floating marker.
   // 选中行的色带自该行内缩绘制，读起来才像一枚悬浮标记。
   --keel-menu-band-inset: 2px;
+
+  // Element Plus sizes inputs and selects at 32px; the original's buttons are 38px and its compact
+  // fields 40px. 38px lines the two up without turning every filter row into a 56px-tall form row.
+  // Element Plus 的输入框与选择器高 32px；原版按钮 38px、紧凑字段 40px。取 38px 把两者对齐，又不至于让
+  // 每一行筛选都变成 56px 高。
+  --el-component-size: 38px;
 
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
@@ -94,10 +100,13 @@ html:root.dark {
 
 // Sidebar rows: Materio's navigation is a list of rounded rows on the surface, not full-bleed bands.
 // 侧边栏行：Materio 的导航是表面色上一层圆角行，而不是通栏色带。
+// Row geometry from the original layout: nav rows are 2.375rem tall (38px), the item's text starts
+// after 20px of padding, and the selected/hovered row is a pill rounded on its right end only.
+// 行几何取自原版布局：导航行高 2.375rem（38px），文字自 20px 内边距起，选中/悬停行是只收右端的胶囊。
 html body .v-menu .el-menu.el-menu--vertical {
-  --el-menu-item-height: 44px;
-  --el-menu-sub-item-height: 40px;
-  --el-menu-base-level-padding: 16px;
+  --el-menu-item-height: 38px;
+  --el-menu-sub-item-height: 38px;
+  --el-menu-base-level-padding: 20px;
 }
 html body .v-menu .el-menu.el-menu--vertical:not(.el-menu--collapse) {
   padding: 4px 12px;
@@ -118,19 +127,23 @@ html body .v-menu .el-menu .el-sub-menu__title {
 html body .v-menu .el-menu.el-menu--vertical .el-menu-item:not(.is-active):hover {
   color: var(--el-text-color-primary) !important;
   background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  border-radius: 0 999px 999px 0;
 }
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
   background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  border-radius: 0 999px 999px 0;
 }
 
 // ── the selected row ─────────────────────────────────────────────────────────────────────────────────
-// The band is the product skin's marker (right half-round, pale-to-primary gradient, white label), kept
-// here because it is the product's navigation language, not Materio's; the skin's own var.css only ever
-// named a flat tint. The host paints the row with --left-menu-bg-active-color at a scoped specificity,
-// so the row is cleared first and a pseudo-element draws the band, the same shape host-yudao.scss uses.
-// 选中行沿用**产品皮肤**的标记：右侧半圆、由浅到深的渐变、白色文字；皮肤的 var.css 只写过平色淡底。
-// 宿主以带作用域的权重给整行刷底色，故先把整行清空，再用伪元素画色带——与 host-yudao.scss 同一形状。
+// A right-ended pill with a primary gradient, on-primary text and a lift, which is what both the product
+// skin and the original Materio template use for the current nav item (the original's `%nav-link-active`
+// is a gradient at elevation 4). The host paints the row with --left-menu-bg-active-color at a scoped
+// specificity, so the row is cleared first and a pseudo-element draws the band, the same shape
+// host-yudao.scss uses.
+// 右端收圆的胶囊 + 主色渐变 + 白字 + 浮起，这与产品皮肤和原版 Materio 给当前导航项的样式一致（原版的
+// `%nav-link-active` 就是一条渐变 + elevation 4）。宿主以带作用域的权重给整行刷底色，故先把整行清空，
+// 再用伪元素画色带——与 host-yudao.scss 同一形状。
 html body .v-menu .el-menu .el-menu-item,
 html body .v-menu .el-menu .el-sub-menu.is-active > .el-sub-menu__title {
   position: relative;
@@ -152,6 +165,7 @@ html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active::before {
   right: 0;
   border-radius: 0 999px 999px 0;
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+  box-shadow: 0 3px 6px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
 }
 html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active:hover {
   background-color: transparent !important;
@@ -177,6 +191,7 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-activ
   right: 0;
   border-radius: 0 999px 999px 0;
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
+  box-shadow: 0 3px 6px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
 }
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-active:hover::before {
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
@@ -225,22 +240,22 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu {
   padding-left: 0 !important;
 }
 
-// 45px = the first level's label column: 16px of row padding + the 24px icon + its 5px gap (measured in
+// 49px = the first level's label column: 20px of row padding + the 24px icon + its 5px gap (measured in
 // this host), so every level's label starts on the same line.
-// 45px = 一级的标签列：行内边距 16px + 图标 24px + 之间 5px（在本宿主实测），故每一级的标签都从同一条线起。
+// 49px = 一级的标签列：行内边距 20px + 图标 24px + 之间 5px（在本宿主实测），故每一级的标签都从同一条线起。
 html body .v-menu .el-menu .el-sub-menu .el-menu .el-menu-item {
-  padding-left: 45px !important;
+  padding-left: 49px !important;
 }
 html body .v-menu .el-menu .el-sub-menu .el-menu .el-sub-menu__title {
-  padding-left: 45px !important;
+  padding-left: 49px !important;
 }
 
-// Level 2: a 5px dot centred in the icon column (the icon box runs from 16px to 40px).
-// 二级：图标列居中的一个 5px 圆点（图标框从 16px 到 40px）。
+// Level 2: a 5px dot centred in the icon column (the icon box runs from 20px to 44px).
+// 二级：图标列居中的一个 5px 圆点（图标框从 20px 到 44px）。
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-menu-item::after {
   content: "";
   position: absolute;
-  left: 25.5px;
+  left: 29.5px;
   top: 50%;
   width: 5px;
   height: 5px;
@@ -252,7 +267,7 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-menu-item::after {
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title::after {
   content: "";
   position: absolute;
-  left: 25.5px;
+  left: 29.5px;
   top: 50%;
   width: 5px;
   height: 5px;
@@ -265,15 +280,15 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu
 // Level 3: a short dash, stepped right with the label so the deeper level reads as a step.
 // 三级：一道短横，跟着标签右移，于是更深的一级读起来是一步。
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item {
-  padding-left: 57px !important;
+  padding-left: 61px !important;
 }
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title {
-  padding-left: 57px !important;
+  padding-left: 61px !important;
 }
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item::after {
   content: "";
   position: absolute;
-  left: 36px;
+  left: 40px;
   top: 50%;
   width: 8px;
   height: 2px;
@@ -285,7 +300,7 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title::after {
   content: "";
   position: absolute;
-  left: 36px;
+  left: 40px;
   top: 50%;
   width: 8px;
   height: 2px;
@@ -309,6 +324,9 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title .el-sub-menu__i
   right: auto;
   margin: 0 0 0 6px;
   vertical-align: middle;
+  // The original draws this chevron at icon size (1.25rem); Element Plus ships it at 12px.
+  // 原版按图标尺寸（1.25rem）画这个箭头；Element Plus 默认是 12px。
+  font-size: 1.25rem;
 }
 
 // Collapsed rail: the active row keeps the same tint and picks up the same rounding.
@@ -318,6 +336,17 @@ html body .v-menu .el-menu.el-menu--collapse .el-menu-item.is-active {
 }
 html body .v-menu .el-menu.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title {
   border-radius: var(--materio-radius);
+}
+
+// The original's collapsed vertical nav is 80px wide, not the host's 64px. The host writes its width
+// inline on <html> (and zeroes it on phones), so this needs `!important` — and only from tablet width
+// up, which is exactly where the host writes its 64px.
+// 原版折叠导航是 80px 宽，不是宿主的 64px。宿主把宽度内联写在 `<html>` 上（手机上还会设成 0），故这里
+// 需要 `!important`——且只在平板宽度以上生效，也正是宿主写 64px 的那一段。
+@media (width >= 768px) {
+  :root {
+    --left-menu-min-width: 80px !important;
+  }
 }
 
 // Menus teleported out of `.v-menu` — the collapsed sidebar's submenu and the horizontal menu's
@@ -386,4 +415,35 @@ html body .v-tags-view .v-tags-view__item {
 }
 html body .v-tags-view .v-tags-view__item.is-active {
   border-color: var(--el-color-primary);
+}
+
+// Component details from the original that the Element Plus token bridge does not carry:
+//   · filled buttons sit at elevation 2 (a soft 0 2px 4px shadow) and go flat while pressed;
+//   · small chips are 13px/500, not Element Plus's 12px/400.
+// 原版里有几处 Element Plus 令牌桥接不覆盖的组件细节：
+//   · 实心按钮在 elevation 2（一层 0 2px 4px 的柔和投影），按下时落平；
+//   · 小号标签是 13px/500，而不是 Element Plus 的 12px/400。
+html body .el-button:not(.is-text):not(.is-link):not(.is-plain) {
+  box-shadow: 0 2px 4px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
+}
+html body .el-button:not(.is-text):not(.is-link):not(.is-plain):active {
+  box-shadow: none;
+}
+// Filled buttons darken on hover in the original (they go to the colour's darken-1), rather than
+// lighten the way Element Plus does by default.
+// 原版的实心按钮悬停时**加深**（走到该色的 darken-1），而不是 Element Plus 默认的变浅。
+@each $type in primary, success, warning, danger, info {
+  html body .el-button--#{$type}:not(.is-text):not(.is-link):not(.is-plain):not(.is-disabled):hover {
+    background-color: var(--el-color-#{$type}-dark-2);
+    border-color: var(--el-color-#{$type}-dark-2);
+  }
+}
+html body .el-tag {
+  font-size: 13px;
+  font-weight: 500;
+}
+// The original draws scrollbar thumbs in its own token (#dbdade light / #4a5072 dark).
+// 原版用自己的令牌画滚动条（亮色 #dbdade / 暗色 #4a5072）。
+html body .el-scrollbar__thumb {
+  background-color: var(--materio-scrollbar-thumb);
 }
