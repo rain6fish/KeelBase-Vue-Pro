@@ -23,7 +23,12 @@
 // 默认值的颜色语义（页面底色而不是表面色），皮肤看起来只上了一半。代价是：构建本皮肤时，设置面板的
 // 颜色选择器不再生效——对一个评估用皮肤可以接受；产品皮肤不在这里写 `!important`，故保留该行为。
 
-:root {
+// `html:root` rather than `:root`: the vendored var.css states the same shell variables on
+// `html:root`, one specificity step above `:root`, so a plain `:root` block would lose every value it
+// tried to change. Same specificity plus a later stylesheet is what makes these win.
+// 用 `html:root` 而不是 `:root`：vendor 的 var.css 把同一批外壳变量写在 `html:root` 上，比 `:root`
+// 高一级；用 `:root` 的话这里想改的每个值都会输。同特异性 + 更晚的样式表才能生效。
+html:root {
   --left-menu-max-width: 260px;
   --left-menu-min-width: 68px;
   --left-menu-bg-color: var(--materio-surface) !important;
@@ -43,7 +48,10 @@
   --top-tool-p-x: 0;
   --tags-view-height: 38px;
 
-  --app-content-padding: 24px;
+  // The original pads the page 24px; 20px is the comfortable middle — enough air on the sides and top
+  // without the margins dominating the page.
+  // 原版页面内边距 24px；取 20px 作舒适值——左右与顶部有留白，但不至于压过内容。
+  --app-content-padding: 20px;
   --app-content-bg-color: var(--materio-background);
   --app-footer-height: 56px;
   --transition-time-02: 0.2s;
@@ -53,11 +61,12 @@
   // 选中行的色带自该行内缩绘制，读起来才像一枚悬浮标记。
   --keel-menu-band-inset: 2px;
 
-  // Element Plus sizes inputs and selects at 32px; the original's default field height is 56px
-  // (comfortable 48, compact 40). Matching the default density is the whole point of this skin.
-  // Element Plus 的输入框与选择器高 32px；原版默认字段高 56px（comfortable 48、compact 40）。对齐默认
-  // 密度正是这套皮肤要的效果。
-  --el-component-size: 56px;
+  // Element Plus sizes inputs and selects at 32px; the original's field heights are 56px (default),
+  // 48px (comfortable) and 40px (compact). The comfortable step keeps the taller Materio box without
+  // the default's large vertical padding.
+  // Element Plus 的输入框与选择器高 32px；原版字段高 56px（默认）、48px（comfortable）、40px（compact）。
+  // 取 comfortable 一档：保住 Materio 的高盒子，又不必吃默认那圈偏大的上下填充。
+  --el-component-size: 48px;
 
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
@@ -224,6 +233,15 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-menu-item
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-sub-menu__title {
   background-color: transparent !important;
 }
+// Nested rows need their own hover rule: the clearing rule above carries one more class term than the
+// top-level hover rule, so without this the pill would not paint below level 1.
+// 嵌套行需要自己的悬停规则：上面那条清底色的规则比顶层悬停规则多一级类权重，少了这条，一级以下就画不出胶囊。
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-menu-item:not(.is-active):hover,
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-sub-menu__title:hover {
+  color: var(--el-text-color-primary) !important;
+  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  border-radius: 0 999px 999px 0;
+}
 
 // ── depth: icons only at the first level, markers below it ───────────────────────────────────────────
 // Same rule the product skin follows: one icon per entry identifies a top-level module; repeating it two
@@ -373,11 +391,13 @@ html body .v-menu-popper--horizontal .el-menu-item:hover,
 html body .v-menu-popper--horizontal .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
   background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  border-radius: 0 999px 999px 0;
 }
 html body .v-menu-popper--vertical .el-menu-item.is-active,
 html body .v-menu-popper--horizontal .el-menu-item.is-active {
   color: var(--el-color-primary) !important;
   background-color: color-mix(in srgb, var(--el-color-primary) 8%, transparent) !important;
+  border-radius: 0 999px 999px 0;
 }
 
 // The two-column layout's rail is yudao markup, not a menu: its rows get the same inset and rounding as
@@ -385,7 +405,11 @@ html body .v-menu-popper--horizontal .el-menu-item.is-active {
 // 双列布局的窄栏是 yudao 自己的标记、不是菜单：给它同样的内缩与圆角，使两列读成同一块表面。
 html body .v-tab-menu__item {
   margin: 2px 6px;
-  border-radius: var(--materio-radius);
+  border-radius: 0 999px 999px 0;
+}
+html body .v-tab-menu__item:hover {
+  color: var(--el-color-primary);
+  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent);
 }
 
 // On a dark surface every semantic colour is too dark to read on its own tint or on the surface: the
@@ -408,6 +432,13 @@ html body .v-tab-menu__item {
   }
 }
 html:root.dark .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
+  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+}
+// The two-column rail labels are yudao markup outside `.v-menu`; its active/hover label also uses the
+// base primary colour, which is the same contrast failure on a dark surface.
+// 双列窄栏的标签是 `.v-menu` 之外的 yudao 标记；它的选中/悬停标签也用基础主色，在暗色表面上同样看不清。
+html:root.dark .v-tab-menu__item:hover,
+html:root.dark .v-tab-menu__item.is-active {
   color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
 }
 // The collapsed sidebar's submenu lives in a teleported popper; its active row and active group keep
@@ -465,12 +496,12 @@ html body .el-tag:not(.el-tag--small):not(.el-tag--large) {
   padding: 0 12px;
 }
 // Element Plus hard-codes the select's minimum height at 32px rather than taking the component size,
-// so the default select needs the original's 56px spelled out. Size variants carry their own class and
+// so the default select needs the same height spelled out. Size variants carry their own class and
 // keep their own height.
-// Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸，故默认选择器要单独写出原版的 56px；
+// Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸，故默认选择器要单独写同一个高度；
 // 小号/大号有自己的类，保持各自高度。
 html body .el-select__wrapper {
-  min-height: 56px;
+  min-height: 48px;
 }
 // The 56px field belongs to forms. The header keeps the original's compact 40px control, and the
 // pagination bar keeps its 32px row so the pager does not grow taller than the table footer.
@@ -496,11 +527,11 @@ html body .el-scrollbar__thumb {
   background-color: var(--materio-scrollbar-thumb);
 }
 
-// The host's page rhythm is one notch wider than the original's: 15px between cards and around the
-// pager, 18px under each form item, and 32px between inline fields. Tightened one step here so the
-// components on a list page sit closer together.
-// 宿主的页面节奏比原版宽一档：卡片之间与翻页区上下 15px、每个表单项下 18px、行内字段之间 32px。
-// 这里各收一档，让列表页上的组件靠得更近。
+// The host's page rhythm is wider than the original's: 15px between cards and around the pager, 18px
+// under each form item, and 32px between inline fields. Tightened here so the components on a page
+// sit closer together.
+// 宿主的页面节奏比原版宽：卡片之间与翻页区上下 15px、每个表单项下 18px、行内字段之间 32px。
+// 这里收紧，让页面上的组件靠得更近。
 html body .mb-15px {
   margin-bottom: 10px;
 }
@@ -508,8 +539,24 @@ html body .mt-15px {
   margin-top: 10px;
 }
 html body .el-form-item {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 html body .el-form--inline .el-form-item {
-  margin-right: 20px;
+  margin-right: 24px;
+}
+// The page's outer spacing stays tight (see --app-content-padding and the card margins above), while
+// the cards *inside* a grid get more room: the dashboard's 16px gutter / 8px row gap step up to
+// 20px / 12px. The gutter is inline on the row and cols, hence `!important`; `:has()` keeps the change
+// on rows that actually hold cards.
+// 页面**外围**的间距保持紧（见 --app-content-padding 与上面的卡片外边距），而网格**内部**的卡片给更多
+// 空间：首页的 16px 栏距 / 8px 行距抬到 20px / 12px。栏距写在行与列的行内样式上，故要 `!important`；
+// `:has()` 让这条只作用在真正含卡片的行上。
+html body .el-row:has(.el-card) {
+  margin-left: -10px !important;
+  margin-right: -10px !important;
+  row-gap: 12px;
+}
+html body .el-row:has(.el-card) > .el-col {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
 }
