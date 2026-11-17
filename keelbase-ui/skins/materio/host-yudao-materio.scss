@@ -53,11 +53,11 @@
   // 选中行的色带自该行内缩绘制，读起来才像一枚悬浮标记。
   --keel-menu-band-inset: 2px;
 
-  // Element Plus sizes inputs and selects at 32px; the original's buttons are 38px and its compact
-  // fields 40px. 38px lines the two up without turning every filter row into a 56px-tall form row.
-  // Element Plus 的输入框与选择器高 32px；原版按钮 38px、紧凑字段 40px。取 38px 把两者对齐，又不至于让
-  // 每一行筛选都变成 56px 高。
-  --el-component-size: 38px;
+  // Element Plus sizes inputs and selects at 32px; the original's default field height is 56px
+  // (comfortable 48, compact 40). Matching the default density is the whole point of this skin.
+  // Element Plus 的输入框与选择器高 32px；原版默认字段高 56px（comfortable 48、compact 40）。对齐默认
+  // 密度正是这套皮肤要的效果。
+  --el-component-size: 56px;
 
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
@@ -110,6 +110,12 @@ html body .v-menu .el-menu.el-menu--vertical {
 }
 html body .v-menu .el-menu.el-menu--vertical:not(.el-menu--collapse) {
   padding: 4px 12px;
+}
+// The original puts 0.5rem between a nav icon and its label; Element Plus uses 5px.
+// 原版导航图标与标签之间是 0.5rem；Element Plus 是 5px。
+html body .v-menu .el-menu .el-menu-item .el-icon:not(.el-sub-menu__icon-arrow),
+html body .v-menu .el-menu .el-sub-menu__title .el-icon:not(.el-sub-menu__icon-arrow) {
+  margin-right: 8px;
 }
 html body .v-menu .el-menu .el-menu-item {
   margin: 2px 0;
@@ -240,14 +246,14 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu {
   padding-left: 0 !important;
 }
 
-// 49px = the first level's label column: 20px of row padding + the 24px icon + its 5px gap (measured in
-// this host), so every level's label starts on the same line.
-// 49px = 一级的标签列：行内边距 20px + 图标 24px + 之间 5px（在本宿主实测），故每一级的标签都从同一条线起。
+// 52px = the first level's label column: 20px of row padding + the 24px icon + the original's 8px gap,
+// so every level's label starts on the same line.
+// 52px = 一级的标签列：行内边距 20px + 图标 24px + 原版的 8px 间距，故每一级的标签都从同一条线起。
 html body .v-menu .el-menu .el-sub-menu .el-menu .el-menu-item {
-  padding-left: 49px !important;
+  padding-left: 52px !important;
 }
 html body .v-menu .el-menu .el-sub-menu .el-menu .el-sub-menu__title {
-  padding-left: 49px !important;
+  padding-left: 52px !important;
 }
 
 // Level 2: a 5px dot centred in the icon column (the icon box runs from 20px to 44px).
@@ -280,10 +286,10 @@ html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu
 // Level 3: a short dash, stepped right with the label so the deeper level reads as a step.
 // 三级：一道短横，跟着标签右移，于是更深的一级读起来是一步。
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item {
-  padding-left: 61px !important;
+  padding-left: 64px !important;
 }
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-sub-menu > .el-sub-menu__title {
-  padding-left: 61px !important;
+  padding-left: 64px !important;
 }
 html body .v-menu .el-menu .el-sub-menu > .el-menu > .el-sub-menu > .el-menu > .el-menu-item::after {
   content: "";
@@ -441,6 +447,35 @@ html body .el-button:not(.is-text):not(.is-link):not(.is-plain):active {
 html body .el-tag {
   font-size: 13px;
   font-weight: 500;
+}
+html body .el-tag:not(.el-tag--small):not(.el-tag--large) {
+  padding: 0 12px;
+}
+// Element Plus hard-codes the select's minimum height at 32px rather than taking the component size,
+// so the default select needs the original's 56px spelled out. Size variants carry their own class and
+// keep their own height.
+// Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸，故默认选择器要单独写出原版的 56px；
+// 小号/大号有自己的类，保持各自高度。
+html body .el-select__wrapper {
+  min-height: 56px;
+}
+// The 56px field belongs to forms. The header keeps the original's compact 40px control, and the
+// pagination bar keeps its 32px row so the pager does not grow taller than the table footer.
+// 56px 的字段只属于表单。顶栏保留原版 40px 的紧凑控件；分页条保持 32px，免得翻页区比表尾还高。
+html body .v-tool-header .el-select__wrapper {
+  min-height: 40px;
+}
+html body .el-pagination .el-select__wrapper {
+  min-height: 32px;
+}
+
+// Cards are 24px-padded in the original; Element Plus uses 20px.
+// 原版卡片的正文内边距是 24px；Element Plus 是 20px。
+html body .el-card__body {
+  padding: 24px;
+}
+html body .el-card__header {
+  padding: 20px 24px;
 }
 // The original draws scrollbar thumbs in its own token (#dbdade light / #4a5072 dark).
 // 原版用自己的令牌画滚动条（亮色 #dbdade / 暗色 #4a5072）。
