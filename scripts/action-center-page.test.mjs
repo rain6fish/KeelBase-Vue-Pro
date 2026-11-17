@@ -156,7 +156,7 @@ test('both locale dictionaries carry every F-18 key', () => {
     'outcomeApproved', 'outcomeDeclined', 'outcomeTimeout', 'outcomeExecuted', 'outcomeFailed',
     'approvedNotRun', 'approvedNotRunUnknown', 'unknownReason', 'executedOk', 'approvedNoResult',
     'readOnlyNote', 'notHereNote',
-    'colChecks', 'checkPassed', 'checkFailed', 'checksNote',
+    'colChecks', 'checkPassed', 'checkFailed', 'checksNote', 'checkUnregistered',
     'maskedNote', 'maskedNoteHostLog',
     'risk_policy', 'tool_enabled', 'role_allowed', 'feature_flag', 'admin_only', 'agent_read_only',
     'detailLine',
