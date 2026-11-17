@@ -388,18 +388,35 @@ html body .v-tab-menu__item {
   border-radius: var(--materio-radius);
 }
 
-// On a dark surface the Materio primary (#2563eb) only reaches about 2.5:1 against it, so link and plain
-// button labels went dim (measured 2026-11-17). Their labels take a lighter mix of the same primary in
-// dark mode; the light-mode colours are untouched.
-// 在暗色表面上，Materio 主色（#2563eb）的对比度只有约 2.5:1，链接与浅色按钮的字发暗（2026-11-17 实测）。
-// 暗色下这些标签改用同一主色的浅一档；亮色不动。
-html:root.dark .el-button--primary.is-link,
-html:root.dark .el-button--primary.is-text,
-html:root.dark .el-button--primary.is-plain,
-html:root.dark .el-link.el-link--primary {
-  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+// On a dark surface every semantic colour is too dark to read on its own tint or on the surface: the
+// Materio primary reaches about 2.5:1, danger about 2.7:1, and the same holds for the other types.
+// Link, text and plain labels, light/plain tags and coloured text all take a lighter mix of the same
+// colour in dark mode; light mode is untouched, and solid tags keep their white label.
+// 在暗色表面上，每个语义色压在自己的淡底或表面色上都太暗读不出来：主色约 2.5:1、危险色约 2.7:1，其余几类同理。
+// 暗色下链接/文字/浅色按钮、light/plain 标签与彩色文字统一改用同色系的浅一档；亮色不动，实心标签保持白字。
+@each $type in primary, success, warning, danger, info {
+  html:root.dark .el-button--#{$type}.is-link,
+  html:root.dark .el-button--#{$type}.is-text,
+  html:root.dark .el-button--#{$type}.is-plain,
+  html:root.dark .el-link.el-link--#{$type},
+  html:root.dark .el-text.el-text--#{$type} {
+    color: color-mix(in srgb, var(--el-color-#{$type}) 72%, #fff) !important;
+  }
+  html:root.dark .el-tag--light.el-tag--#{$type},
+  html:root.dark .el-tag--plain.el-tag--#{$type} {
+    --el-tag-text-color: color-mix(in srgb, var(--el-color-#{$type}) 72%, #fff);
+  }
 }
 html:root.dark .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
+  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+}
+// The collapsed sidebar's submenu lives in a teleported popper; its active row and active group keep
+// the base primary colour, which is the same contrast problem on a dark surface.
+// 折叠侧栏的子菜单在 teleport 出去的 popper 里；它的选中行与选中分组仍用基础主色，在暗色表面上同样看不清。
+html:root.dark .v-menu-popper--vertical .el-menu-item.is-active,
+html:root.dark .v-menu-popper--horizontal .el-menu-item.is-active,
+html:root.dark .v-menu-popper--vertical .el-sub-menu.is-active > .el-sub-menu__title,
+html:root.dark .v-menu-popper--horizontal .el-sub-menu.is-active > .el-sub-menu__title {
   color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
 }
 html:root.dark .v-menu.v-menu--header .el-menu-item:hover,
