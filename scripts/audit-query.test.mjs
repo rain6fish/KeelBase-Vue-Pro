@@ -242,6 +242,28 @@ test('a verification cell carrying an internal name refuses the whole file, nami
       return true
     },
   )
+  // camelCase 形态的未知检查名（覆盖矩阵 4-G）在导出这一层同样整份拒绝 —— 闸门要连调用方一起测，
+  // 只测 `leaksIn` 证明不了文件不会被写出。
+  //
+  // An unknown check name in camelCase (coverage matrix 4-G) refuses the whole file at the export layer
+  // too — the gate is tested through its caller, since testing `leaksIn` alone cannot show that no file
+  // is written.
+  assert.throws(
+    () => q.checkCsvText([{ id: 31, answers, checks: '通过 crmCustomerScope' }], CHECK_LABELS),
+    (error) => {
+      assert.equal(error.name, 'CsvLeak')
+      assert.equal(error.column, 'checks')
+      assert.doesNotMatch(error.message, /crmCustomerScope/, 'the refusal echoes the internal name')
+      return true
+    },
+  )
+  // 反向：同一份核对行，检查名换成控制台认识的词，文件照常生成、仍是 8 列。
+  // The reverse: the same row with a check name this console knows is written as before, still 8 columns.
+  const known = q.checkCsvText(
+    [{ id: 31, answers, checks: 'passed Risk level (R5 is always blocked)' }],
+    CHECK_LABELS,
+  )
+  assert.equal(known.trimEnd().split('\r\n').length, 2, 'a known check name must not refuse the file')
 })
 
 test('the verification file name says what it is, without an internal name', () => {

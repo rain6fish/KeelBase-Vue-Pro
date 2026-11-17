@@ -419,6 +419,74 @@ export function composeSix({ row, callerName, effect, proposal, recorded, hostNo
 }
 
 /**
+ * camelCase 形态的内部名，靠两个形状判：**三段以上的标识符写法**，以及**以本控制台声明的内部词汇表的首词
+ * 开头**的写法。
+ *
+ * 为什么不能只写一条「任何 camelCase」。导出格里的 camelCase 是常态：品牌（`iPhone`）、普通词形
+ * （`boardGame`）、人名（`johnSmith`）都长这样；一条通吃会把正常导出整份拒掉。而内部名的 camelCase
+ * 不是任意的 —— 它们是把**已有的 snake_case 词表**去掉分隔符得到的：`crm_customer` → `crmCustomer`，
+ * `crm_customer_scope` → `crmCustomerScope`，`risk_policy` → `riskPolicy`。所以判据按**声明**取词：
+ *
+ *   · 命名空间与表名前缀，来自 `labels.ts` 的 `RESULT_TYPES` / `TOOLS`（`crm` · `pm` · `bpm` · `fms` ·
+ *     `infra` · `yudao` · `keelbase` · `system` · `notify`）；
+ *   · 快照与台账的列名词，来自本文件那条七名列名规则与 `gateFromRow` 读的协议字段（`owner` · `user` ·
+ *     `before` · `after` · `execution` · `conversation` · `requires` · `revoke` · `audit` · `effect` ·
+ *     `claim`）；
+ *   · 六道检查名的首词（`risk` · `tool` · `role` · `feature` · `admin` · `agent`）。
+ *
+ * **业务名词故意不在内**（`deal` · `follow` · `customer`）：它们是读者自己的词，`followUp` 这样的写法
+ * 会出现在正常行文里；以它们开头的内部名（`followUpStatus` · `dealStatus`）仍由上面那条七名列名规则与
+ * 「三段以上」这条形状兜住。
+ *
+ * 本文件拿不到 `labels.ts`（它保持不依赖 Vue、也不依赖宿主 import，`node --test` 直接跑），故首词在这里
+ * 镜像一份；`scripts/yd42-six-questions.test.mjs` 用真例钉住镜像不漏掉今天的两类内部名。
+ *
+ * 代价写在明处：`crmCustomer` 这类两段一名内部名命中靠首词；首词不在表内的两段写法（`subjectScope`）
+ * 不判 —— 宁可少判一条尚不存在的形态，也不拿正常业务文本去换。三段以上的标识符写法（拼音昵称
+ * `zhangSanFeng` 也算）会被拒，这与下划线规则今天拒 `zhang_san_feng` 是同一条取舍。
+ *
+ * Two shapes catch an internal name written in camelCase: an **identifier of three or more words**, and
+ * one **opening with a head word of the vocabularies this console declares**.
+ *
+ * Why not one "any camelCase" rule: camelCase is ordinary in an exported cell — brands (`iPhone`), plain
+ * word forms (`boardGame`), people's names (`johnSmith`) all look like that, and a blanket rule would
+ * refuse whole legitimate exports. Internal camelCase names are not arbitrary either: they are the
+ * **existing snake_case vocabularies** with the separators removed (`crm_customer` → `crmCustomer`,
+ * `crm_customer_scope` → `crmCustomerScope`, `risk_policy` → `riskPolicy`). So the heads are taken from
+ * the declarations:
+ *
+ *   · namespaces and table prefixes from `labels.ts`'s `RESULT_TYPES` / `TOOLS` (`crm` · `pm` · `bpm` ·
+ *     `fms` · `infra` · `yudao` · `keelbase` · `system` · `notify`);
+ *   · snapshot and ledger column words from this file's seven-name rule and the protocol fields
+ *     `gateFromRow` reads (`owner` · `user` · `before` · `after` · `execution` · `conversation` ·
+ *     `requires` · `revoke` · `audit` · `effect` · `claim`);
+ *   · the first word of each of the six check names (`risk` · `tool` · `role` · `feature` · `admin` ·
+ *     `agent`).
+ *
+ * **Business nouns stay out on purpose** (`deal` · `follow` · `customer`): they are the reader's own
+ * words, and forms like `followUp` appear in ordinary prose; internal names beginning with them
+ * (`followUpStatus`, `dealStatus`) are still caught by the seven-name rule and the three-word shape.
+ *
+ * `labels.ts` is not importable here (this module stays free of Vue and of host imports so `node --test`
+ * can run it), so the heads are mirrored; `scripts/yd42-six-questions.test.mjs` pins the mirror against
+ * today's internal names. The cost is said out loud: a two-word name like `crmCustomer` is caught only
+ * through its head, and a two-word form whose head is not in the list (`subjectScope`) is not judged —
+ * better to miss a shape that does not exist yet than to refuse ordinary business text. An identifier
+ * of three or more words (a pinyin nickname like `zhangSanFeng` included) is refused, which is the same
+ * trade the underscore rule already makes for `zhang_san_feng`.
+ */
+const INTERNAL_HEADS = [
+  // namespaces / table prefixes (labels.ts: RESULT_TYPES + TOOLS)
+  'crm', 'pm', 'bpm', 'fms', 'infra', 'yudao', 'keelbase', 'system', 'notify',
+  // schema / ledger / protocol words (this file's seven-name rule + gateFromRow)
+  'owner', 'user', 'before', 'after', 'execution', 'conversation', 'requires', 'revoke', 'audit', 'effect', 'claim',
+  // head words of the six check names
+  'risk', 'tool', 'role', 'feature', 'admin', 'agent',
+]
+
+const CAMEL_HEADED = new RegExp(`\\b(?:${INTERNAL_HEADS.join('|')})(?:[A-Z][a-z0-9]+)+\\b`)
+
+/**
  * 一条答案里有没有**内部名**。反向可证就用它：把内部工具名、表名、执行线程 id 透出来的那份交回来时，
  * 这里必须判出来，于是那次记 0 格。
  *
@@ -433,6 +501,10 @@ const INTERNAL_PATTERNS = [
   /\b(ownerUserId|dealStatus|followUpStatus|beforeSnapshot|afterSnapshot|executionId|conversationId)\b/,
   // an execution id / thread id.
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i,
+  // camelCase, identifier-shaped: three words or more (`crmCustomerScope`, `updateCrmCustomer`).
+  /\b[a-z][a-z0-9]*(?:[A-Z][a-z0-9]+){2,}\b/,
+  // camelCase opening with a declared internal head (`crmCustomer`, `riskPolicy`, `bpmTask`).
+  CAMEL_HEADED,
 ]
 
 /**
@@ -452,7 +524,10 @@ export function leaksIn(text) {
   const found = []
   for (const pattern of INTERNAL_PATTERNS) {
     const hit = String(text ?? '').match(pattern)
-    if (hit) found.push(hit[0])
+    // 同一条名字可以同时命中几条规则（`ownerUserId` 命中七名列名、三段形状与首词三条）—— 报一次就够。
+    // One name can trip several patterns at once (`ownerUserId` trips the seven-name rule, the
+    // three-word shape and the head word); report it once.
+    if (hit && !found.includes(hit[0])) found.push(hit[0])
   }
   return found
 }

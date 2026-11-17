@@ -34,6 +34,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 const ROOT = process.env.KEELBASE_REPO_ROOT || join(dirname(fileURLToPath(import.meta.url)), '..')
 const MODULE = join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/sixQuestions.mjs')
 const PAGE = 'keelbase-ui/host-overlay/src/views/keelbase/governance/AuditChainPage.vue'
+const LABELS = 'keelbase-ui/host-overlay/src/keelbase/labels.ts'
 
 const six = await import(pathToFileURL(MODULE).href)
 
@@ -433,6 +434,51 @@ test('the leak detector is not vacuous, and prose is not a leak', () => {
   // ordinary sentences are not leaks
   assert.deepEqual(six.leaksIn('A person declined it, so it will not happen'), [])
   assert.deepEqual(six.leaksIn('Customer · #9005 · 万**** · still there'), [])
+})
+
+test('camelCase internal names are refused, legitimate camelCase words are not', () => {
+  // 2026-11-17 的覆盖矩阵 4-G：把 `crmCustomerScope` 注入核对行后**整份照常导出**、文件里就是那个名字
+  // —— 规则只认下划线与七名列名，camelCase 形态两类都漏过。
+  //
+  // Coverage matrix 4-G (2026-11-17): with `crmCustomerScope` injected into a verification row the
+  // whole file was still written and carried the name — the rules knew underscores and seven column
+  // names, and both camelCase shapes went through.
+  assert.deepEqual(six.leaksIn('通过 crmCustomerScope'), ['crmCustomerScope'])
+  assert.deepEqual(six.leaksIn('通过 riskPolicy'), ['riskPolicy'])
+  assert.deepEqual(six.leaksIn('updateCrmCustomer'), ['updateCrmCustomer'])
+  assert.deepEqual(six.leaksIn('bpmTask'), ['bpmTask'])
+  // 反向：合法 camelCase 不拒 —— 品牌、普通词形、人名（只有一个内部大写的两段写法）。
+  // The reverse: legitimate camelCase is not refused — a brand, an ordinary word form, a person's
+  // name (two words with a single inner capital).
+  assert.deepEqual(six.leaksIn('iPhone · eCommerce · boardGame · johnSmith'), [])
+  assert.deepEqual(six.leaksIn('Follow-up · Customer · #9005 · 万****'), [])
+})
+
+test('the camelCase rule follows the declared vocabulary instead of guessing', () => {
+  // 判据同源：`sixQuestions.mjs` 拿不到 `labels.ts`（保持可被 `node --test` 直接跑），首词是镜像的；
+  // 这条把镜像与**声明本身**对账 —— 结果类型表里每一个多词名字的 camelCase 写法都必须被拒。表里新增
+  // 一个命名空间而镜像没跟上时，这里红。
+  //
+  // Same-source: `sixQuestions.mjs` cannot import `labels.ts` (it stays runnable under `node --test`),
+  // so the heads are mirrored; this holds the mirror against the **declaration itself** — the camelCase
+  // form of every multi-word result type must be refused. A namespace added to the table without a head
+  // in the mirror turns this red.
+  const labels = readFileSync(join(ROOT, LABELS), 'utf8')
+  const at = labels.indexOf('const RESULT_TYPES = [')
+  assert.notEqual(at, -1, 'labels.ts no longer declares the RESULT_TYPES table')
+  const body = labels.slice(at, labels.indexOf(']', at))
+  const declared = [...body.matchAll(/'([a-z0-9_]+)'/g)]
+    .map((m) => m[1])
+    .filter((name) => name.includes('_'))
+  assert.ok(declared.length > 5, 'the RESULT_TYPES table is empty or unreadable')
+  const camel = (name) =>
+    name
+      .split('_')
+      .map((part, i) => (i === 0 ? part : part[0].toUpperCase() + part.slice(1)))
+      .join('')
+  for (const name of declared) {
+    assert.ok(six.leaksIn(camel(name)).length, `${camel(name)} — the camelCase of ${name} — is not refused`)
+  }
 })
 
 // ---------------------------------------------------------------------------------------------------
