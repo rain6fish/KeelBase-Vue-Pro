@@ -1,0 +1,132 @@
+// Host adapter for the Materio skin: yudao's shell namespaces, restated in the skin's values.
+//
+// The vendored files beside this one cover Element Plus and the VEA shell names (`.v-layout__*`,
+// `.primary-nav--*`); yudao drives its shell through `--left-menu-*`, `--top-header-*`, `--logo-*`
+// and the `layout-border__*` utilities instead. Only the variable names in the skin's own var.css
+// match, so this file lands those values on yudao's names and adds the few rules yudao hard-codes.
+//
+// The colour variables carry `!important` on purpose. yudao writes the same variables inline on
+// `<html>` at mount (`appStore.setCssVarTheme()`), and an inline declaration beats any stylesheet,
+// important or not. Without it the sidebar and top bar keep the host defaults' colour semantics
+// (page background rather than surface), and the skin reads as half-applied. The trade-off is that
+// while this skin is built the settings drawer's colour pickers no longer win — acceptable for an
+// evaluation skin; the product skin keeps that behaviour by writing no `!important` here.
+//
+// 宿主适配层（Materio 皮肤）：把 yudao 的壳命名空间改用本皮肤的取值陈述。
+//
+// 与本文件相邻的 vendor 文件覆盖的是 Element Plus 与 VEA 的壳类名（`.v-layout__*`、`.primary-nav--*`）；
+// yudao 用的是 `--left-menu-*`、`--top-header-*`、`--logo-*` 与 `layout-border__*` 工具类。两边只有
+// 皮肤 var.css 里的变量名对得上，故本文件把这些取值落到 yudao 的名字上，并补几条 yudao 写死的规则。
+//
+// 颜色变量刻意带 `!important`。yudao 挂载时会把同名变量**内联**写到 `<html>` 上
+// （`appStore.setCssVarTheme()`），而内联声明的优先级压过任何样式表。不带它，侧边栏与顶栏会保留宿主
+// 默认值的颜色语义（页面底色而不是表面色），皮肤看起来只上了一半。代价是：构建本皮肤时，设置面板的
+// 颜色选择器不再生效——对一个评估用皮肤可以接受；产品皮肤不在这里写 `!important`，故保留该行为。
+
+:root {
+  --left-menu-max-width: 260px;
+  --left-menu-min-width: 68px;
+  --left-menu-bg-color: var(--materio-surface) !important;
+  --left-menu-bg-light-color: var(--materio-expansion-panel-text-bg) !important;
+  --left-menu-bg-active-color: color-mix(in srgb, var(--materio-on-surface) 8%, transparent) !important;
+  --left-menu-text-color: var(--el-text-color-regular) !important;
+  --left-menu-text-active-color: var(--el-color-primary) !important;
+  --left-menu-collapse-bg-active-color: color-mix(in srgb, var(--materio-on-surface) 8%, transparent) !important;
+
+  --logo-height: 64px;
+  --logo-title-text-color: var(--materio-on-surface);
+
+  --top-header-bg-color: var(--materio-surface) !important;
+  --top-header-text-color: var(--el-text-color-regular) !important;
+  --top-header-hover-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  --top-tool-height: var(--logo-height);
+  --top-tool-p-x: 0;
+  --tags-view-height: 38px;
+
+  --app-content-padding: 24px;
+  --app-content-bg-color: var(--materio-background);
+  --app-footer-height: 54px;
+  --transition-time-02: 0.2s;
+  --layout-border-color: var(--el-border-color);
+
+  // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
+  // host's navy would keep one screen out of the skin entirely.
+  // 皮肤 var.css 里没有这个变量：yudao 用它铺登录页，留着宿主的深藏青会让唯一一屏完全落在皮肤之外。
+  --login-bg-color: var(--materio-background);
+
+  // feedback.scss reads these two card-title tokens, but the vendored tokens.css never defines them,
+  // so Element Plus falls back to an inherited size. The values are the card-title scale the source
+  // package documents (1.125rem / 1.75rem); they live here rather than in the vendored file.
+  // feedback.scss 读了这两个 card-title 令牌，而 vendor 的 tokens.css 从未定义它们，Element Plus 于是退回
+  // 继承字号。取值用来源包文档里的 card-title 字号（1.125rem / 1.75rem）；写在适配层，不动 vendor 文件。
+  --materio-card-title-size: 1.125rem;
+  --materio-card-title-line-height: 1.75rem;
+}
+
+// Sidebar rows: Materio's navigation is a list of rounded rows on the surface, not full-bleed bands.
+// 侧边栏行：Materio 的导航是表面色上一层圆角行，而不是通栏色带。
+html body .v-menu .el-menu.el-menu--vertical {
+  --el-menu-item-height: 44px;
+  --el-menu-sub-item-height: 40px;
+  --el-menu-base-level-padding: 16px;
+}
+html body .v-menu .el-menu.el-menu--vertical:not(.el-menu--collapse) {
+  padding: 4px 12px;
+}
+html body .v-menu .el-menu .el-menu-item {
+  margin: 2px 0;
+  border-radius: var(--materio-radius);
+}
+html body .v-menu .el-menu .el-sub-menu__title {
+  margin: 2px 0;
+  border-radius: var(--materio-radius);
+}
+
+// yudao's own hover rule paints the row with the sidebar background and the active text colour, so
+// the row would not react under a surface-coloured sidebar. These rules out-specify it.
+// yudao 自己的悬停规则把行画成侧边栏底色、文字用激活色，于是在表面色侧边栏上悬停毫无反馈。这几条用
+// 更高权重压过它。
+html body .v-menu .el-menu.el-menu--vertical .el-menu-item:not(.is-active):hover {
+  color: var(--el-text-color-primary) !important;
+  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+}
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title:hover {
+  color: var(--el-text-color-primary) !important;
+  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+}
+
+// Collapsed rail: the active row keeps the same tint and picks up the same rounding.
+// 折叠态：激活行沿用同一层淡色，并同样收圆角。
+html body .v-menu .el-menu.el-menu--collapse .el-menu-item.is-active {
+  border-radius: var(--materio-radius);
+}
+html body .v-menu .el-menu.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title {
+  border-radius: var(--materio-radius);
+}
+
+// The collapsed sidebar's submenu is teleported into a popper outside `.v-menu`; it needs the
+// surface treatment and a readable hover of its own.
+// 折叠侧边栏的子菜单被 teleport 到 `.v-menu` 之外的 popper 里；它需要单独的表面样式与可读的悬停态。
+html body .v-menu-popper--vertical .el-menu--popup {
+  padding: 4px;
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--materio-radius);
+  box-shadow: var(--materio-shadow-5);
+}
+html body .v-menu-popper--vertical .el-menu-item {
+  border-radius: var(--materio-radius-sm);
+}
+html body .v-menu-popper--vertical .el-menu-item:hover {
+  color: var(--el-text-color-primary) !important;
+  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+}
+
+// Tags view: yudao's square 2px chips become Materio's 4px rounded outline chips.
+// 标签条：yudao 的 2px 直角小片改为 Materio 的 4px 圆角描边小片。
+html body .v-tags-view .v-tags-view__item {
+  border-color: var(--el-border-color);
+  border-radius: var(--materio-radius-sm);
+}
+html body .v-tags-view .v-tags-view__item.is-active {
+  border-color: var(--el-color-primary);
+}

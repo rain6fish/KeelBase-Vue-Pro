@@ -1,0 +1,81 @@
+/*!
+ * Materio skin — vendored copy, do not edit here.
+ * Source: vue-element-plus-admin v3.1.0, materio-theme/dark-mode.less
+ *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
+ * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
+ * License: MIT, inherited from the source package.
+ * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ *
+ * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/dark-mode.less
+ *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
+ * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
+ * 许可：MIT，随来源包。
+ * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ */
+/* Final Light/Dark consistency pass for Element Plus poppers and secondary surfaces. */
+.el-popper,
+.el-select-dropdown,
+.el-dropdown-menu,
+.el-autocomplete-suggestion,
+.el-cascader__dropdown,
+.el-picker-panel,
+.el-date-picker,
+.el-time-panel,
+.el-color-dropdown,
+.el-mention-dropdown,
+.el-tour,
+.el-popover {
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color-overlay);
+  border-color: var(--el-border-color);
+  border-radius: var(--materio-radius);
+  box-shadow: var(--materio-shadow-5);
+}
+
+.el-select-dropdown__item,
+.el-dropdown-menu__item,
+.el-cascader-node,
+.el-picker-panel__content,
+.el-date-table th,
+.el-time-spinner__item,
+.el-tree-node__content {
+  color: var(--el-text-color-regular);
+}
+
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover,
+.el-dropdown-menu__item:not(.is-disabled):focus,
+.el-dropdown-menu__item:not(.is-disabled):hover,
+.el-cascader-node:not(.is-disabled):focus,
+.el-cascader-node:not(.is-disabled):hover,
+.el-tree-node__content:hover {
+  background-color: color-mix(in srgb, var(--el-color-primary) 4%, var(--el-bg-color));
+}
+
+.el-tabs__item,
+.el-breadcrumb__inner,
+.el-descriptions__label,
+.el-empty__description,
+.el-pagination button,
+.el-pagination .el-pager li {
+  color: var(--el-text-color-regular);
+}
+
+.el-tabs__item.is-active,
+.el-tabs__item:hover,
+.el-breadcrumb__inner a:hover,
+.el-pagination .el-pager li.is-active {
+  color: var(--el-color-primary);
+}
+
+.el-divider,
+.el-descriptions__cell,
+.el-tabs__nav-wrap::after {
+  border-color: var(--el-border-color);
+  background-color: var(--el-border-color);
+}
+
+html.dark .el-loading-mask {
+  background-color: color-mix(in srgb, var(--el-bg-color) 80%, transparent);
+}

@@ -1,0 +1,117 @@
+/*!
+ * Materio skin — vendored copy, do not edit here.
+ * Source: vue-element-plus-admin v3.1.0, materio-theme/tables.less
+ *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
+ * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
+ * License: MIT, inherited from the source package.
+ * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ *
+ * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/tables.less
+ *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
+ * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
+ * 许可：MIT，随来源包。
+ * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ */
+/*
+ * Materio Free 2.3.0 table and list styling mapped onto Element Plus.
+ * Source: typescript-version/src/@core/scss/template/libs/vuetify/_variables.scss
+ * and typescript-version/src/plugins/vuetify/theme.ts.
+ */
+
+:root {
+  --materio-table-row-height: 50px;
+  --materio-table-cell-padding: 0 20px;
+  --materio-table-header-font-weight: 500;
+}
+
+/* Element Plus table: preserve its behavior and structure, map visual tokens only. */
+.el-table {
+  --el-table-header-bg-color: var(--materio-table-header-bg);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--el-color-primary) 4%, var(--el-bg-color));
+  --el-table-border-color: var(--el-border-color);
+  --el-table-text-color: var(--el-text-color-regular);
+  --el-table-header-text-color: var(--el-text-color-primary);
+  --el-table-row-height: var(--materio-table-row-height);
+
+  width: 100%;
+  font-family: var(--materio-font-family);
+  font-size: var(--materio-body-1-size);
+  border-radius: var(--materio-radius);
+}
+
+.el-table th.el-table__cell {
+  height: var(--materio-table-row-height);
+  padding: var(--materio-table-cell-padding);
+  font-size: var(--materio-body-1-size);
+  font-weight: var(--materio-table-header-font-weight);
+  line-height: var(--materio-body-1-line-height);
+  background-color: var(--materio-table-header-bg);
+}
+
+.el-table td.el-table__cell {
+  height: var(--materio-table-row-height);
+  padding: var(--materio-table-cell-padding);
+  font-size: var(--materio-body-1-size);
+  line-height: var(--materio-body-1-line-height);
+}
+
+.el-table .cell {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.el-table--border,
+.el-table--group {
+  border-color: var(--el-border-color);
+}
+
+.el-table::before,
+.el-table--border::after,
+.el-table--group::after {
+  background-color: var(--el-border-color);
+}
+
+.el-table__empty-block {
+  background-color: var(--el-bg-color);
+}
+
+/* Pagination typography and geometry follow the shared Materio control tokens. */
+.el-pagination {
+  font-family: var(--materio-font-family);
+  font-size: var(--materio-body-2-size);
+}
+
+.el-pagination button,
+.el-pagination .el-pager li {
+  border-radius: var(--materio-radius-sm);
+}
+
+/* Optional list utility classes for existing or future list markup. */
+.materio-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--el-text-color-primary);
+  background-color: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: var(--materio-radius);
+}
+
+.materio-list-item {
+  display: flex;
+  align-items: center;
+  min-height: var(--materio-table-row-height);
+  padding: 0 20px;
+  color: var(--el-text-color-regular);
+  font-size: var(--materio-body-1-size);
+  line-height: var(--materio-body-1-line-height);
+}
+
+.materio-list-item + .materio-list-item {
+  border-top: 1px solid var(--el-border-color);
+}
+
+.materio-list-item:hover {
+  background-color: color-mix(in srgb, var(--el-color-primary) 4%, var(--el-bg-color));
+}
