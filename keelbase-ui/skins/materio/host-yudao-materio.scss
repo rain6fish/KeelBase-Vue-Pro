@@ -211,22 +211,18 @@ html body .v-menu .el-menu .el-sub-menu__title > * {
   z-index: 1;
 }
 
-// The open group that contains the current page is a container, not the current page: a paler band and
-// primary text, so the two do not read as the same thing.
-// 含当前页的那个已展开分组是**容器**、不是当前页：色带更浅、文字用主色，两者不会被读成同一件事。
+// The open group that contains the current page keeps its primary label but no persistent background:
+// only the selected row and a hovered row carry a pill. The host paints every nested row with
+// --left-menu-bg-light-color, which tinted the whole expanded submenu; that tint is removed here.
+// 含当前页的那个已展开分组保留主色标签，但**没有常驻底色**：只有选中行与悬停行带胶囊。宿主给每一行嵌套
+// 条目都刷了 --left-menu-bg-light-color，整个展开的子菜单因此带了一层底色；这里把它去掉。
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
   background-color: transparent !important;
   color: var(--el-color-primary) !important;
 }
-html body .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title::before {
-  content: "";
-  position: absolute;
-  top: var(--keel-menu-band-inset);
-  bottom: var(--keel-menu-band-inset);
-  left: 0;
-  right: 0;
-  border-radius: 0 999px 999px 0;
-  background-color: var(--el-color-primary-light-9);
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-menu-item:not(.is-active),
+html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-sub-menu__title {
+  background-color: transparent !important;
 }
 
 // ── depth: icons only at the first level, markers below it ───────────────────────────────────────────
@@ -481,4 +477,22 @@ html body .el-card__header {
 // 原版用自己的令牌画滚动条（亮色 #dbdade / 暗色 #4a5072）。
 html body .el-scrollbar__thumb {
   background-color: var(--materio-scrollbar-thumb);
+}
+
+// The host's page rhythm is one notch wider than the original's: 15px between cards and around the
+// pager, 18px under each form item, and 32px between inline fields. Tightened one step here so the
+// components on a list page sit closer together.
+// 宿主的页面节奏比原版宽一档：卡片之间与翻页区上下 15px、每个表单项下 18px、行内字段之间 32px。
+// 这里各收一档，让列表页上的组件靠得更近。
+html body .mb-15px {
+  margin-bottom: 10px;
+}
+html body .mt-15px {
+  margin-top: 10px;
+}
+html body .el-form-item {
+  margin-bottom: 12px;
+}
+html body .el-form--inline .el-form-item {
+  margin-right: 20px;
 }
