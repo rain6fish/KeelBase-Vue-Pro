@@ -496,6 +496,19 @@ html body .el-tag {
 html body .el-tag:not(.el-tag--small):not(.el-tag--large) {
   padding: 0 9px;
 }
+// Control labels stay on one line. The host sets a fixed 68px label box for inline filter forms; at the
+// Materio 15px scale a four-character label is a hair wider than the content box and wraps ("创建时 /
+// 间"). Inline labels size to their text instead, and every label is nowrap; longer labels push the
+// field rather than breaking mid-word.
+// 控件标签保持单行。宿主给行内筛选表单固定 68px 标签框；在 Materio 的 15px 字号下四个字的标签正好比
+// 内容框宽一点，于是折成「创建时 / 间」。行内标签改为按文字宽度自适应，所有标签都不换行；更长的标签
+// 会把字段推后，而不是在词中折断。
+html body .el-form-item__label {
+  white-space: nowrap;
+}
+html body .el-form--inline .el-form-item__label {
+  width: auto !important;
+}
 // Control geometry from the main repository's product skin: 12px buttons, 6px tags, and a pill for
 // the single-line input family (the product's 16px radius on a 32px control reads as a pill; 999px
 // keeps that shape at any height). Textareas keep the product's 16px, not a pill.
