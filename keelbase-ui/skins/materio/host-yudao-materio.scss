@@ -531,6 +531,23 @@ html body .el-button {
   padding: 8px 15px;
   line-height: 1;
 }
+// Size variants keep their own compact geometry. The blanket 32px rule above otherwise lifted every
+// small toolbar button (the form builder and other dense editors) from 24px to 32px, which overflowed
+// their fixed-width toolbars.
+// 尺寸变体保留各自紧凑的几何。上面那条无差别的 32px 会把工具栏里的小按钮（表单构建等密集编辑器）从
+// 24px 抬到 32px，撑破固定宽度的工具栏。
+html body .el-button.el-button--small {
+  min-height: 24px;
+  padding: 5px 11px;
+  font-size: 12px;
+  line-height: 1;
+}
+html body .el-button.el-button--large {
+  min-height: 40px;
+  padding: 12px 19px;
+  font-size: 14px;
+  line-height: 1;
+}
 html body .el-input__wrapper,
 html body .el-select__wrapper,
 html body .el-input-number,
