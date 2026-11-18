@@ -22,29 +22,30 @@ diff --git a/index.html b/index.html
          }
  
          .app-loading .app-loading-wrap {
-@@ -35,90 +39,131 @@
+@@ -34,102 +38,158 @@
+           flex-direction: column;
          }
  
-         .app-loading .app-loading-title {
+-        .app-loading .app-loading-title {
 -          margin-bottom: 30px;
-+          margin-bottom: 28px;
-           font-size: 20px;
-           font-weight: bold;
-           text-align: center;
-+          color: #1f2430;
-         }
- 
+-          font-size: 20px;
+-          font-weight: bold;
+-          text-align: center;
+-        }
+-
 -        .app-loading .app-loading-item {
 +        /*
-+         * The boot mark: KeelBase's shield-and-check inside a turning arc. The shield is the product's
-+         * own mark (the same path as the tab icon and the app logo); the check is a hole in it, so a
-+         * white shine sweeping across the body reads as the mark itself working, rather than as a
-+         * second, unrelated spinner. Everything here is static HTML and CSS because it paints before
-+         * the app boots.
++         * The boot mark: KeelBase's shield-and-check turning over on its vertical axis inside a turning
++         * arc, with a white shine sweeping across the body as it faces front. The shield is the
++         * product's own mark (the same path as the tab icon and the app logo), and the check is a hole
++         * in it, so the sweep reads as the mark itself working rather than as a second spinner. There
++         * is no wordmark: at boot the mark alone is the brand. Everything here is static HTML and CSS
++         * because it paints before the app boots.
 +         *
-+         * 启动标记：转动弧线里的 KeelBase 盾形对勾。盾形是产品自己的标记（与页签图标、应用 logo 同一份
-+         * 路径）；对勾是盾形上的镂空，因此扫过盾体的白光读作「标记在工作」，而不是另配一个无关的转圈。
-+         * 这里全是静态 HTML 与 CSS，因为它在应用启动之前就要画出来。
++         * 启动标记：转动弧线里，KeelBase 盾形对勾绕竖轴翻转，面朝正前时一道白光扫过盾体。盾形是产品
++         * 自己的标记（与页签图标、应用 logo 同一份路径），对勾是盾形上的镂空，因此白光读作「标记在工作」，
++         * 而不是另配一个转圈。不写字：启动这一刻，标记本身就是品牌。这里全是静态 HTML 与 CSS，因为它在
++         * 应用启动之前就要画出来。
 +         */
 +        .app-loading .kb-loader {
            position: relative;
@@ -53,8 +54,8 @@ diff --git a/index.html b/index.html
 -          height: 60px;
 -          vertical-align: middle;
 -          border-radius: 50%;
-+          width: 64px;
-+          height: 64px;
++          width: 96px;
++          height: 96px;
          }
  
 -        .app-loading .app-loading-outter {
@@ -74,16 +75,16 @@ diff --git a/index.html b/index.html
 +
 +        .app-loading .kb-loader__track {
 +          stroke: rgba(29, 78, 216, 0.16);
-         }
- 
--        .app-loading .app-loading-inner {
++        }
++
 +        .app-loading .kb-loader__arc {
 +          stroke: #1d4ed8;
 +          stroke-dasharray: 44 139;
 +          transform-origin: 32px 32px;
 +          animation: kb-loader-spin 1.4s linear infinite;
-+        }
-+
+         }
+ 
+-        .app-loading .app-loading-inner {
 +        .app-loading .kb-loader__mark {
            position: absolute;
 -          top: calc(50% - 20px);
@@ -97,11 +98,11 @@ diff --git a/index.html b/index.html
 -          animation: loader-inner 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
 +          top: 50%;
 +          left: 50%;
-+          width: 34px;
-+          height: 34px;
-+          margin: -17px 0 0 -17px;
++          width: 52px;
++          height: 52px;
++          margin: -26px 0 0 -26px;
 +          transform-origin: 50% 50%;
-+          animation: kb-loader-breathe 2.4s ease-in-out infinite;
++          animation: kb-loader-flip 2.4s ease-in-out infinite;
          }
  
 -        @-webkit-keyframes loader-outter {
@@ -128,20 +129,17 @@ diff --git a/index.html b/index.html
          }
  
 -        @keyframes loader-outter {
--          0% {
++        @keyframes kb-loader-flip {
+           0% {
 -            -webkit-transform: rotate(0deg);
 -            transform: rotate(0deg);
-+        @keyframes kb-loader-breathe {
-+          0%,
-+          100% {
-+            transform: scale(1);
++            transform: perspective(520px) rotateY(0deg);
            }
  
--          100% {
+           100% {
 -            -webkit-transform: rotate(360deg);
 -            transform: rotate(360deg);
-+          50% {
-+            transform: scale(1.06);
++            transform: perspective(520px) rotateY(360deg);
            }
          }
  
@@ -179,10 +177,6 @@ diff --git a/index.html b/index.html
 -          100% {
 -            -webkit-transform: rotate(-360deg);
 -            transform: rotate(-360deg);
-+          .app-loading .app-loading-title {
-+            color: #e8e5f4;
-+          }
-+
 +          .app-loading .kb-loader__track {
 +            stroke: rgba(255, 255, 255, 0.16);
 +          }
@@ -204,10 +198,11 @@ diff --git a/index.html b/index.html
            }
          }
        </style>
-@@ -127,9 +172,38 @@
-           <div class="app-loading-title">
-             <div class="app-loading-title">%VITE_APP_TITLE%</div>
-           </div>
+       <div class="app-loading">
+         <div class="app-loading-wrap">
+-          <div class="app-loading-title">
+-            <div class="app-loading-title">%VITE_APP_TITLE%</div>
+-          </div>
 -          <div class="app-loading-item">
 -            <div class="app-loading-outter"></div>
 -            <div class="app-loading-inner"></div>
