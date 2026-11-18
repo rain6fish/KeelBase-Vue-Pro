@@ -601,6 +601,18 @@ html body .el-select__wrapper {
 html body .el-card__body {
   padding: 24px;
 }
+// Operation bars are direct buttons inside a card or tab pane (the demo03 sub-lists and many other
+// pages write them that way), followed immediately by the table; the table header otherwise sits flush
+// against the buttons. The buttons are inline-flex, so a bottom margin on them would not move the next
+// line — the margin goes on whatever block follows a button instead. That covers button→table,
+// button→form and any other block without enumerating element types.
+// 操作栏是卡片或标签页里的直接按钮（demo03 子表与不少页面都这么写），后面紧跟着表格；不补间距时表头
+// 会贴着按钮。按钮是 inline-flex，给它加下边距不会推动下一行——所以把间距加在**按钮后面的那个块级兄弟**
+// 上。这样按钮→表格、按钮→表单以及任何其它块都能覆盖，不用逐个枚举元素类型。
+html body .el-card__body > .el-button + *,
+html body .el-tab-pane > .el-button + * {
+  margin-top: 12px;
+}
 html body .el-card__header {
   padding: 20px 24px;
 }
