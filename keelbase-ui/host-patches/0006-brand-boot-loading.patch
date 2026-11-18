@@ -22,7 +22,7 @@ diff --git a/index.html b/index.html
          }
  
          .app-loading .app-loading-wrap {
-@@ -34,102 +38,158 @@
+@@ -34,102 +38,165 @@
            flex-direction: column;
          }
  
@@ -102,7 +102,7 @@ diff --git a/index.html b/index.html
 +          height: 52px;
 +          margin: -26px 0 0 -26px;
 +          transform-origin: 50% 50%;
-+          animation: kb-loader-flip 2.4s ease-in-out infinite;
++          animation: kb-loader-flip 4s ease-in-out infinite;
          }
  
 -        @-webkit-keyframes loader-outter {
@@ -119,7 +119,7 @@ diff --git a/index.html b/index.html
 +        .app-loading .kb-loader__shine {
 +          fill: #fff;
 +          opacity: 0.35;
-+          animation: kb-loader-shine 2.4s ease-in-out infinite;
++          animation: kb-loader-shine 4s ease-in-out infinite;
 +        }
 +
 +        @keyframes kb-loader-spin {
@@ -129,17 +129,24 @@ diff --git a/index.html b/index.html
          }
  
 -        @keyframes loader-outter {
++        /* One turn out and back, not a continuous spin: the shield shows its face, turns over, and
++           comes back face-first, with the eased ends giving it a beat at each side. */
++        /* 翻过去再翻回来，而不是一直转：盾形正面朝前 → 翻到背面 → 再翻回正面；两端用缓动，各停一拍。 */
 +        @keyframes kb-loader-flip {
            0% {
 -            -webkit-transform: rotate(0deg);
 -            transform: rotate(0deg);
 +            transform: perspective(520px) rotateY(0deg);
++          }
++
++          50% {
++            transform: perspective(520px) rotateY(180deg);
            }
  
            100% {
 -            -webkit-transform: rotate(360deg);
 -            transform: rotate(360deg);
-+            transform: perspective(520px) rotateY(360deg);
++            transform: perspective(520px) rotateY(0deg);
            }
          }
  
@@ -149,11 +156,11 @@ diff --git a/index.html b/index.html
 -            transform: rotate(0deg);
 +        @keyframes kb-loader-shine {
 +          0%,
-+          35% {
++          8% {
 +            transform: skewX(-16deg) translateX(0);
            }
  
-+          75%,
++          40%,
            100% {
 -            -webkit-transform: rotate(-360deg);
 -            transform: rotate(-360deg);
