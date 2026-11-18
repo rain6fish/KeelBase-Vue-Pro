@@ -94,11 +94,11 @@ if (!existsSync(metaPath)) {
   }
   git(args.dir, ['add', '-A'])
   git(args.dir, ['-c', 'user.name=keelbase-regen', '-c', 'user.email=regen@keelbase.invalid', 'commit', '-q', '-m', `upstream ${pin}`])
-  // 补丁在检出树里可能带 CRLF（取决于 core.autocrlf），而上游 blob 是 LF。git apply 能读 LF 补丁去贴
-  // CRLF 文件，反过来不行，故一律按 LF 喂给它。
-  //
   // The patch in the checkout may carry CRLF (core.autocrlf), while the upstream blobs are LF. git apply
   // accepts an LF patch onto CRLF files but not the reverse, so it is always handed the LF form.
+  //
+  // 补丁在检出树里可能带 CRLF（取决于 core.autocrlf），而上游 blob 是 LF。git apply 能读 LF 补丁去贴
+  // CRLF 文件，反过来不行，故一律按 LF 喂给它。
   const patchLf = `${args.dir}.regen.in.patch`
   writeFileSync(patchLf, patchText.replace(/\r\n/g, '\n'))
   git(args.dir, ['apply', patchLf])

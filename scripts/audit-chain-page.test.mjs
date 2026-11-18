@@ -399,17 +399,17 @@ test('the search hands the range end and the object to the read face', () => {
 })
 
 test('the two follow-up kinds read differently, and a key-only search says why it can match more', () => {
-  // 2026-11-17 的真栈读数：种类下拉里 `crm_follow_up_record` 与 `follow_up` 两项**都**叫「跟进记录」，第一次
-  // 选错命中 0；只填主键命中 4 行（含待决），类型 + 主键 3 行，页面上没有一句说明。这里钉住两件事：两条业务
-  // 词在两种语言里都不再相同；行数口径那句（`keyOnlyHint`）只在只给主键的检索跑过时、画在命中旁边 —— 否则
-  // 改词条、挪模板、或者让说明在非只给主键时也出现，都能悄悄退回去。
-  //
   // The 2026-11-17 real-stack reading: the kind select carried `crm_follow_up_record` and `follow_up` both
   // reading 「跟进记录」, picking the wrong one first matched nothing; the key alone matched four rows (a
   // pending one among them) and kind + key three, with nothing on the page saying why. Two things are pinned
   // here: the two business words differ in both languages, and the count rule (`keyOnlyHint`) is drawn beside
   // the hits only after a key-only search ran — otherwise a copy edit, a moved block, or a hint that appears
   // for searches it does not describe slips back unnoticed.
+  //
+  // 2026-11-17 的真栈读数：种类下拉里 `crm_follow_up_record` 与 `follow_up` 两项**都**叫「跟进记录」，第一次
+  // 选错命中 0；只填主键命中 4 行（含待决），类型 + 主键 3 行，页面上没有一句说明。这里钉住两件事：两条业务
+  // 词在两种语言里都不再相同；行数口径那句（`keyOnlyHint`）只在只给主键的检索跑过时、画在命中旁边 —— 否则
+  // 改词条、挪模板、或者让说明在非只给主键时也出现，都能悄悄退回去。
   const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
   for (const lang of ['en', 'zh-CN']) {
     const start = patch.indexOf(`diff --git a/src/locales/${lang}.ts`)

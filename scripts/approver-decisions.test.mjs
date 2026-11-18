@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// 「最近裁决」不能只答调用方自己发起的确认。第二批准人裁决的 R4 行落在全局队列 + 审计裁决行上，
-// 而确认记录的投影不带裁决人 id —— 故只能按「同一工具、五秒之内、恰好一个候选」配对，配不上就不列。
-// 这里钉住那条规则本身，以及页面真的用了它、真的把两半合到同一张卡里。
-//
-// Run: node --test scripts/approver-decisions.test.mjs
-//
 // The "recent decisions" card must not answer only the caller's own confirmations. An R4 row decided
 // by the second approver lives on the global queue plus an audit decision row, and the confirmation
 // projection carries no approver id — so the only honest match is "same tool, within five seconds,
 // exactly one candidate", and no match lists nothing. This pins the rule, and pins that the page uses
 // it and merges both halves into the one card.
+//
+// 「最近裁决」不能只答调用方自己发起的确认。第二批准人裁决的 R4 行落在全局队列 + 审计裁决行上，
+// 而确认记录的投影不带裁决人 id —— 故只能按「同一工具、五秒之内、恰好一个候选」配对，配不上就不列。
+// 这里钉住那条规则本身，以及页面真的用了它、真的把两半合到同一张卡里。
+//
+// Run: node --test scripts/approver-decisions.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

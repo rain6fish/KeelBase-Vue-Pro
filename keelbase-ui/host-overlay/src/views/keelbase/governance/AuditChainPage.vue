@@ -580,14 +580,14 @@ const displayRows = computed(() =>
 )
 
 /**
- * 这次检索是不是「只给主键」—— 给了主键、没给类型。条件一改就 `clearQueryResults()`，故它读到的就是刚刚
- * 跑过的那一组条件。只给主键的语义（这一条记录、不分类别，类型没记下来的行也算）与命中数可能多于
- * 「类型 + 主键」这件事，由页面上的一句说明来讲，见模板里的 `keyOnlyHint`。
- *
  * Whether this search gave the key and no kind. Any change to the conditions clears the result, so this reads
  * the set the search actually ran under. What key-only means — this record under any kind, rows with no kind
  * recorded included — and why it can match more than kind + key is said by one line on the page; see
  * `keyOnlyHint` in the template.
+ *
+ * 这次检索是不是「只给主键」—— 给了主键、没给类型。条件一改就 `clearQueryResults()`，故它读到的就是刚刚
+ * 跑过的那一组条件。只给主键的语义（这一条记录、不分类别，类型没记下来的行也算）与命中数可能多于
+ * 「类型 + 主键」这件事，由页面上的一句说明来讲，见模板里的 `keyOnlyHint`。
  */
 const keyOnlySearch = computed(
   () => queryRan.value && !objectQuery.resultType && String(objectQuery.resultId || '').trim() !== '',
