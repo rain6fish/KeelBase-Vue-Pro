@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 96269a8..2611a9b 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,796 @@
+@@ -1,4 +1,797 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -46,6 +46,7 @@ index 96269a8..2611a9b 100644
 +      checkPassed: 'passed',
 +      checkFailed: 'failed',
 +      checksNote: 'The checks this call passed or failed, as the runtime recorded them.',
++      checkUnregistered: 'an unregistered check',
 +      rowsHint:
 +        'Reading these rows: an object’s name is masked after its first character (the rest is replaced by asterisks), because a record’s own text is personal data and this console prints only enough to tell rows apart. “Account #n” is the host’s own user id, named when the host’s directory can resolve it. The “Status” filter asks whether the row recorded an error; the “Result” column says how far the call got (Executed, Attempted, Pending, Approved …) — two different questions, not two words for one.',
 +      check: {
@@ -803,7 +804,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 35f1e1a..856d201 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,788 @@
+@@ -1,4 +1,789 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -847,6 +848,7 @@ index 35f1e1a..856d201 100644
 +      checkPassed: '通过',
 +      checkFailed: '未通过',
 +      checksNote: '这次调用通过或被拒的那几道检查，由运行时记下。',
++      checkUnregistered: '未登记的检查',
 +      rowsHint:
 +        '读这几行：对象名称只留首字符、其余换成星号，因为一条记录自己的文字属于个人数据，本控制台只印到「分得清是哪一行」为止。「账号 #n」是宿主用户表里的编号，宿主名录答得出名字时就印名字。「状态」筛选问的是这一行有没有记下出错；「结果」列说的是这次调用走到了哪一步（已执行、试过、待决、已批准……）—— 两个问题，不是一套词的两个说法。',
 +      check: {

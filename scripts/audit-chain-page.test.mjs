@@ -357,6 +357,26 @@ test('D-8: a second export carries the id and the checks, and the six-column one
     'the six-column export no longer composes exactly six answers')
 })
 
+test('an unregistered check is named as unregistered, never by the runtime’s own word', () => {
+  // 2026-11-17 真栈读数：把 `checks[].name` 换成 `crmCustomerScope` 后，页面把它原样画了出来。名表是闭集
+  // （`keelbase.audit.check.*`），闭集之外的名字一律印「未登记的检查 / an unregistered check」—— 屏幕与
+  // 核对 CSV 读的是同一个 `checkText`，故这两处同时收口。
+  //
+  // The 2026-11-17 real-stack reading: with `checks[].name` replaced by `crmCustomerScope`, the page drew
+  // it verbatim. The vocabulary is a closed set (`keelbase.audit.check.*`); a name outside it prints
+  // 「未登记的检查 / an unregistered check」 — the screen and the verification CSV read the same
+  // `checkText`, so both are closed at once.
+  assert.match(
+    script,
+    /te\(key\) \? t\(key\) : t\('keelbase\.audit\.checkUnregistered'\)/,
+    'checkText does not close the vocabulary',
+  )
+  assert.doesNotMatch(script, /te\(key\) \? t\(key\) : name/, 'checkText still falls back to the runtime name')
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  assert.ok(patch.includes("checkUnregistered: 'an unregistered check'"), 'en.ts lacks checkUnregistered')
+  assert.ok(patch.includes("checkUnregistered: '未登记的检查'"), 'zh-CN.ts lacks checkUnregistered')
+})
+
 test('the search hands the range end and the object to the read face', () => {
   // U1 的宿主侧收口：对象 + 区间以前只在控制台本地收窄（读面只收起点）。现在两样都发给读面，
   // 会施加它们的运行时回一份已经收窄的列表；旧运行时忽略未知参数，本地收窄仍决定结果。

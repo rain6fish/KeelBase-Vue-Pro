@@ -96,9 +96,11 @@ endings are CRLF. The download carries a UTF-8 BOM so Excel does not turn the Ch
 mojibake.
 
 **No internal name.** Before the file is produced, every header and every cell is run through the
-same `leaksIn` the six-answer score uses (snake_case identifiers, schema field names, UUIDs, a bare
-outcome code). One hit refuses the **whole** export. The error names **which question** leaked and
-does not echo the text — otherwise refusing the export would print the internal name on the screen.
+same `leaksIn` the six-answer score uses (snake_case identifiers, camelCase identifiers — two
+lowercase→uppercase turns in one token, so single-hump words like iPhone or macOS do not count —
+schema field names, UUIDs, a bare outcome code). One hit refuses the **whole** export. The error names
+**which question** leaked and does not echo the text — otherwise refusing the export would print the
+internal name on the screen.
 
 ## 6. The bound, stated
 

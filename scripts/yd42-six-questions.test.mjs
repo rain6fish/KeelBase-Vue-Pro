@@ -430,9 +430,21 @@ test('the leak detector is not vacuous, and prose is not a leak', () => {
   assert.deepEqual(six.leaksIn('fda3e3d0-2954-4c48-be60-f1e1ece29c61'), ['fda3e3d0-2954-4c48-be60-f1e1ece29c61'])
   assert.deepEqual(six.leaksIn('{"ownerUserId":1}'), ['ownerUserId'])
   assert.deepEqual(six.leaksIn('declined'), ['declined'])
+  // 驼峰标识符同样是内部名：检查名词表若以这种词形扩项，导出不能把它原样带出去。
+  // camelCase identifiers are internal names too: if the check vocabulary widens with one, the export
+  // must not carry it out unchanged.
+  assert.deepEqual(six.leaksIn('crmCustomerScope'), ['crmCustomerScope'])
+  assert.deepEqual(six.leaksIn('passed crmCustomerScope ok'), ['crmCustomerScope'])
+  assert.deepEqual(six.leaksIn('updateCrmCustomer'), ['updateCrmCustomer'])
   // ordinary sentences are not leaks
   assert.deepEqual(six.leaksIn('A person declined it, so it will not happen'), [])
   assert.deepEqual(six.leaksIn('Customer · #9005 · 万**** · still there'), [])
+  // 单段驼峰是行文或品牌，不是标识符的形状：iPhone / macOS / eBay / 人名 / 掩码都不该命中。
+  // One hump is prose or a brand, not an identifier's shape: iPhone / macOS / eBay / a person's login /
+  // a mask must not fire.
+  for (const prose of ['iPhone', 'macOS', 'iOS', 'eBay', 'pValue is 0.03', 'KeelBase（account #1）', 'E****', 'johnSmith']) {
+    assert.deepEqual(six.leaksIn(prose), [], `"${prose}" was read as a leak`)
+  }
 })
 
 // ---------------------------------------------------------------------------------------------------

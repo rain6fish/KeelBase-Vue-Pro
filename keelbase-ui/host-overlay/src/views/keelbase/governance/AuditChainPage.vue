@@ -645,14 +645,18 @@ function checksOf(row: AuditRow) {
 }
 
 /**
- * A check's name in the reader's language. An unknown name falls back to the runtime's own word, so a
- * vocabulary that widens does not need a frontend change to stay readable.
+ * A check's name in the reader's language. The vocabulary is a **closed set** (`keelbase.audit.check.*`):
+ * a name outside it prints 「未登记的检查」 rather than the runtime's own word, because that word is an
+ * internal identifier and this page must not be the place it reaches the reader (the verification CSV
+ * calls this same function, so the file is closed with the screen).
  *
- * 一道检查的名字，用读者的语言。不认识的名称回落到运行时自己的词，故词表放宽时前端不必跟着改。
+ * 一道检查的名字，用读者的语言。词表是**闭集**（`keelbase.audit.check.*`）：闭集之外的名字一律印「未登记
+ * 的检查」，**不**回落到运行时自己的词 —— 那个词是内部标识符，本页不能成为它到达读者的地方（核对 CSV
+ * 调用的是同一个函数，故文件与屏幕一起收口）。
  */
 function checkText(name: string): string {
   const key = `keelbase.audit.check.${name}`
-  return te(key) ? t(key) : name
+  return te(key) ? t(key) : t('keelbase.audit.checkUnregistered')
 }
 
 /**
