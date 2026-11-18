@@ -524,6 +524,20 @@ html body .el-textarea__inner {
 html body .el-tag {
   border-radius: 6px;
 }
+// Surfaces follow the product skin too: cards and the dialog family are 12px, the same set the main
+// repository restates on its own theme entry.
+// 容器圆角也跟随产品皮肤：卡片与弹窗族 12px——与主仓主题入口里重述的那一组一致。
+html body .el-card,
+html body .el-card.is-never-shadow,
+html body .el-card.is-always-shadow,
+html body .el-card.is-hover-shadow,
+html body .el-dialog,
+html body .el-message-box,
+html body .el-popover,
+html body .el-drawer__header,
+html body .el-dropdown__popper .el-dropdown-menu {
+  border-radius: 12px !important;
+}
 // Element Plus hard-codes the select's minimum height at 32px rather than taking the component size;
 // with the main repository's geometry that is exactly the wanted value.
 // Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸；主仓的几何正是这个值。
