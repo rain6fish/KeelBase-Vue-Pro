@@ -1,0 +1,26 @@
+/*!
+ * Materio skin — vendored copy of the source package's manifest, do not edit here.
+ * Source: vue-element-plus-admin v3.1.0, packages/styles/src/materio-theme/index.less
+ *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
+ * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
+ * License: MIT, inherited from the source package.
+ * Serialised for Sass: the imports point at the vendored copies in this directory, and .less
+ * extensions are gone. The build entry is materio.scss, which loads this file.
+ *
+ * Materio 皮肤——来源包清单文件的 vendor 副本，请勿在此编辑。
+ * 来源：vue-element-plus-admin v3.1.0 的 packages/styles/src/materio-theme/index.less
+ *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
+ * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
+ * 许可：MIT，随来源包。
+ * 改写为 Sass 可读：导入指向本目录的 vendor 副本，去掉 .less 扩展名。构建入口是
+ * materio.scss，它加载本文件。
+ */
+@use 'tokens.css';
+@use 'var.css';
+@use 'typography';
+@use 'layout';
+@use 'cards';
+@use 'controls';
+@use 'tables';
+@use 'feedback';
+@use 'dark-mode';

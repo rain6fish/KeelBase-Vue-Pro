@@ -10,6 +10,7 @@
 #
 #   bash scripts/build-host-ui.sh              # fetch if needed, install, build, inject
 #   bash scripts/build-host-ui.sh --skip-build # inject into an existing out dir (no install/build)
+#   KEELBASE_UI_SKIN=materio bash scripts/build-host-ui.sh   # same, with the Materio skin
 #
 # 构建宿主的后台界面，并把 KeelBase 视觉层铺到**构建产物**上——不改任何上游文件。
 # 顺序是关键：先在**未改动**的检出上构建；随后编译入库的令牌，并**最后**链进构建好的页面，
@@ -36,10 +37,20 @@
 #      于是「最后链一个 CSS」能带上除**主色族**以外的一切；`!important` 能压过非重要的内联样式，
 #      所以只给该族加上它——其余层保持在运行时可被覆盖。
 #
-# The tokens themselves are vendored by scripts/sync-ui-theme.sh; edit them in Web-Admin-Vue, never
-# here. 令牌由 scripts/sync-ui-theme.sh 入库；要改请改 Web-Admin-Vue，不要改这里。
+# Two skins ship. `product` is the KeelBase look and stays the default; `materio` is the Materio
+# Free 2.3.0 look vendored under `keelbase-ui/skins/materio/`. The choice is made at build time and
+# only the chosen pair of stylesheets is compiled and linked — an artefact never carries both.
+# 本仓带两套皮肤。`product` 是 KeelBase 的样子，仍是默认；`materio` 是收在
+# `keelbase-ui/skins/materio/` 下的 Materio Free 2.3.0 样子。选择在构建期做出，且只编译、链接选中的
+# 那一对样式表——产物永远不会同时带两套。
+#
+# The product tokens themselves are vendored by scripts/sync-ui-theme.sh; edit them in Web-Admin-Vue,
+# never here. The Materio files are verbatim copies from vue-element-plus-admin (see their headers).
+# 产品皮肤的令牌由 scripts/sync-ui-theme.sh 入库；要改请改 Web-Admin-Vue，不要改这里。Materio 的那些
+# 文件是 vue-element-plus-admin 的逐字副本（见各文件头部）。
 #
 # 可覆盖：
+#   KEELBASE_UI_SKIN         皮肤：product（默认）| materio
 #   KEELBASE_YUDAO_UI        检出位置（默认 <repo>/target/yudao-ui-admin-vue3）
 #   KEELBASE_YUDAO_UI_REPO   克隆地址（默认 Gitee 镜像）
 #   KEELBASE_YUDAO_UI_REF    要取的提交 / 分支 / 标签（默认钉在上游 9bd6a91 —— 四份补丁所针对的那个提交）
@@ -48,6 +59,7 @@
 #   抬这个默认值是**刻意的编辑**，必须**与补丁一起**做：四份补丁要重基到新提交，不能只改这一行。
 #
 # Overridable:
+#   KEELBASE_UI_SKIN         skin: product (default) | materio
 #   KEELBASE_YUDAO_UI        checkout location   (default <repo>/target/yudao-ui-admin-vue3)
 #   KEELBASE_YUDAO_UI_REPO   clone URL           (default the Gitee mirror)
 #   KEELBASE_YUDAO_UI_REF    commit / branch / tag to fetch
@@ -68,8 +80,26 @@ OUT_NAME="${KEELBASE_YUDAO_UI_OUT:-dist-prod}"
 PNPM_VERSION="${KEELBASE_YUDAO_UI_PNPM:-9.15.9}"
 REGISTRY="${KEELBASE_YUDAO_UI_REGISTRY:-https://registry.npmmirror.com}"
 
-THEME_SCSS="$REPO_ROOT/keelbase-ui/theme/element-theme.scss"
-HOST_SCSS="$REPO_ROOT/keelbase-ui/theme/host-yudao.scss"
+# Both skins compile into the same two artefact file names, so building the other skin into the same
+# dist overwrites the previous one instead of leaving an unused stylesheet behind.
+# 两套皮肤编译成同样的两个产物文件名，故在同一 dist 里构建另一套皮肤会覆盖上一套，而不是留下一个
+# 没人引用的样式表。
+SKIN="${KEELBASE_UI_SKIN:-product}"
+case "$SKIN" in
+  product)
+    THEME_SCSS="$REPO_ROOT/keelbase-ui/theme/element-theme.scss"
+    HOST_SCSS="$REPO_ROOT/keelbase-ui/theme/host-yudao.scss"
+    ;;
+  materio)
+    THEME_SCSS="$REPO_ROOT/keelbase-ui/skins/materio/materio.scss"
+    HOST_SCSS="$REPO_ROOT/keelbase-ui/skins/materio/host-yudao-materio.scss"
+    ;;
+  *)
+    echo "unknown KEELBASE_UI_SKIN: $SKIN (expected product or materio)" >&2
+    echo "未知的 KEELBASE_UI_SKIN：$SKIN（取值 product 或 materio）" >&2
+    exit 2
+    ;;
+esac
 THEME_CSS_NAME="keelbase-theme.css"
 HOST_CSS_NAME="keelbase-host.css"
 BOUNDARY_NAME="keelbase-governance-boundary.json"
@@ -81,8 +111,13 @@ SKIP_BUILD=0
 if [[ "${1:-}" == "--skip-build" ]]; then SKIP_BUILD=1; fi
 
 if [[ ! -f "$THEME_SCSS" ]]; then
-  echo "vendored tokens missing: $THEME_SCSS" >&2
-  echo "run: bash scripts/sync-ui-theme.sh" >&2
+  echo "theme entry missing: $THEME_SCSS (skin: $SKIN)" >&2
+  echo "皮肤入口不存在：$THEME_SCSS（皮肤：$SKIN）" >&2
+  if [[ "$SKIN" == "product" ]]; then
+    echo "run: bash scripts/sync-ui-theme.sh" >&2
+  else
+    echo "restore keelbase-ui/skins/materio/ from the source package" >&2
+  fi
   exit 2
 fi
 
@@ -210,6 +245,7 @@ fi
 
 UI_SHA="$(git -C "$UI_DIR" rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
 echo "admin UI checkout: $UI_DIR @ $UI_SHA"
+echo "skin: $SKIN"
 
 # --- 1b. our overlay and patches, laid over a reset tree -------------------------------------------
 # Until now the layer never touched the host's source. Two of the things asked of it cannot be done

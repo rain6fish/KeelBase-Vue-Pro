@@ -1,0 +1,88 @@
+/*!
+ * Materio skin — vendored copy, do not edit here.
+ * Source: vue-element-plus-admin v3.1.0, materio-theme/layout.less
+ *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
+ * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
+ * License: MIT, inherited from the source package.
+ * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ *
+ * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/layout.less
+ *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
+ * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
+ * 许可：MIT，随来源包。
+ * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ */
+/*
+ * Materio Free 2.3.0 layout-skin values mapped onto the existing VEA shell.
+ * Source: typescript-version/src/@layouts/styles/_variables.scss
+ * and typescript-version/src/@layouts/styles/overrides.scss.
+ * This file styles the existing layout; it does not replace its structure.
+ */
+/* Existing sidebar and secondary navigation surfaces. */
+.v-layout__sidebar,
+.v-layout__secondary,
+.v-layout__rail {
+  border-color: var(--layout-border-color);
+}
+
+.v-layout__topbar,
+.v-layout__toolbar,
+.v-layout__tags {
+  border-color: var(--layout-border-color);
+}
+
+.v-layout__topbar {
+  min-height: 64px;
+}
+
+.v-layout__top-tools {
+  min-height: 64px;
+}
+
+/* Materio's horizontal navigation uses 8px item gaps and compact side padding. */
+.primary-nav--top {
+  gap: 8px;
+  padding-right: 0.625rem;
+  padding-left: 0.625rem;
+}
+
+.primary-nav--top .primary-nav__item {
+  gap: 8px;
+  border-radius: var(--el-border-radius-base);
+}
+
+/* Materio's navigation icon scale. */
+.primary-nav--top .primary-nav__item svg,
+.primary-nav--rail .primary-nav__item svg {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+/* Sidebar menu rhythm follows the source navigation item spacing. */
+.v-menu--vertical .el-menu > .el-menu-item,
+.v-menu--vertical .el-menu > .el-sub-menu > .el-sub-menu__title {
+  margin-right: 1rem;
+  margin-left: 1rem;
+  border-radius: var(--el-border-radius-base);
+}
+
+/* Preserve the existing compact dual-navigation rail geometry. */
+.v-layout__rail {
+  flex-shrink: 0;
+}
+
+@media (width <= 767px) {
+  .v-layout__sidebar.is-mobile {
+    width: min(82vw, 260px);
+  }
+}
+
+.v-menu--vertical .el-menu > .el-menu-item,
+.v-menu--vertical .el-menu > .el-sub-menu > .el-sub-menu__title {
+  width: auto;
+  min-height: 4.25rem;
+  height: auto;
+  padding: 1.4375rem 1rem;
+  line-height: 1.375rem;
+}
