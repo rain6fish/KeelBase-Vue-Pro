@@ -114,6 +114,11 @@ test('the action centre merges the approver half into the one recent-decisions c
   assert.match(page, /v-for="h in historyRows"/, 'the card no longer draws the merged list')
   assert.match(page, /approverDecidedTokens\.has\(h\.token\)/, 'a row decided as the second approver is no longer marked as such')
   assert.match(page, /historyApproverUnread/, 'a failed approver-half read is silently drawn as "nothing decided"')
+  assert.match(
+    page,
+    /v-if="!historyRows\.length && !approverHistoryError"/,
+    'a failed read is also drawn as "nothing has been decided", contradicting the error above it',
+  )
 })
 
 test('both locale dictionaries carry the approver-half keys', () => {

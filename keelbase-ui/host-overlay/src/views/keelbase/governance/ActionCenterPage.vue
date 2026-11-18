@@ -182,8 +182,13 @@
     <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">{{ t('keelbase.actionCenter.historyHint') }}</div>
     <div v-if="approverHistoryError" class="text-[var(--el-color-danger)] mb-10px">{{ approverHistoryError }}</div>
 
-    <el-empty v-if="!historyRows.length" :description="t('keelbase.actionCenter.historyEmpty')" />
-    <div v-else>
+    <!-- A failed read is already stated above; do not also draw it as "nothing has been decided". -->
+    <!-- 读失败上面已经说了；不再同时画成「最近没有裁决过」。 -->
+    <el-empty
+      v-if="!historyRows.length && !approverHistoryError"
+      :description="t('keelbase.actionCenter.historyEmpty')"
+    />
+    <div v-else-if="historyRows.length">
       <div v-for="h in historyRows" :key="h.token" class="row">
         <div class="row-main">
           <div class="row-head">
