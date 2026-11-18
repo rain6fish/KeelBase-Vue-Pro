@@ -561,6 +561,17 @@ html body .el-textarea__inner {
 html body .el-tag {
   border-radius: 6px;
 }
+// The host's DictTag forces white text whenever a dict item carries *any* cssClass, but only paints a
+// custom background when that cssClass is a hex colour. A non-hex cssClass therefore left white text on
+// the paler type background (measured 2026-11-18 on demo03-inner's "男" tag: 1.1:1). Light-effect tags
+// whose white was forced without an inline background return to their type's text colour; tags with a
+// custom background keep the white.
+// 宿主的 DictTag 只要字典项带**任意** cssClass 就强制白字，而只有 cssClass 是十六进制色值时才铺自定义底色；
+// 非十六进制值就成了「浅底白字」（2026-11-18 在 demo03-inner 的「男」标签实测 1.1:1）。没有内联背景的
+// light 标签恢复为该类型自己的文字色；带自定义背景的仍保留白字。
+html body .el-tag--light[style*="color: rgb(255, 255, 255)"]:not([style*="background-color"]) {
+  color: var(--el-tag-text-color) !important;
+}
 // Surfaces follow the product skin too: cards and the dialog family are 12px, the same set the main
 // repository restates on its own theme entry.
 // 容器圆角也跟随产品皮肤：卡片与弹窗族 12px——与主仓主题入口里重述的那一组一致。
