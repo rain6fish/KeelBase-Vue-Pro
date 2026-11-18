@@ -467,6 +467,12 @@ html body .v-tags-view .v-tags-view__item {
 html body .v-tags-view .v-tags-view__item.is-active {
   border-color: var(--el-color-primary);
 }
+// The tags strip already has its own ‹‹ ›› scroll buttons; Element Plus's scrollbar under it is
+// redundant and appears as soon as there are enough tabs to overflow. The arrows keep working.
+// 标签条本身已有 ‹‹ ›› 滚动按钮；Element Plus 的滚动条是多余的，标签一多就会露出来。箭头仍可正常滚动。
+html body .v-tags-view .el-scrollbar__bar {
+  display: none;
+}
 
 // Component details from the original that the Element Plus token bridge does not carry:
 //   · filled buttons sit at elevation 2 (a soft 0 2px 4px shadow) and go flat while pressed;
