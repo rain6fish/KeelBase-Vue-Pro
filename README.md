@@ -21,6 +21,11 @@ identity bridge, tool governance, confirmation, decision trace, audit and revoke
 > **In a hurry?** [KEELBASE-HOST.md](keelbase-docs/KEELBASE-HOST.md) — why this repository exists, what
 > it does and does not claim, and where its line stands.
 
+> **Public core, private delivery.** KeelBase-Vue-Pro is the public application/integration layer for
+> KeelBase. Customer-specific extensions, themes, integrations and business assets are maintained
+> separately in private repositories. This repository is the common base, not any customer's project
+> source.
+
 **Articles** — the long-form essays behind these decisions, on AI execution governance and AI audit evidence: [keelbase.hashnode.dev](https://keelbase.hashnode.dev/).
 
 <!-- BEGIN keelbase-family:en sha256:aed694b448c84bebfff1900d68c48f799065575a6bfe8e28ce458c130fd953dc -->
