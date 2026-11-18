@@ -398,16 +398,18 @@ test('the search hands the range end and the object to the read face', () => {
   assert.match(run, /until\.value \? until\.value\.toISOString\(\)/, 'the range end is not passed to scanAudit')
 })
 
-test('the two follow-up kinds read differently, and the count rule is drawn under the object filter', () => {
+test('the two follow-up kinds read differently, and a key-only search says why it can match more', () => {
   // 2026-11-17 的真栈读数：种类下拉里 `crm_follow_up_record` 与 `follow_up` 两项**都**叫「跟进记录」，第一次
   // 选错命中 0；只填主键命中 4 行（含待决），类型 + 主键 3 行，页面上没有一句说明。这里钉住两件事：两条业务
-  // 词在两种语言里都不再相同，且行数口径那句话真的画在对象筛选下面 —— 否则改词条、挪模板都能悄悄退回去。
+  // 词在两种语言里都不再相同；行数口径那句（`keyOnlyHint`）只在只给主键的检索跑过时、画在命中旁边 —— 否则
+  // 改词条、挪模板、或者让说明在非只给主键时也出现，都能悄悄退回去。
   //
   // The 2026-11-17 real-stack reading: the kind select carried `crm_follow_up_record` and `follow_up` both
   // reading 「跟进记录」, picking the wrong one first matched nothing; the key alone matched four rows (a
   // pending one among them) and kind + key three, with nothing on the page saying why. Two things are pinned
-  // here: the two business words differ in both languages, and the count-rule sentence is really drawn under
-  // the object filter — otherwise a copy edit or a moved block slips back unnoticed.
+  // here: the two business words differ in both languages, and the count rule (`keyOnlyHint`) is drawn beside
+  // the hits only after a key-only search ran — otherwise a copy edit, a moved block, or a hint that appears
+  // for searches it does not describe slips back unnoticed.
   const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
   for (const lang of ['en', 'zh-CN']) {
     const start = patch.indexOf(`diff --git a/src/locales/${lang}.ts`)
@@ -425,16 +427,24 @@ test('the two follow-up kinds read differently, and the count rule is drawn unde
     "follow_up: 'Sample follow-up'",
     "crm_follow_up_record: 'CRM 跟进记录'",
     "follow_up: '示例跟进记录'",
-    'objectKeyHint:',
   ]) {
     assert.ok(patch.includes(line), `the host patch lacks \`${line}\``)
   }
 
+  const hints = [...patch.matchAll(/^\+\s*keyOnlyHint:\s*\n\+\s*('[^']*'|"[^"]*")/gm)].map((m) => m[1])
+  assert.equal(hints.length, 2, 'expected one keyOnlyHint per language in the host patch')
+  assert.ok(hints.some((h) => /pending row/.test(h)), 'the English keyOnlyHint no longer names the pending row')
+  assert.ok(hints.some((h) => /待决行/.test(h)), 'the Chinese keyOnlyHint no longer names the pending row')
+
+  assert.match(
+    script,
+    /const keyOnlySearch = computed\(\s*\(\) => queryRan\.value && !objectQuery\.resultType/,
+    'the hint is not gated on a search that gave the key and no kind',
+  )
   const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
-  const formAt = template.indexOf(':model="objectQuery"')
-  const hintAt = template.indexOf("t('keelbase.audit.objectKeyHint')")
   const statusAt = template.indexOf('class="query-status"')
-  assert.ok(formAt >= 0, 'the object filter form is gone')
-  assert.ok(hintAt > formAt, 'the count rule is not drawn under the object filter')
-  assert.ok(statusAt > hintAt, 'the count rule is drawn after the result status instead of with the controls')
+  const hintAt = template.indexOf("t('keelbase.audit.keyOnlyHint')")
+  assert.ok(statusAt >= 0, 'the result status block is gone')
+  assert.ok(hintAt > statusAt, 'the key-only rule is not drawn beside the hits')
+  assert.ok(template.lastIndexOf('v-if="keyOnlySearch"', hintAt) > 0, 'the key-only rule is drawn for every search')
 })

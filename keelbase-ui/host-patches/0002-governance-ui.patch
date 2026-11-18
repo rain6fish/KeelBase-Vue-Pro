@@ -1,8 +1,8 @@
 diff --git a/src/locales/en.ts b/src/locales/en.ts
-index 9d14564..c715092 100644
+index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,798 @@
+@@ -1,4 +1,799 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -72,7 +72,6 @@ index 9d14564..c715092 100644
 +      untilPlaceholder: 'Window end',
 +      objectKey: 'Business key',
 +      objectAny: 'Any kind of object',
-+      objectKeyHint: 'Business key alone: every row about that number, including a pending row that has not run yet. With a kind selected as well: only the rows the audit read face answers for that object — the pending row is not among them, so the count is smaller.',
 +      search: 'Search',
 +      exportCsv: 'Export as CSV',
 +      exportCheck: 'Export with IDs and checks',
@@ -82,6 +81,8 @@ index 9d14564..c715092 100644
 +      exportRefused: 'The export was refused: a cell in "{column}" carries an internal name',
 +      queryHits: 'Matched {n} row(s) in what was scanned',
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
++      keyOnlyHint:
++        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -802,10 +803,10 @@ index 9d14564..c715092 100644
      inputText: 'Please input',
      selectText: 'Please select',
 diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
-index 13065de..8176c89 100644
+index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,790 @@
+@@ -1,4 +1,791 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -875,7 +876,6 @@ index 13065de..8176c89 100644
 +      untilPlaceholder: '窗口终点',
 +      objectKey: '业务主键',
 +      objectAny: '任意业务对象',
-+      objectKeyHint: '只填业务主键：这个编号下的全部相关行，含还没执行的待决行。同时选了对象类型：只留审计读面对该对象答出的行，待决行不在其中，行数会比只填主键少。',
 +      search: '检索',
 +      exportCsv: '导出 CSV',
 +      exportCheck: '导出核对 CSV',
@@ -885,6 +885,8 @@ index 13065de..8176c89 100644
 +      exportRefused: '导出已拒绝：「{column}」这一格带着内部名',
 +      queryHits: '扫描到的范围里命中 {n} 行',
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
++      keyOnlyHint:
++        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',

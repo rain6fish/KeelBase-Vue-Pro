@@ -123,19 +123,6 @@
       </el-form-item>
     </el-form>
 
-    <!--
-      两种填法的行数为什么不一样，就在控件下面说清楚：只填主键时页面自己按编号配行，还没执行的待决行也算；
-      再选上对象类型，就只留审计读面按该对象答出的行，待决行不在其中 —— 差别是口径，不是丢行。
-
-      Why the two ways of filling this in give different counts, said right under the controls: with the
-      key alone the page pairs rows by the number itself, so a pending row that has not run yet counts;
-      with a kind selected as well, only the rows the audit read face answers for that object remain, and
-      the pending row is not one of them — the difference is the rule, not lost rows.
-    -->
-    <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
-      {{ t('keelbase.audit.objectKeyHint') }}
-    </div>
-
     <!-- 扫到哪儿、命中几行、有没有到上界 —— 查询的边界要说出来，不然「没有行」会被读成「没有这件事」。 -->
     <!-- Where the scan went, how many rows matched, whether it hit its bound — an unspoken bound makes
          "no rows" read as "nothing happened". -->
@@ -147,6 +134,16 @@
       <span class="muted"> · {{ rangeText() }}</span>
       <span v-if="queryTruncated" class="query-warn"> · {{ t('keelbase.audit.scanBound') }}</span>
     </div>
+    <!--
+      只给主键的语义要在结果旁边说出来：它挑的是「这一条记录、不分类别」，命中可能比「类型 + 主键」多 ——
+      读者若把多出的那一两行读成读面返回了多余的行，就会去找一个并不存在的缺陷。两份导出沿用同一份命中，
+      故这一句同时说明导出。
+
+      The key-only rule is stated beside its result: it picks this record under any kind, so it can match more
+      than kind + key — a reader who takes the extra rows for a read-face bug will go looking for a defect that
+      is not there. Both exports carry the same matched set, so this one line covers them too.
+    -->
+    <div v-if="keyOnlySearch" class="query-status muted">{{ t('keelbase.audit.keyOnlyHint') }}</div>
     <div v-if="exportError" class="text-[var(--el-color-danger)] mb-10px">{{ exportError }}</div>
 
     <!-- 覆盖声明（`D57`）：这一页读到哪、到不了哪些路径 —— 只写事实。 -->
@@ -580,6 +577,20 @@ const scanAuditRows = ref<AuditRow[]>([])
  *  (see `displayRowsOf`). */
 const displayRows = computed(() =>
   displayRowsOf({ queryRan: queryRan.value, queryRows: queryRows.value, rows: rows.value }),
+)
+
+/**
+ * 这次检索是不是「只给主键」—— 给了主键、没给类型。条件一改就 `clearQueryResults()`，故它读到的就是刚刚
+ * 跑过的那一组条件。只给主键的语义（这一条记录、不分类别，类型没记下来的行也算）与命中数可能多于
+ * 「类型 + 主键」这件事，由页面上的一句说明来讲，见模板里的 `keyOnlyHint`。
+ *
+ * Whether this search gave the key and no kind. Any change to the conditions clears the result, so this reads
+ * the set the search actually ran under. What key-only means — this record under any kind, rows with no kind
+ * recorded included — and why it can match more than kind + key is said by one line on the page; see
+ * `keyOnlyHint` in the template.
+ */
+const keyOnlySearch = computed(
+  () => queryRan.value && !objectQuery.resultType && String(objectQuery.resultId || '').trim() !== '',
 )
 
 /**
