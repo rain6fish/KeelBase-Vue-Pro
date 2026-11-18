@@ -657,7 +657,42 @@ awk -v theme_css="$THEME_CSS_NAME" -v host_css="$HOST_CSS_NAME" -v prefix="$BASE
 ' "$INDEX" > "$tmp"
 mv "$tmp" "$INDEX"
 
-# --- 5b. the governance boundary, carried as data ---------------------------------------------------
+# --- 5b. the tab's icon is the product's, not the host's --------------------------------------------
+# The checkout ships the upstream vendor's favicon, and Vite copies it into the artefact together with
+# the `<link rel="icon">` that points at it — so the browser tab showed another product's mark. The icon
+# cannot be fixed from a stylesheet and must not be fixed by editing the checkout, so this layer swaps it
+# here: our mark is copied in beside the stylesheets, the page's one icon link is pointed at it with the
+# same kind of content hash, and upstream's `favicon.ico` is removed from the artefact so nothing shows
+# it. The rewrite matches the link line whatever it currently points at, which keeps a `--skip-build`
+# run over an already-swapped artefact idempotent.
+# 检出里带的是**上游厂商**的 favicon，Vite 会把它连同指向它的 `<link rel="icon">` 一起复制进产物——于是
+# 浏览器页签显示的是另一个产品的标志。这件事样式表做不到，也不该靠改检出解决，故由这一层在这里换：我们的
+# 标志拷进产物、与样式表并排，页面唯一那条图标链接指过来并同样带上内容哈希，上游的 `favicon.ico` 从产物里
+# 删掉，于是没有东西显示它。改写匹配「图标链接那一行」本身、不管它当时指向哪儿，因此对已经换过的产物跑
+# `--skip-build` 也是幂等的。
+FAVICON_SVG="$REPO_ROOT/keelbase-ui/assets/keelbase-favicon.svg"
+if [[ -f "$FAVICON_SVG" ]]; then
+  cp "$FAVICON_SVG" "$DIST/keelbase-favicon.svg"
+  FAVICON_HASH="$(md5sum "$DIST/keelbase-favicon.svg" | cut -c1-8)"
+  tmp="$(mktemp)"
+  awk -v href="${BASE_PREFIX}keelbase-favicon.svg?v=${FAVICON_HASH}" '
+    /<link[^>]*rel=["'"'"']icon["'"'"']/ {
+      if (!done) { print "    <link rel=\"icon\" type=\"image/svg+xml\" href=\"" href "\" />"; done = 1 }
+      next
+    }
+    { print }
+  ' "$INDEX" > "$tmp"
+  mv "$tmp" "$INDEX"
+  rm -f "$DIST/favicon.ico"
+  if ! grep -q -F "keelbase-favicon.svg" "$INDEX"; then
+    echo "could not point the page's icon link at keelbase-favicon.svg" >&2
+    echo "无法把页面的图标链接改为 keelbase-favicon.svg" >&2
+    exit 1
+  fi
+  echo "pointed the page icon at ${BASE_PREFIX}keelbase-favicon.svg (upstream favicon.ico removed)"
+fi
+
+# --- 5c. the governance boundary, carried as data ---------------------------------------------------
 # `YD-27`: the console has to *present* which AI paths this deployment's governance holds and which it
 # does not, and to do that from the same computation CI runs rather than from a description written
 # beside it. That computation is `scripts/check-ungoverned-tool-beans.mjs`, and its `--emit` is written
