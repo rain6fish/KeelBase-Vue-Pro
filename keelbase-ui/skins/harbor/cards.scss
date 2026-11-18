@@ -1,17 +1,17 @@
 /*!
- * Materio skin — vendored copy, do not edit here.
+ * Harbor skin — vendored copy, do not edit here.
  * Source: vue-element-plus-admin v3.1.0, materio-theme/cards.less
  *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
  * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
  * License: MIT, inherited from the source package.
- * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ * The extension changed (.less -> .scss) and the token prefix was renamed (--materio- -> --harbor-); no LESS-specific syntax was present.
  *
- * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * Harbor 皮肤——vendor 副本，请勿在此编辑。
  * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/cards.less
  *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
  * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
  * 许可：MIT，随来源包。
- * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ * 改了扩展名（.less -> .scss），并把令牌前缀由 --materio- 改为 --harbor-；文件内没有 LESS 特有的语法。
  */
 /*
  * Materio Free 2.3.0 card and surface tokens mapped to Element Plus.
@@ -21,11 +21,11 @@
  */
 
 .el-card {
-  color: var(--materio-on-surface);
-  background-color: var(--materio-surface);
+  color: var(--harbor-on-surface);
+  background-color: var(--harbor-surface);
   border-color: var(--el-border-color);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-1);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-1);
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -33,7 +33,7 @@
 }
 
 .el-card__header {
-  color: var(--materio-on-surface);
+  color: var(--harbor-on-surface);
   font-size: 1.125rem;
   font-weight: 500;
   line-height: 1.75rem;
@@ -41,20 +41,20 @@
 }
 
 .el-card__body {
-  color: var(--materio-on-surface);
+  color: var(--harbor-on-surface);
   font-size: 0.9375rem;
   line-height: 1.375rem;
 }
 
 /* Existing card subheadings can opt into Materio's card-title scale. */
-.materio-card-title {
-  color: var(--materio-on-surface);
+.harbor-card-title {
+  color: var(--harbor-on-surface);
   font-size: 1.125rem;
   font-weight: 500;
   line-height: 1.75rem;
 }
 
-.materio-card-subtitle {
+.harbor-card-subtitle {
   color: var(--el-text-color-regular);
   font-size: 0.9375rem;
   font-weight: 400;
@@ -62,16 +62,16 @@
 }
 
 /* Shared surface utility for page-level panels without imposing layout. */
-.materio-surface {
-  color: var(--materio-on-surface);
-  background-color: var(--materio-surface);
+.harbor-surface {
+  color: var(--harbor-on-surface);
+  background-color: var(--harbor-surface);
   border: 1px solid var(--el-border-color);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-1);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-1);
 }
 
 html:root.dark .el-card {
-  color: var(--materio-on-surface);
-  background-color: var(--materio-surface);
+  color: var(--harbor-on-surface);
+  background-color: var(--harbor-surface);
   border-color: var(--el-border-color);
 }

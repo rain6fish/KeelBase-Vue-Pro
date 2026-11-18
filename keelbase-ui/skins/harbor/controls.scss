@@ -1,17 +1,17 @@
 /*!
- * Materio skin — vendored copy, do not edit here.
+ * Harbor skin — vendored copy, do not edit here.
  * Source: vue-element-plus-admin v3.1.0, materio-theme/controls.less
  *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
  * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
  * License: MIT, inherited from the source package.
- * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ * The extension changed (.less -> .scss) and the token prefix was renamed (--materio- -> --harbor-); no LESS-specific syntax was present.
  *
- * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * Harbor 皮肤——vendor 副本，请勿在此编辑。
  * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/controls.less
  *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
  * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
  * 许可：MIT，随来源包。
- * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ * 改了扩展名（.less -> .scss），并把令牌前缀由 --materio- 改为 --harbor-；文件内没有 LESS 特有的语法。
  */
 /*
  * Materio Free 2.3.0 control styling mapped onto Element Plus.
@@ -20,27 +20,27 @@
  */
 
 :root {
-  --materio-button-height: 38px;
-  --materio-button-disabled-opacity: 0.45;
-  --materio-field-outline-opacity: 0.22;
+  --harbor-button-height: 38px;
+  --harbor-button-disabled-opacity: 0.45;
+  --harbor-field-outline-opacity: 0.22;
 }
 
 /* Buttons: Materio button height, typography and disabled state. */
 .el-button {
-  min-height: var(--materio-button-height);
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-button-size);
+  min-height: var(--harbor-button-height);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-button-size);
   font-weight: 500;
   line-height: 1.375rem;
   letter-spacing: normal;
   text-transform: capitalize;
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 
 .el-button.is-disabled,
 .el-button.is-disabled:hover,
 .el-button.is-disabled:focus {
-  opacity: var(--materio-button-disabled-opacity);
+  opacity: var(--harbor-button-disabled-opacity);
 }
 
 /* Form controls share Materio's typography and semantic geometry tokens. */
@@ -54,8 +54,8 @@
 .el-cascader,
 .el-tree-select,
 .el-autocomplete {
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-body-1-size);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-body-1-size);
 }
 
 .el-input__wrapper,
@@ -67,7 +67,7 @@
 .el-time-picker .el-input__wrapper,
 .el-cascader .el-input__wrapper,
 .el-tree-select .el-select__wrapper {
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 
 /* Materio field outline opacity is 0.22; use it for Element Plus borders. */
@@ -80,7 +80,7 @@
 .el-time-picker .el-input__wrapper,
 .el-cascader .el-input__wrapper,
 .el-tree-select .el-select__wrapper {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--materio-border-color) 22%, transparent) inset;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--harbor-border-color) 22%, transparent) inset;
 }
 
 .el-input__wrapper:hover,
@@ -106,9 +106,9 @@
 }
 
 .el-form-item__label {
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-body-1-size);
-  line-height: var(--materio-body-1-line-height);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-body-1-size);
+  line-height: var(--harbor-body-1-line-height);
 }
 
 .el-checkbox,
@@ -116,24 +116,24 @@
 .el-switch,
 .el-slider,
 .el-rate {
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-body-1-size);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-body-1-size);
 }
 
 .el-checkbox__label,
 .el-radio__label {
-  font-size: var(--materio-body-1-size);
+  font-size: var(--harbor-body-1-size);
 }
 
 .el-checkbox__input.is-disabled + .el-checkbox__label,
 .el-radio__input.is-disabled + .el-radio__label {
-  opacity: var(--materio-disabled-opacity);
+  opacity: var(--harbor-disabled-opacity);
 }
 
 .el-switch.is-disabled,
 .el-slider.is-disabled,
 .el-rate.is-disabled {
-  opacity: var(--materio-disabled-opacity);
+  opacity: var(--harbor-disabled-opacity);
 }
 
 .el-button:focus-visible,
