@@ -503,11 +503,18 @@ html body .el-tag:not(.el-tag--small):not(.el-tag--large) {
 // 控件标签保持单行。宿主给行内筛选表单固定 68px 标签框；在 Materio 的 15px 字号下四个字的标签正好比
 // 内容框宽一点，于是折成「创建时 / 间」。行内标签改为按文字宽度自适应，所有标签都不换行；更长的标签
 // 会把字段推后，而不是在词中折断。
+// The host's fixed 68px box wrapped four-character labels at the Materio scale; auto width stopped the
+// wrap but let a three-character label sit 54px wide, so the fields in a row started at different
+// x positions. Inline labels take one uniform width instead: labels stay on one line and every field in
+// a column starts at the same place. 80px covers four 15px characters plus the label padding.
+// 宿主固定的 68px 在 Materio 字号下会让四字标签折行；改成自适应后虽不折行，但三字标签只有 54px 宽，
+// 同一行字段的起点便参差不齐。行内标签改用统一宽度：标签单行，同一列的字段起点一致。80px 容得下四个
+// 15px 汉字加标签内边距。
 html body .el-form-item__label {
   white-space: nowrap;
 }
 html body .el-form--inline .el-form-item__label {
-  width: auto !important;
+  width: 80px !important;
 }
 // Control geometry from the main repository's product skin: 12px buttons, 6px tags, and a pill for
 // the single-line input family (the product's 16px radius on a 32px control reads as a pill; 999px
