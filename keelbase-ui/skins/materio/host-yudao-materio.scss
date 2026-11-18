@@ -61,12 +61,13 @@ html:root {
   // 选中行的色带自该行内缩绘制，读起来才像一枚悬浮标记。
   --keel-menu-band-inset: 2px;
 
-  // Element Plus sizes inputs and selects at 32px; the original's field heights are 56px (default),
-  // 48px (comfortable) and 40px (compact). The comfortable step keeps the taller Materio box without
-  // the default's large vertical padding.
-  // Element Plus 的输入框与选择器高 32px；原版字段高 56px（默认）、48px（comfortable）、40px（compact）。
-  // 取 comfortable 一档：保住 Materio 的高盒子，又不必吃默认那圈偏大的上下填充。
-  --el-component-size: 48px;
+  // Control geometry follows the main repository's product look: Element Plus's 32px control
+  // height, an 8px base radius, 12px for buttons and 6px for tags; the input family becomes a pill.
+  // 控件几何取自主仓的产品样式：Element Plus 的 32px 控件高度、基础圆角 8px、按钮 12px、标签 6px，
+  // 输入类控件用胶囊圆角。
+  --el-component-size: 32px;
+  --el-border-radius-base: 8px;
+  --el-border-radius-round: 999px;
 
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
@@ -493,25 +494,45 @@ html body .el-tag {
   font-weight: 500;
 }
 html body .el-tag:not(.el-tag--small):not(.el-tag--large) {
-  padding: 0 12px;
+  padding: 0 9px;
 }
-// Element Plus hard-codes the select's minimum height at 32px rather than taking the component size,
-// so the default select needs the same height spelled out. Size variants carry their own class and
-// keep their own height.
-// Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸，故默认选择器要单独写同一个高度；
-// 小号/大号有自己的类，保持各自高度。
+// Control geometry from the main repository's product skin: 12px buttons, 6px tags, and a pill for
+// the single-line input family (the product's 16px radius on a 32px control reads as a pill; 999px
+// keeps that shape at any height). Textareas keep the product's 16px, not a pill.
+// 控件几何取自主仓的产品皮肤：按钮 12px、标签 6px，单行输入类用胶囊（主仓在 32px 控件上用 16px 圆角
+// 已经是胶囊观感；这里用 999px，任何高度都保持这个形状）。文本域保持主仓的 16px，不做胶囊。
+html body .el-button {
+  border-radius: 12px !important;
+  min-height: 32px;
+  // The vendored layer sets a 22px line-height for a 38px button; at the product's 32px height that
+  // overflows, so the product's own rhythm (line-height 1, 8px/15px padding) is restated.
+  // vendor 层为 38px 按钮设了 22px 行高；主仓的 32px 高度放不下，故按主仓的节奏（行高 1、8px/15px 内边距）
+  // 重新写一遍。
+  padding: 8px 15px;
+  line-height: 1;
+}
+html body .el-input__wrapper,
+html body .el-select__wrapper,
+html body .el-input-number,
+html body .el-date-editor.el-input__wrapper,
+html body .el-date-editor .el-input__wrapper {
+  border-radius: 999px !important;
+}
+html body .el-textarea__inner {
+  border-radius: 16px !important;
+}
+html body .el-tag {
+  border-radius: 6px;
+}
+// Element Plus hard-codes the select's minimum height at 32px rather than taking the component size;
+// with the main repository's geometry that is exactly the wanted value.
+// Element Plus 把选择器的最小高度写死成 32px、没有走组件尺寸；主仓的几何正是这个值。
 html body .el-select__wrapper {
-  min-height: 48px;
-}
-// The 56px field belongs to forms. The header keeps the original's compact 40px control, and the
-// pagination bar keeps its 32px row so the pager does not grow taller than the table footer.
-// 56px 的字段只属于表单。顶栏保留原版 40px 的紧凑控件；分页条保持 32px，免得翻页区比表尾还高。
-html body .v-tool-header .el-select__wrapper {
-  min-height: 40px;
-}
-html body .el-pagination .el-select__wrapper {
   min-height: 32px;
 }
+// The 32px field belongs to every control. The header and pagination simply inherit it; no separate
+// height is needed.
+// 32px 的字段高度适用于所有控件；顶栏与分页直接继承，不需要再单独设高。
 
 // Cards are 24px-padded in the original; Element Plus uses 20px.
 // 原版卡片的正文内边距是 24px；Element Plus 是 20px。
