@@ -123,6 +123,19 @@
       </el-form-item>
     </el-form>
 
+    <!--
+      两种填法的行数为什么不一样，就在控件下面说清楚：只填主键时页面自己按编号配行，还没执行的待决行也算；
+      再选上对象类型，就只留审计读面按该对象答出的行，待决行不在其中 —— 差别是口径，不是丢行。
+
+      Why the two ways of filling this in give different counts, said right under the controls: with the
+      key alone the page pairs rows by the number itself, so a pending row that has not run yet counts;
+      with a kind selected as well, only the rows the audit read face answers for that object remain, and
+      the pending row is not one of them — the difference is the rule, not lost rows.
+    -->
+    <div class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
+      {{ t('keelbase.audit.objectKeyHint') }}
+    </div>
+
     <!-- 扫到哪儿、命中几行、有没有到上界 —— 查询的边界要说出来，不然「没有行」会被读成「没有这件事」。 -->
     <!-- Where the scan went, how many rows matched, whether it hit its bound — an unspoken bound makes
          "no rows" read as "nothing happened". -->

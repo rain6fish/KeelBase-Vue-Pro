@@ -77,7 +77,7 @@ const MESSAGES = {
   'keelbase.sixQ.fieldDealStatus': 'Deal closed',
   'keelbase.sixQ.fieldFollowUpStatus': 'Followed up',
   'keelbase.record.crm_customer': 'Customer',
-  'keelbase.record.follow_up': 'Follow-up',
+  'keelbase.record.follow_up': 'Sample follow-up',
   'keelbase.record.pm_project': 'Project',
 }
 
@@ -709,7 +709,7 @@ test('a decision row answers ⑤ with its own decider, not a bare —', () => {
 // ── G3: `follow_up` and `pm_project` have business words ───────────────────────────────────────────
 test('follow_up and pm_project carry business words, and an unknown kind still says so', () => {
   assert.equal(te('keelbase.record.follow_up'), true, 'follow_up has no business word')
-  assert.equal(t('keelbase.record.follow_up'), 'Follow-up')
+  assert.equal(t('keelbase.record.follow_up'), 'Sample follow-up')
   assert.equal(te('keelbase.record.pm_project'), true, 'pm_project has no business word')
   assert.equal(t('keelbase.record.pm_project'), 'Project')
   assert.equal(

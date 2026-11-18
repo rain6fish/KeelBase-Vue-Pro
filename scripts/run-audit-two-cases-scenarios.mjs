@@ -498,7 +498,7 @@ check('① · no cell leaks an internal name', '[]', JSON.stringify(blockSix.sco
 check('② · the reader answers who (the initiator, who ran it)', true, approveSix.byKey.who.answered);
 check('② · the reader answers when, with a zone', true, approveSix.byKey.when.answered && /UTC[+-]\d{2}:\d{2}/.test(approveSix.byKey.when.text));
 check('② · the reader answers which object', true, approveSix.byKey.object.answered);
-check('② · ③ names the kind of record, not just its key', 'Follow-up', approveSix.byKey.object.text.split(' · ')[0]);
+check('② · ③ names the kind of record, not just its key', 'Sample follow-up', approveSix.byKey.object.text.split(' · ')[0]);
 check('② · the reader answers what changed', true, approveSix.byKey.change.answered);
 check('② · ⑤ is answered on the write row (the approver comes from the decision row)', true, approveSix.byKey.confirmation.answered);
 check('② · the fifth cell names the second person who approved it',

@@ -397,3 +397,44 @@ test('the search hands the range end and the object to the read face', () => {
   assert.match(run, /wantedType && wantedKey/, 'half an object filter is the only thing sent')
   assert.match(run, /until\.value \? until\.value\.toISOString\(\)/, 'the range end is not passed to scanAudit')
 })
+
+test('the two follow-up kinds read differently, and the count rule is drawn under the object filter', () => {
+  // 2026-11-17 的真栈读数：种类下拉里 `crm_follow_up_record` 与 `follow_up` 两项**都**叫「跟进记录」，第一次
+  // 选错命中 0；只填主键命中 4 行（含待决），类型 + 主键 3 行，页面上没有一句说明。这里钉住两件事：两条业务
+  // 词在两种语言里都不再相同，且行数口径那句话真的画在对象筛选下面 —— 否则改词条、挪模板都能悄悄退回去。
+  //
+  // The 2026-11-17 real-stack reading: the kind select carried `crm_follow_up_record` and `follow_up` both
+  // reading 「跟进记录」, picking the wrong one first matched nothing; the key alone matched four rows (a
+  // pending one among them) and kind + key three, with nothing on the page saying why. Two things are pinned
+  // here: the two business words differ in both languages, and the count-rule sentence is really drawn under
+  // the object filter — otherwise a copy edit or a moved block slips back unnoticed.
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  for (const lang of ['en', 'zh-CN']) {
+    const start = patch.indexOf(`diff --git a/src/locales/${lang}.ts`)
+    const next = patch.indexOf('diff --git', start + 10)
+    const body = patch.slice(start, next < 0 ? undefined : next)
+    const at = body.indexOf('    record: {')
+    const end = body.indexOf('\n+    },', at)
+    const tree = {}
+    for (const m of body.slice(at, end).matchAll(/^\+\s+(\w+):\s*'([^']*)',/gm)) tree[m[1]] = m[2]
+    assert.ok(tree.crm_follow_up_record && tree.follow_up, `${lang}: a follow-up kind lost its business word`)
+    assert.notEqual(tree.crm_follow_up_record, tree.follow_up, `${lang}: the two follow-up kinds still read the same`)
+  }
+  for (const line of [
+    "crm_follow_up_record: 'CRM follow-up record'",
+    "follow_up: 'Sample follow-up'",
+    "crm_follow_up_record: 'CRM 跟进记录'",
+    "follow_up: '示例跟进记录'",
+    'objectKeyHint:',
+  ]) {
+    assert.ok(patch.includes(line), `the host patch lacks \`${line}\``)
+  }
+
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  const formAt = template.indexOf(':model="objectQuery"')
+  const hintAt = template.indexOf("t('keelbase.audit.objectKeyHint')")
+  const statusAt = template.indexOf('class="query-status"')
+  assert.ok(formAt >= 0, 'the object filter form is gone')
+  assert.ok(hintAt > formAt, 'the count rule is not drawn under the object filter')
+  assert.ok(statusAt > hintAt, 'the count rule is drawn after the result status instead of with the controls')
+})

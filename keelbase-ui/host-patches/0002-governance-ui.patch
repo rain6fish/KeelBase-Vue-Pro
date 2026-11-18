@@ -1,8 +1,8 @@
 diff --git a/src/locales/en.ts b/src/locales/en.ts
-index 96269a8..2611a9b 100644
+index 9d14564..c715092 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,797 @@
+@@ -1,4 +1,798 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -72,6 +72,7 @@ index 96269a8..2611a9b 100644
 +      untilPlaceholder: 'Window end',
 +      objectKey: 'Business key',
 +      objectAny: 'Any kind of object',
++      objectKeyHint: 'Business key alone: every row about that number, including a pending row that has not run yet. With a kind selected as well: only the rows the audit read face answers for that object — the pending row is not among them, so the count is smaller.',
 +      search: 'Search',
 +      exportCsv: 'Export as CSV',
 +      exportCheck: 'Export with IDs and checks',
@@ -777,9 +778,9 @@ index 96269a8..2611a9b 100644
 +    },
 +    record: {
 +      crm_customer: 'Customer',
-+      follow_up: 'Follow-up',
++      follow_up: 'Sample follow-up',
 +      pm_project: 'Project',
-+      crm_follow_up_record: 'Follow-up record',
++      crm_follow_up_record: 'CRM follow-up record',
 +      crm_business: 'Business opportunity',
 +      crm_clue: 'Lead',
 +      crm_contact: 'Contact',
@@ -801,10 +802,10 @@ index 96269a8..2611a9b 100644
      inputText: 'Please input',
      selectText: 'Please select',
 diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
-index 35f1e1a..856d201 100644
+index 13065de..8176c89 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,789 @@
+@@ -1,4 +1,790 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -874,6 +875,7 @@ index 35f1e1a..856d201 100644
 +      untilPlaceholder: '窗口终点',
 +      objectKey: '业务主键',
 +      objectAny: '任意业务对象',
++      objectKeyHint: '只填业务主键：这个编号下的全部相关行，含还没执行的待决行。同时选了对象类型：只留审计读面对该对象答出的行，待决行不在其中，行数会比只填主键少。',
 +      search: '检索',
 +      exportCsv: '导出 CSV',
 +      exportCheck: '导出核对 CSV',
@@ -1571,9 +1573,9 @@ index 35f1e1a..856d201 100644
 +    },
 +    record: {
 +      crm_customer: '客户',
-+      follow_up: '跟进记录',
++      follow_up: '示例跟进记录',
 +      pm_project: '项目',
-+      crm_follow_up_record: '跟进记录',
++      crm_follow_up_record: 'CRM 跟进记录',
 +      crm_business: '商机',
 +      crm_clue: '线索',
 +      crm_contact: '联系人',
