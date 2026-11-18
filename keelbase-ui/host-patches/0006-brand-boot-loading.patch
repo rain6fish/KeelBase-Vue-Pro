@@ -27,7 +27,7 @@ diff --git a/index.html b/index.html
  
          .app-loading .app-loading-title {
 -          margin-bottom: 30px;
-+          margin-bottom: 26px;
++          margin-bottom: 28px;
            font-size: 20px;
            font-weight: bold;
            text-align: center;
@@ -53,8 +53,8 @@ diff --git a/index.html b/index.html
 -          height: 60px;
 -          vertical-align: middle;
 -          border-radius: 50%;
-+          width: 56px;
-+          height: 56px;
++          width: 64px;
++          height: 64px;
          }
  
 -        .app-loading .app-loading-outter {
@@ -97,9 +97,9 @@ diff --git a/index.html b/index.html
 -          animation: loader-inner 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
 +          top: 50%;
 +          left: 50%;
-+          width: 30px;
-+          height: 30px;
-+          margin: -15px 0 0 -15px;
++          width: 34px;
++          height: 34px;
++          margin: -17px 0 0 -17px;
 +          transform-origin: 50% 50%;
 +          animation: kb-loader-breathe 2.4s ease-in-out infinite;
          }
