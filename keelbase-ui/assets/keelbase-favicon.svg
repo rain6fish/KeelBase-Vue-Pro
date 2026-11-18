@@ -1,21 +1,13 @@
-<!-- KeelBase's tab mark: the product's two-wedge logo (magenta left, cyan-to-blue right), traced from
-     the brand image the product owner supplied. A favicon gets no wordmark — at 16px the two wedges are
-     the only thing that still reads. The build copies this file into the artefact and points the page's
-     one `<link rel="icon">` at it (scripts/build-host-ui.sh, section 5c). -->
-<!-- KeelBase 的页签图标：产品的双楔形标志（左品红、右青到蓝），按产品负责人提供的品牌图描出。页签图标
-     不带文字——16px 下只有这两块楔形还认得出来。构建时由 scripts/build-host-ui.sh 第 5c 段拷进产物，
-     并把页面唯一那条 `<link rel="icon">` 指过来。 -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-  <defs>
-    <linearGradient id="kb-left" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#e73cb5"/>
-      <stop offset="1" stop-color="#d92aab"/>
-    </linearGradient>
-    <linearGradient id="kb-right" x1="0.7" y1="0" x2="0.2" y2="1">
-      <stop offset="0" stop-color="#0dd9f4"/>
-      <stop offset="1" stop-color="#199cef"/>
-    </linearGradient>
-  </defs>
-  <path fill="url(#kb-left)" d="M0.5 0.5h9L5 10.5Z"/>
-  <path fill="url(#kb-right)" d="M11.5 0.5h8L9.5 19.5Z"/>
+<!-- KeelBase's tab mark: the product's shield-and-check, the same path and colour as
+     `host-overlay/src/assets/imgs/keelbase-logo.svg`, Web-Admin-Vue's AppLogo component and that
+     project's own favicon — one mark, one source. (The first version of this file traced the supplied
+     tab screenshot, which turned out to be the host vendor's two-wedge logo, so the tab still read as
+     theirs.) The build copies this file into the artefact and points the page's one
+     `<link rel="icon">` at it (scripts/build-host-ui.sh, section 5b). -->
+<!-- KeelBase 的页签图标：产品的盾形对勾，与 `host-overlay/src/assets/imgs/keelbase-logo.svg`、
+     Web-Admin-Vue 的 AppLogo 组件以及那个项目自己的 favicon 同一份路径与颜色——一个标记，一个来源。
+     （上一版这个文件按用户给的页签截图描了形，而那其实是宿主厂商的双楔形标志，页签因此仍读作他们的。）
+     构建时由 scripts/build-host-ui.sh 第 5b 段拷进产物，并把页面唯一那条 `<link rel="icon">` 指过来。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path fill="#1d4ed8" d="M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"/>
 </svg>
