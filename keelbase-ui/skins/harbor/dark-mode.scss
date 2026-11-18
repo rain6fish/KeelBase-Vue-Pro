@@ -1,17 +1,17 @@
 /*!
- * Materio skin — vendored copy, do not edit here.
+ * Harbor skin — vendored copy, do not edit here.
  * Source: vue-element-plus-admin v3.1.0, materio-theme/dark-mode.less
  *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
  * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
  * License: MIT, inherited from the source package.
- * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ * The extension changed (.less -> .scss) and the token prefix was renamed (--materio- -> --harbor-); no LESS-specific syntax was present.
  *
- * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * Harbor 皮肤——vendor 副本，请勿在此编辑。
  * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/dark-mode.less
  *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
  * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
  * 许可：MIT，随来源包。
- * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ * 改了扩展名（.less -> .scss），并把令牌前缀由 --materio- 改为 --harbor-；文件内没有 LESS 特有的语法。
  */
 /* Final Light/Dark consistency pass for Element Plus poppers and secondary surfaces. */
 .el-popper,
@@ -29,8 +29,8 @@
   color: var(--el-text-color-primary);
   background-color: var(--el-bg-color-overlay);
   border-color: var(--el-border-color);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-5);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-5);
 }
 
 .el-select-dropdown__item,

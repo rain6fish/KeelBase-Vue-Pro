@@ -1,0 +1,252 @@
+/*!
+ * Harbor skin — vendored copy, do not edit here.
+ * Source: vue-element-plus-admin v3.1.0, materio-theme/tokens.css
+ *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
+ * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
+ * License: MIT, inherited from the source package.
+ * Kept as .css: the entry loads it with @use, which inlines a plain CSS file (an @import would leave a runtime request).
+ *
+ * Harbor 皮肤——vendor 副本，请勿在此编辑。
+ * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/tokens.css
+ *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
+ * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
+ * 许可：MIT，随来源包。
+ * 保持 .css：入口用 @use 加载它，Sass 会把普通 CSS 文件内联进来（@import 会留下一条运行时请求）。
+ */
+html:root {
+  color-scheme: light;
+
+  /* Materio Free 2.3.0: semantic palette */
+  --harbor-primary: #2563eb;
+  --harbor-primary-darken-1: #1d4ed8;
+  --harbor-secondary: #64748b;
+  --harbor-secondary-darken-1: #475569;
+  --harbor-success: #16a34a;
+  --harbor-success-darken-1: #15803d;
+  --harbor-info: #0284c7;
+  --harbor-info-darken-1: #0369a1;
+  --harbor-warning: #d97706;
+  --harbor-warning-darken-1: #b45309;
+  --harbor-danger: #dc2626;
+  --harbor-danger-darken-1: #b91c1c;
+  --harbor-on-primary: #fff;
+  --harbor-background: #f4f5fa;
+  --harbor-surface: #fff;
+  --harbor-on-surface: #2e263d;
+  --harbor-grey-50: #fafafa;
+  --harbor-grey-100: #f5f5f5;
+  --harbor-grey-200: #eee;
+  --harbor-grey-300: #e0e0e0;
+  --harbor-grey-400: #bdbdbd;
+  --harbor-grey-500: #9e9e9e;
+  --harbor-grey-600: #757575;
+  --harbor-grey-700: #616161;
+  --harbor-grey-800: #424242;
+  --harbor-grey-900: #212121;
+  --harbor-track-bg: #f0f2f8;
+  --harbor-chat-bg: #f7f6fa;
+  --harbor-table-header-bg: #f6f7fb;
+  --harbor-scrollbar-thumb: #dbdade;
+  --harbor-expansion-panel-text-bg: #fafafa;
+  --harbor-code-color: #475569;
+  --harbor-tooltip-bg: #1e293b;
+  --harbor-overlay-scrim: #2e263d;
+
+  /* Materio state and border opacities */
+  --harbor-scrim-opacity: 0.5;
+  --harbor-hover-opacity: 0.04;
+  --harbor-focus-opacity: 0.1;
+  --harbor-selected-opacity: 0.08;
+  --harbor-activated-opacity: 0.16;
+  --harbor-pressed-opacity: 0.14;
+  --harbor-dragged-opacity: 0.1;
+  --harbor-disabled-opacity: 0.4;
+  --harbor-border-color: #2e263d;
+  --harbor-border-opacity: 0.12;
+  --harbor-high-emphasis-opacity: 0.9;
+  --harbor-medium-emphasis-opacity: 0.7;
+
+  /* Materio geometry and typography */
+  --harbor-font-family: Inter, sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --harbor-font-size-root: 15px;
+  --harbor-radius: 6px;
+  --harbor-radius-sm: 4px;
+  --harbor-radius-lg: 8px;
+  --harbor-radius-shaped: 25px 0;
+  --harbor-spacer: 4px;
+  --harbor-spacing-0: 0;
+  --harbor-spacing-1: 4px;
+  --harbor-spacing-2: 8px;
+  --harbor-spacing-3: 12px;
+  --harbor-spacing-4: 16px;
+  --harbor-spacing-5: 20px;
+  --harbor-spacing-6: 24px;
+  --harbor-spacing-7: 28px;
+  --harbor-spacing-8: 32px;
+  --harbor-spacing-9: 36px;
+  --harbor-spacing-10: 40px;
+  --harbor-spacing-11: 44px;
+  --harbor-spacing-12: 48px;
+  --harbor-spacing-13: 52px;
+  --harbor-spacing-14: 56px;
+  --harbor-spacing-15: 60px;
+  --harbor-spacing-16: 64px;
+
+  /* Materio shadow key color and elevation opacity scale */
+  --harbor-shadow-key-color: 46, 38, 61;
+  --harbor-shadow-xs-opacity: 0.16;
+  --harbor-shadow-sm-opacity: 0.18;
+  --harbor-shadow-md-opacity: 0.2;
+  --harbor-shadow-lg-opacity: 0.22;
+  --harbor-shadow-xl-opacity: 0.24;
+  --harbor-shadow-1: 0 2px 4px rgba(46, 38, 61, 0.12);
+  --harbor-shadow-3: 0 3px 8px rgba(46, 38, 61, 0.14);
+  --harbor-shadow-5: 0 4px 10px rgba(46, 38, 61, 0.15);
+  --harbor-shadow-7: 0 4px 18px rgba(46, 38, 61, 0.1);
+  --harbor-shadow-9: 0 5px 14px rgba(46, 38, 61, 0.18);
+  --harbor-shadow-10: 0 8px 28px 0 rgba(46, 38, 61, 0.24);
+
+  /* Element Plus semantic variable bridge */
+  --el-color-primary: var(--harbor-primary);
+  --el-color-primary-dark-2: var(--harbor-primary-darken-1);
+  --el-color-primary-light-3: color-mix(in srgb, var(--harbor-primary) 30%, #fff);
+  --el-color-primary-light-5: color-mix(in srgb, var(--harbor-primary) 50%, #fff);
+  --el-color-primary-light-7: color-mix(in srgb, var(--harbor-primary) 70%, #fff);
+  --el-color-primary-light-8: color-mix(in srgb, var(--harbor-primary) 80%, #fff);
+  --el-color-primary-light-9: color-mix(in srgb, var(--harbor-primary) 90%, #fff);
+  --el-color-success: var(--harbor-success);
+  --el-color-success-dark-2: var(--harbor-success-darken-1);
+  --el-color-warning: var(--harbor-warning);
+  --el-color-warning-dark-2: var(--harbor-warning-darken-1);
+  --el-color-danger: var(--harbor-danger);
+  --el-color-danger-dark-2: var(--harbor-danger-darken-1);
+  --el-color-error: var(--harbor-danger);
+  --el-color-error-dark-2: var(--harbor-danger-darken-1);
+  --el-color-info: var(--harbor-info);
+  --el-color-info-dark-2: var(--harbor-info-darken-1);
+  --el-bg-color: var(--harbor-surface);
+  --el-bg-color-page: var(--harbor-background);
+  --el-bg-color-overlay: var(--harbor-surface);
+  --el-fill-color-blank: var(--harbor-surface);
+  --el-fill-color-light: var(--harbor-grey-100);
+  --el-fill-color: var(--harbor-grey-200);
+  --el-border-color: rgba(46, 38, 61, 0.12);
+  --el-text-color-primary: var(--harbor-on-surface);
+  --el-text-color-regular: rgba(46, 38, 61, 0.7);
+  --el-text-color-secondary: rgba(46, 38, 61, 0.7);
+  --el-text-color-placeholder: rgba(46, 38, 61, 0.4);
+  --el-font-family: var(--harbor-font-family);
+  --el-font-size-base: 15px;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 9999px;
+  --el-border-radius-circle: 50%;
+  --el-box-shadow: var(--harbor-shadow-5);
+  --el-box-shadow-light: var(--harbor-shadow-1);
+  --el-box-shadow-lighter: var(--harbor-shadow-1);
+  --el-box-shadow-dark: var(--harbor-shadow-10);
+}
+
+html:root.dark {
+  color-scheme: dark;
+
+  /* Materio Free 2.3.0 dark palette */
+  --harbor-primary: #2563eb;
+  --harbor-primary-darken-1: #1d4ed8;
+  --harbor-secondary: #64748b;
+  --harbor-secondary-darken-1: #475569;
+  --harbor-success: #16a34a;
+  --harbor-success-darken-1: #15803d;
+  --harbor-info: #0284c7;
+  --harbor-info-darken-1: #0369a1;
+  --harbor-warning: #d97706;
+  --harbor-warning-darken-1: #b45309;
+  --harbor-danger: #dc2626;
+  --harbor-danger-darken-1: #b91c1c;
+  --harbor-on-primary: #fff;
+  --harbor-background: #28243d;
+  --harbor-surface: #312d4b;
+  --harbor-on-surface: #e7e3fc;
+  --harbor-grey-50: #2a2e42;
+  --harbor-grey-100: #2f3349;
+  --harbor-grey-200: #4a5072;
+  --harbor-grey-300: #5e6692;
+  --harbor-grey-400: #7983bb;
+  --harbor-grey-500: #8692d0;
+  --harbor-grey-600: #aab3de;
+  --harbor-grey-700: #b6bee3;
+  --harbor-grey-800: #cfd3ec;
+  --harbor-grey-900: #e7e9f6;
+  --harbor-track-bg: #474360;
+  --harbor-chat-bg: #373452;
+  --harbor-table-header-bg: #3d3759;
+  --harbor-scrollbar-thumb: #4a5072;
+  --harbor-expansion-panel-text-bg: #373350;
+  --harbor-code-color: #475569;
+  --harbor-tooltip-bg: #1e293b;
+  --harbor-overlay-scrim: #312d4b;
+  --harbor-scrim-opacity: 0.5;
+  --harbor-hover-opacity: 0.04;
+  --harbor-focus-opacity: 0.1;
+  --harbor-selected-opacity: 0.08;
+  --harbor-activated-opacity: 0.16;
+  --harbor-pressed-opacity: 0.14;
+  --harbor-dragged-opacity: 0.1;
+  --harbor-disabled-opacity: 0.4;
+  --harbor-border-color: #e7e3fc;
+  --harbor-border-opacity: 0.12;
+  --harbor-high-emphasis-opacity: 0.9;
+  --harbor-medium-emphasis-opacity: 0.7;
+  --harbor-shadow-key-color: 19, 17, 32;
+  --harbor-shadow-xs-opacity: 0.2;
+  --harbor-shadow-sm-opacity: 0.22;
+  --harbor-shadow-md-opacity: 0.24;
+  --harbor-shadow-lg-opacity: 0.26;
+  --harbor-shadow-xl-opacity: 0.28;
+  --harbor-shadow-1: 0 2px 4px rgba(19, 17, 32, 0.12);
+  --harbor-shadow-3: 0 3px 8px rgba(19, 17, 32, 0.14);
+  --harbor-shadow-5: 0 4px 10px rgba(19, 17, 32, 0.15);
+  --harbor-shadow-7: 0 4px 18px rgba(19, 17, 32, 0.1);
+  --harbor-shadow-9: 0 5px 14px rgba(19, 17, 32, 0.18);
+  --harbor-shadow-10: 0 8px 28px 0 rgba(19, 17, 32, 0.28);
+
+  --el-color-primary: var(--harbor-primary);
+  --el-color-primary-dark-2: var(--harbor-primary-darken-1);
+  --el-color-primary-light-3: color-mix(in srgb, var(--harbor-primary) 30%, var(--harbor-surface));
+  --el-color-primary-light-5: color-mix(in srgb, var(--harbor-primary) 50%, var(--harbor-surface));
+  --el-color-primary-light-7: color-mix(in srgb, var(--harbor-primary) 70%, var(--harbor-surface));
+  --el-color-primary-light-8: color-mix(in srgb, var(--harbor-primary) 80%, var(--harbor-surface));
+  --el-color-primary-light-9: color-mix(in srgb, var(--harbor-primary) 90%, var(--harbor-surface));
+  --el-color-success: var(--harbor-success);
+  --el-color-success-dark-2: var(--harbor-success-darken-1);
+  --el-color-warning: var(--harbor-warning);
+  --el-color-warning-dark-2: var(--harbor-warning-darken-1);
+  --el-color-danger: var(--harbor-danger);
+  --el-color-danger-dark-2: var(--harbor-danger-darken-1);
+  --el-color-error: var(--harbor-danger);
+  --el-color-error-dark-2: var(--harbor-danger-darken-1);
+  --el-color-info: var(--harbor-info);
+  --el-color-info-dark-2: var(--harbor-info-darken-1);
+  --el-bg-color: var(--harbor-surface);
+  --el-bg-color-page: var(--harbor-background);
+  --el-bg-color-overlay: var(--harbor-surface);
+  --el-fill-color-blank: var(--harbor-surface);
+  --el-fill-color-light: var(--harbor-grey-100);
+  --el-fill-color: var(--harbor-grey-200);
+  --el-fill-color-dark: var(--harbor-grey-50);
+  --el-border-color: rgba(231, 227, 252, 0.12);
+  --el-text-color-primary: var(--harbor-on-surface);
+  --el-text-color-regular: rgba(231, 227, 252, 0.7);
+  --el-text-color-secondary: rgba(231, 227, 252, 0.7);
+  --el-text-color-placeholder: rgba(231, 227, 252, 0.4);
+  --el-font-family: var(--harbor-font-family);
+  --el-font-size-base: 15px;
+  --el-border-radius-base: 6px;
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: 9999px;
+  --el-border-radius-circle: 50%;
+  --el-box-shadow: var(--harbor-shadow-5);
+  --el-box-shadow-light: var(--harbor-shadow-1);
+  --el-box-shadow-lighter: var(--harbor-shadow-1);
+  --el-box-shadow-dark: var(--harbor-shadow-10);
+}
