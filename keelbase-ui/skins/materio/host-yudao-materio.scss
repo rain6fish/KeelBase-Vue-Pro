@@ -31,7 +31,7 @@
 html:root {
   --left-menu-max-width: 260px;
   --left-menu-min-width: 68px;
-  --left-menu-bg-color: var(--materio-surface) !important;
+  --left-menu-bg-color: var(--materio-background) !important;
   --left-menu-bg-light-color: var(--materio-expansion-panel-text-bg) !important;
   --left-menu-bg-active-color: color-mix(in srgb, var(--materio-on-surface) 8%, transparent) !important;
   --left-menu-text-color: var(--el-text-color-regular) !important;
@@ -41,7 +41,7 @@ html:root {
   --logo-height: 64px;
   --logo-title-text-color: var(--materio-on-surface);
 
-  --top-header-bg-color: var(--materio-surface) !important;
+  --top-header-bg-color: var(--materio-background) !important;
   --top-header-text-color: var(--el-text-color-regular) !important;
   --top-header-hover-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
   --top-tool-height: var(--logo-height);
@@ -458,14 +458,50 @@ html:root.dark .v-menu.v-menu--header .el-sub-menu.is-active > .el-sub-menu__tit
   color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
 }
 
-// Tags view: yudao's square 2px chips become Materio's 4px rounded outline chips.
-// 标签条：yudao 的 2px 直角小片改为 Materio 的 4px 圆角描边小片。
+// The shell surfaces sit on the page's tinted canvas rather than on white: the top bar (which carries
+// the breadcrumb) and the tags strip take the page background, so cards stay the only surfaces.
+// yudao hard-codes white on the tags strip and switches it through a `.dark` utility, so both rules
+// carry `!important` and cover light and dark the same way.
+// 外壳表面改坐在页面淡底上，而不是白色：顶栏（面包屑在其中）与标签条取页面底色，卡片成为唯一的表面。
+// yudao 把标签条底色写死为白色、暗色下另走 `.dark` 工具类，故两条都带 `!important`，亮暗一并覆盖。
+html body .v-tool-header {
+  background-color: var(--materio-background) !important;
+}
+html body .v-tags-view {
+  background-color: var(--materio-background) !important;
+}
+
+// The shell's dividers are 1px pseudo-element lines (`layout-border__*`); with the menu, the top bar
+// and the tags strip sharing one canvas they read as boxed-in panels, so the lines go. The elements
+// stay absolute and self-contained, so only the colour is cleared and nothing shifts.
+// 外壳的分隔线是 `layout-border__*` 的 1px 伪元素线；菜单、顶栏与标签条共用同一底色后，这些线会把
+// 界面切成一块块的框，故去掉。伪元素仍是绝对定位、自成一体的，所以只清颜色，布局不受影响。
+html body .layout-border__right::after {
+  background-color: transparent !important;
+}
+html body .layout-border__top::before {
+  background-color: transparent !important;
+}
+html body .layout-border__bottom::after {
+  background-color: transparent !important;
+}
+
+// Tags view: yudao's square 2px chips take the same 12px radius the buttons use in this skin,
+// outlined with the border token.
+// 标签条：yudao 的 2px 直角小片改用本皮肤按钮的 12px 圆角，描边用边框令牌。
 html body .v-tags-view .v-tags-view__item {
   border-color: var(--el-border-color);
-  border-radius: var(--materio-radius-sm);
+  border-radius: 12px;
 }
 html body .v-tags-view .v-tags-view__item.is-active {
   border-color: var(--el-color-primary);
+}
+
+// Dictionary values in lists come with a tinted background; there the chip is a capsule rather than
+// the button radius, so the tint reads as a status badge and not as a control.
+// 列表里的数据字典值带底色；那里用胶囊而不是按钮圆角，让底色读作状态徽标，而不是控件。
+html body .dict-tag .el-tag {
+  border-radius: var(--el-border-radius-round);
 }
 
 // Component details from the original that the Element Plus token bridge does not carry:
