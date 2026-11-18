@@ -431,13 +431,12 @@ const INTERNAL_PATTERNS = [
   /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/,
   // snapshot field names that belong to the schema rather than to the business.
   /\b(ownerUserId|dealStatus|followUpStatus|beforeSnapshot|afterSnapshot|executionId|conversationId)\b/,
-  // camelCase identifiers with **two lowercase→uppercase turns** in one token (`crmCustomerScope`).
-  // 驼峰标识符：小写起头、同一个词里有**两次**「小写紧跟大写」的转折。一次转折（iPhone、macOS、
-  // iOS、eBay、pValue、johnSmith）与普通行文、品牌名、人名无法区分；连续大写（`macOS` 的 OS）也不算一段。
-  //
   // A camelCase identifier with **two lowercase→uppercase turns** in one token (`crmCustomerScope`). One
   // turn (iPhone, macOS, iOS, eBay, pValue, johnSmith) cannot be told apart from prose, a brand or a
   // person's login, and a run of capitals (`OS` in `macOS`) is not a hump of its own.
+  //
+  // 驼峰标识符：小写起头、同一个词里有**两次**「小写紧跟大写」的转折。一次转折（iPhone、macOS、
+  // iOS、eBay、pValue、johnSmith）与普通行文、品牌名、人名无法区分；连续大写（`macOS` 的 OS）也不算一段。
   /\b[a-z][a-zA-Z0-9]*(?:[a-z][A-Z])[a-zA-Z0-9]*(?:[a-z][A-Z])[a-zA-Z0-9]*\b/,
   // an execution id / thread id.
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i,
@@ -462,11 +461,12 @@ export function leaksIn(text) {
     const hit = String(text ?? '').match(pattern)
     if (hit) found.push(hit[0])
   }
-  // 同一个词可能同时落进两条词形（`ownerUserId` 既是登记的字段名，也是两段驼峰）；答案要的是「有哪些
-  // 内部名」，不是一个词被几条规则认出来，故按首次出现的次序去重。
   // One token can fall under two forms (`ownerUserId` is both a listed field name and a two-hump
-  // camelCase); the answer is "which internal names", not "how many rules caught one", so dedupe in
-  // first-seen order.
+  // camelCase). Dedupe keeps one entry per distinct name; note that each form reports only its first
+  // match, so this is not a complete list of every internal name, and the order is the rule order.
+  //
+  // 同一个词可能同时落进两条词形（`ownerUserId` 既是登记的字段名，也是两段驼峰）。去重后每个名字只留
+  // 一条；要注意每条词形只取首个匹配，所以这不是全部内部名的清单，顺序也是规则顺序、不是文本顺序。
   return [...new Set(found)]
 }
 

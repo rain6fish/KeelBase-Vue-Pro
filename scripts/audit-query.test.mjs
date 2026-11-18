@@ -245,12 +245,14 @@ test('a verification cell carrying an internal name refuses the whole file, nami
 })
 
 test('a camelCase check name in the verification CSV refuses the file, naming only the column', () => {
-  // 2026-11-17 真栈读数：`checks` 里换成 `crmCustomerScope` 时，旧的四条规则一条都不匹配，文件正文就
-  // 把这个内部名带了出去。驼峰词形补上后，这一格仍按「整份拒绝、只说列名」处理。
-  //
   // The 2026-11-17 real-stack reading: with `crmCustomerScope` in `checks`, none of the four old rules
   // matched and the file body carried the internal name out. With the camelCase form added, the cell is
-  // still refused as a whole file and the error still names only the column.
+  // still refused as a whole file and the error still names only the column. This exercises the CSV
+  // guard directly; the page path masks an unregistered name before the guard sees it.
+  //
+  // 2026-11-17 真栈读数：`checks` 里换成 `crmCustomerScope` 时，旧的四条规则一条都不匹配，文件正文就
+  // 把这个内部名带了出去。驼峰词形补上后，这一格仍按「整份拒绝、只说列名」处理。这条测的是 CSV 防线
+  // 本身；页面路径会先把未登记的名字掩码，再交给这道防线。
   const answers = answersOf(['KeelBase', '2026-11-11 12:11:46 UTC+08:00', 'Customer · #2', '—', '—', 'Executed'])
   assert.throws(
     () => q.checkCsvText([{ id: 31, answers, checks: 'passed crmCustomerScope' }], CHECK_LABELS),

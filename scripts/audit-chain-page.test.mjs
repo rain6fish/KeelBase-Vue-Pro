@@ -358,14 +358,14 @@ test('D-8: a second export carries the id and the checks, and the six-column one
 })
 
 test('an unregistered check is named as unregistered, never by the runtime’s own word', () => {
-  // 2026-11-17 真栈读数：把 `checks[].name` 换成 `crmCustomerScope` 后，页面把它原样画了出来。名表是闭集
-  // （`keelbase.audit.check.*`），闭集之外的名字一律印「未登记的检查 / an unregistered check」—— 屏幕与
-  // 核对 CSV 读的是同一个 `checkText`，故这两处同时收口。
-  //
   // The 2026-11-17 real-stack reading: with `checks[].name` replaced by `crmCustomerScope`, the page drew
   // it verbatim. The vocabulary is a closed set (`keelbase.audit.check.*`); a name outside it prints
   // 「未登记的检查 / an unregistered check」 — the screen and the verification CSV read the same
   // `checkText`, so both are closed at once.
+  //
+  // 2026-11-17 真栈读数：把 `checks[].name` 换成 `crmCustomerScope` 后，页面把它原样画了出来。名表是闭集
+  // （`keelbase.audit.check.*`），闭集之外的名字一律印「未登记的检查 / an unregistered check」—— 屏幕与
+  // 核对 CSV 读的是同一个 `checkText`，故这两处同时收口。
   assert.match(
     script,
     /te\(key\) \? t\(key\) : t\('keelbase\.audit\.checkUnregistered'\)/,
