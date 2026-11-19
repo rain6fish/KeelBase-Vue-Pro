@@ -58,3 +58,21 @@ so that neither licence is read as covering the other.
 
    The product's brand mark, `keelbase-ui/host-overlay/src/assets/imgs/keelbase-logo.svg`, is this
    project's own, and is the same mark the main repository uses.
+
+6. Vendored stylesheets — MIT
+
+   The stylesheets under `keelbase-ui/skins/harbor/` are vendored from `vue-element-plus-admin`
+   v3.1.0 (https://github.com/kailong321200875/vue-element-plus-admin), MIT,
+   `Copyright (c) 2021-present Archer`. Its licence text is retained beside them, at
+   `keelbase-ui/skins/harbor/LICENSE.vue-element-plus-admin`.
+
+   Those files restate the design of Materio Free 2.3.0 (ThemeSelection,
+   https://themeselection.com/), MIT, `Copyright (c) 2022 ThemeSelection`, whose licence text is
+   retained at `keelbase-ui/skins/harbor/LICENSE.materio-free`.
+
+   Each vendored file's header names the source file it came from. The only edits are the extension
+   change (`.less` -> `.scss`) and the token-prefix rename (`--materio-` -> `--harbor-`).
+   `host-yudao-harbor.scss` beside them is this project's own adapter and is not vendored.
+
+   The two notices above are not the root `LICENSE`: that file is upstream's MIT text and covers
+   upstream's code only.
