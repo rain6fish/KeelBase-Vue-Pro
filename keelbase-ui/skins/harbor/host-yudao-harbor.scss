@@ -346,11 +346,13 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title .el-sub-menu__i
   margin: 0 0 0 6px;
   vertical-align: middle;
   // The original draws this chevron at icon size (1.25rem), which is larger than the row's own 16px
-  // icon and reads as a second icon rather than a hint (2026-11-18, user feedback). It goes back to
-  // Element Plus's 12px, which is also what the product skin leaves it at.
+  // icon and reads as a second icon rather than a hint (2026-11-18, user feedback). Element Plus's own
+  // 12px still read as a full glyph beside the 15px label, so it sits one step below that now, at
+  // 0.625rem — a hint at the end of the label rather than an icon of its own (2026-11-19).
   // 原版把这个箭头按图标尺寸（1.25rem）画，比行内图标自己的 16px 还大，读起来像第二个图标而不是提示
-  // （2026-11-18 用户反馈）。改回 Element Plus 的 12px——产品皮肤也是这个值。
-  font-size: 0.75rem;
+  // （2026-11-18 用户反馈）。Element Plus 的 12px 放在 15px 标签旁边仍像一个完整字形，故再降一档到
+  // 0.625rem——它是标签末尾的提示，而不是一个独立图标（2026-11-19）。
+  font-size: 0.625rem;
 }
 
 // Collapsed rail: the active row keeps the same tint and picks up the same rounding.
@@ -505,21 +507,6 @@ html body .v-tags-view .v-tags-view__item.is-active {
 html body .v-tags-view .el-scrollbar__bar {
   display: none;
 }
-// The host's fold control sits at the left end of the tags strip, right beside the sidebar, and draws
-// its chevron at 18px while every icon around it is 16px — next to the menu it reads as a second, heavier
-// control rather than a small affordance (2026-11-19, user feedback). It takes 12px — Element Plus's own
-// icon size — so it sits well behind the tag chips beside it and the menu icons under it. The host sets
-// the size inline on the icon element, hence `!important`.
-// 宿主的折叠控件在标签条最左端、紧挨着侧栏，它的箭头画成 18px，而周围图标都是 16px——放在菜单旁边像是另一个
-// 更重的控件，而不是一个小操作（2026-11-19 用户反馈）。改为 12px（Element Plus 自己的图标尺寸）：明显退到
-// 旁边的标签小片和下方的菜单图标之后。宿主把尺寸以内联样式写在图标元素上，故需要 `!important`。
-html body .v-collapse .el-icon,
-html body .v-collapse .el-icon svg {
-  font-size: 12px !important;
-  width: 12px !important;
-  height: 12px !important;
-}
-
 // Dictionary values in lists come with a tinted background; there the chip is a capsule rather than
 // the button radius, so the tint reads as a status badge and not as a control.
 // 列表里的数据字典值带底色；那里用胶囊而不是按钮圆角，让底色读作状态徽标，而不是控件。
