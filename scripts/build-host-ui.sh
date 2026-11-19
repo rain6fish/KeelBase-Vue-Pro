@@ -491,6 +491,30 @@ if [[ ! -f "$INDEX" ]]; then
   exit 2
 fi
 
+# --- 2-pre. the artefact being reused must already be this skin's -----------------------------------
+# `--skip-build` means "trust the app build that is already there". It does not mean "trust the skin
+# inside it": a `dist-prod` produced before the Harbor rename still carries `--materio-` tokens, and
+# injecting our stylesheets over it would ship a page whose two halves disagree about which skin it is
+# — the 2026-11-19 audit measured exactly such an artefact. So the artefact is put through the same
+# criterion the sources are (scripts/check-ui-skin.sh, assertions [A1]..[A4]) before it is reused, and
+# a mismatch stops the run with the one instruction that fixes it: rebuild in full.
+#
+# 复用一份产物之前，先问它自己是不是这套皮肤构建出来的。
+# `--skip-build` 的意思是「信这份已经在那里的应用构建」，**不是**「信它里面的皮肤」：更名之前产出的
+# `dist-prod` 仍带着 `--materio-` 令牌，在上面再注入我们的样式表，交出去的页面两半就对不上自己是谁——
+# 2026-11-19 的审计量到的正是这样一份产物。故复用之前，用与源码**同一套判据**验一遍
+# （scripts/check-ui-skin.sh 的 [A1]..[A4]），不符就停下，并只给一条能修好它的指令：完整重建。
+if [[ "$SKIP_BUILD" == "1" ]]; then
+  if ! KEELBASE_UI_SKIN="$SKIN" KEELBASE_YUDAO_UI="$UI_DIR" KEELBASE_YUDAO_UI_OUT="$OUT_NAME" \
+       bash "$REPO_ROOT/scripts/check-ui-skin.sh"; then
+    echo "refusing to reuse $DIST: it was not built with the '$SKIN' skin (see the checks above)." >&2
+    echo "rebuild in full: bash scripts/build-host-ui.sh   (drop --skip-build)" >&2
+    echo "拒绝复用 $DIST：它不是你选的 '$SKIN' 皮肤构建出来的（见上面的检查）。" >&2
+    echo "请完整重建：bash scripts/build-host-ui.sh（去掉 --skip-build）" >&2
+    exit 1
+  fi
+fi
+
 # --- 2a. no rendered line of copy may carry a literal Markdown marker ------------------------------
 # 2026-10-26 实测：`**本部署**`、`**没有会话**` 一类**成对的星号**与反引号被原样画在中文页面上。字符串级
 # 抓不住它——词条里的 `{'@'}Bean` 正是为了**渲染成** `@Bean`，星号也只是数据；记号在渲染那一刻才变成
@@ -603,6 +627,21 @@ echo "compiled $THEME_CSS_NAME ($want primary declarations pinned)"
 if [[ -f "$HOST_SCSS" ]]; then
   "$SASS" "$HOST_SCSS" "$DIST/$HOST_CSS_NAME"
   echo "compiled $HOST_CSS_NAME"
+fi
+
+# --- 4c. the compiled skin carries the tokens it promises -------------------------------------------
+# §4 and §4b compile the sources; this is the assertion that the compilation **produced the skin**. A
+# stylesheet whose `@use` was dropped, or one compiled from the other skin's entry by mistake, exits 0
+# from sass and links into the page just as happily — the page then renders in the wrong look, and the
+# only way anyone notices is by eye. So the same check that guards the sources guards the result.
+# §4 与 §4b 把源码编译出来；这一段断言的是「编译**产出了那套皮肤**」。一个被删掉了 `@use` 的样式表，
+# 或者误用了另一套皮肤入口编出来的样式表，sass 照样 exit 0、照样被链进页面——页面于是显示成另一个样子，
+# 而唯一能发现它的办法是用眼睛看。故守源码的那道检查，在这里守结果。
+if ! KEELBASE_UI_SKIN="$SKIN" KEELBASE_YUDAO_UI="$UI_DIR" KEELBASE_YUDAO_UI_OUT="$OUT_NAME" \
+     bash "$REPO_ROOT/scripts/check-ui-skin.sh"; then
+  echo "the compiled stylesheets do not carry the '$SKIN' skin's tokens (see the checks above)." >&2
+  echo "编译出来的样式表没有带 '$SKIN' 皮肤的令牌（见上面的检查）。" >&2
+  exit 1
 fi
 
 # The avatar the stylesheet points at. It sits next to the stylesheet in the artefact, so the CSS can

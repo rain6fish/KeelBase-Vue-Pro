@@ -254,6 +254,20 @@ jobs:
             echo "ok    $f runs elsewhere in this pipeline"
           done
 
+      # 构建要用的皮肤必须完好：默认值、目录、两个入口、令牌前缀，以及产物在时的「产物属于所选皮肤」。
+      # 最后那半条正是 2026-11-19 审计发现完全缺失的读数 —— 此前 `KEELBASE_UI_SKIN` 只出现在
+      # `scripts/build-host-ui.sh` 一处，改坏默认皮肤不会有任何东西变红。每条断言都在
+      # `scripts/check-ui-skin.test.mjs` 里被逐条证伪：没人见过它变红的断言，在这里一文不值。
+      #
+      # The skin the host UI build uses has to be intact: the default, the directory, both entries, the
+      # token prefix, and — when an artefact is present — that artefact belonging to the chosen skin.
+      # That last half is the reading the 2026-11-19 audit found missing altogether: `KEELBASE_UI_SKIN`
+      # was named only in `scripts/build-host-ui.sh`, so breaking the default skin reddened nothing.
+      # Every assertion is falsified one by one in `scripts/check-ui-skin.test.mjs`; an assertion nobody
+      # has watched fail is worth nothing here.
+      - name: The host UI skin is intact, and the build's default is the one this guards
+        run: bash scripts/check-ui-skin.sh
+
   governance-boundary:
     name: No bean of ours hands a tool to Spring AI
     runs-on: ubuntu-latest

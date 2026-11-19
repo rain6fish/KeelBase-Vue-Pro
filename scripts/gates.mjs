@@ -203,6 +203,17 @@ export const GATES = [
     cmd: ['node', 'scripts/check-effect-target-existence.mjs'],
   },
   { id: 'family-block', job: 'family-block', prereq: 'node', cmd: ['node', 'scripts/check-family-block.mjs'] },
+  // The skin the host UI build uses has to be intact, and the build script's own default has to be the
+  // skin this gate guards. That second half is the reading the 2026-11-19 audit found missing
+  // outright: `KEELBASE_UI_SKIN` was named in `scripts/build-host-ui.sh` and nowhere else, so changing
+  // the default broke nothing anyone would see. The command is `bash`, not `node`; the class is `node`
+  // because it needs neither a JDK, a reactor, a UI checkout nor a running stack — bash ships with both
+  // the CI runner and Git Bash.
+  // 构建要用的皮肤必须完好，且构建脚本自己的默认值必须就是本门禁守的那一个。后一半正是 2026-11-19 审计
+  // 指出**完全缺失**的那个读数：`KEELBASE_UI_SKIN` 只出现在 `scripts/build-host-ui.sh` 一处，改默认值
+  // 不会有任何看得见的东西坏掉。命令是 `bash` 而不是 `node`；归类为 `node` 是因为它既不要 JDK、不要
+  // reactor、不要界面检出、也不要跑着的栈 —— 而 bash 在 CI runner 与 Git Bash 上都有。
+  { id: 'ui-skin', job: 'script-tests', prereq: 'node', cmd: ['bash', 'scripts/check-ui-skin.sh'] },
   // One glob, as CI runs it — a test file added later is covered without editing this list. The two
   // files that need a checkout are excluded here exactly as they are there, and each has its own entry
   // below; the parity check knows a named `node --test <file>` in CI is covered by this glob.
