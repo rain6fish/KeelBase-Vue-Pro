@@ -36,6 +36,21 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>Read-only.</b> No write entry, no delete, no "mark as read": a trail that can be edited is no
  * longer a trail.
+ *
+ * <p><b>Rows with a null tenant are unreadable, and that is the settled rule.</b> No page of this face
+ * returns them, now or later: both admitted readers (a tenant's administrator, a tenant's audit reader)
+ * are narrowed to a tenant, and a write recorded with no tenant belongs to none — handing it to one
+ * tenant would be exactly the attribution this face exists to refuse. This is acceptable because the
+ * face's job is "a tenant can see what it wrote", not "list every write"; such rows are produced only
+ * when the recording thread carried no tenant (the filter runs after the tenant filter, so this is the
+ * residual no-tenant edge), they remain in the table for an operator reading the database directly, and
+ * nothing about the trail's ability to keep up depends on reading them one by one.
+ *
+ * <p><b>租户为空的行不可读，这是定下来的口径。</b>本读面的任何一页都不会返回它们，现在不会、以后也不会：两种
+ * 准入身份（本租户管理员、本租户的审计读者）都按租户收窄，而一条没有租户的写不属于任何租户 —— 把它交给某个
+ * 租户，正是这条读面存在的理由所要拒绝的那一次归属。之所以可接受：这条读面的职责是「某个租户能看到自己写过
+ * 什么」，不是「列出所有写」；这类行只在记录线程上没有租户时产生（过滤器排在租户过滤器之后，这里是残余的无租户
+ * 边角），它们仍在表里，直连数据库的操作者读得到；而「留痕整体跟不跟得上」不依赖逐行读到它们。
  */
 @Component
 public class YudaoBypassLog {
