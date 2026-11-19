@@ -366,10 +366,10 @@ jobs:
         with:
           node-version: '22'
 
-      # 与 `build-host-ui.sh` §1 同形：钉住的是**提交**，不是分支——五份补丁是针对 `9bd6a91` 写的，
+      # 与 `build-host-ui.sh` §1 同形：钉住的是**提交**，不是分支——六份补丁是针对 `9bd6a91` 写的，
       # 上游 master 一往前动，补丁就地失效。抬这个值必须**与补丁一起**做。
       #
-      # Same shape as `build-host-ui.sh` §1: the pin is a **commit**, not a branch — the five patches
+      # Same shape as `build-host-ui.sh` §1: the pin is a **commit**, not a branch — the six patches
       # were written against `9bd6a91`, and upstream moving on invalidates them. Raising this value is a
       # deliberate edit made **together with** the patches.
       - name: Fetch the pinned UI checkout

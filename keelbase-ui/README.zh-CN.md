@@ -1,11 +1,22 @@
 # keelbase-ui —— 这个宿主渲染用的视觉层
 
-这些文件就是 KeelBase 视觉层：产品自有前端所用的那套 Element Plus 令牌（颜色、圆角、字体）。
-把它们放在这里，是为了让**宿主的界面**能按我们的样子渲染，而**不改动任何一个上游文件**。
+这些文件就是 KeelBase 视觉层：两套完整皮肤，任选其一都能编进**宿主的界面**，而**不改动任何一个上游文件**。
+`harbor` 是默认；`product`——为产品自有前端撰写的 Element Plus 令牌（颜色、圆角、字体）——仍可使用。
 
-## 它们是一份生成出来的副本
+## 两套皮肤
 
-令牌只在 `Web-Admin-Vue` 里写一次：
+| `KEELBASE_UI_SKIN` | 位置 | 是什么 |
+|---|---|---|
+| `harbor`（默认） | `skins/harbor/` | 产品自有皮肤，以 Materio Free 2.3.0 为起点并做了大量自有改造；所有令牌前缀均为 `--harbor-` |
+| `product` | `theme/` | 更早的 KeelBase 产品皮肤，保留可用 |
+
+默认值就是 `scripts/build-host-ui.sh` 里的 `KEELBASE_UI_SKIN:-harbor` 一行。构建只编译并链接所选皮肤的那一对
+样式表，且两套皮肤用同样的两个产物文件名，故在同一输出目录里构建另一套会覆盖前一套——产物永远不会同时带两套。
+其它取值会让构建以 `unknown KEELBASE_UI_SKIN: <值> (expected harbor or product)` 停下，退出码 2。
+
+## product 皮肤是一份生成出来的副本
+
+`product` 皮肤的令牌只在 `Web-Admin-Vue` 里写一次：
 
     Web-Admin-Vue/src/styles/element-theme.scss
     Web-Admin-Vue/src/styles/themes/{_blue,_teal,_graphite}.scss
@@ -16,8 +27,9 @@
     bash scripts/sync-ui-theme.sh --check  # 只校验；漂移即非零退出
 
 副本必须保持逐字节一致（换行已归一），**不要就地编辑这些文件**——`--check` 存在的意义就是逮住这件事。
+`harbor` 皮肤不参与这条同步：它在本仓 vendor 进来，文件头保留来源说明。
 
-## 这些令牌是什么
+## product 皮肤的令牌是什么
 
 纯 CSS 自定义属性，由 `<html data-theme>` 与 `<html class="dark">` 驱动：三套可切换主题
 （深靛默认 / 青绿 / 石墨）× 亮暗两态。这里没有任何东西会编译成构建期变量，所以这一层可以**在应用
@@ -26,24 +38,33 @@
 在本宿主里**只有默认（深靛）那套是活的**：应用没有 `data-theme` 切换器，故 `teal` 与 `graphite`
 两段永远不会命中。它们仍随副本一起带过来，好让三套主题保持「一份被撰写的东西」，而不是分叉。
 
-## 两张样式表，两件事
+## 每套皮肤两张样式表
 
-| 文件 | 覆盖什么 |
-|---|---|
-| `theme/element-theme.scss` → `keelbase-theme.css` | **Element Plus 令牌面**——颜色、圆角、字体、卡片与按钮的处理 |
-| `theme/host-yudao.scss` → `keelbase-host.css` | **yudao 自己的布局命名空间**——`--left-menu-*` · `--top-header-*` · `--logo-*` |
+每套皮肤都配一对：一张管 Element Plus 的令牌面，一张管 yudao 的壳。
 
-后者之所以存在，是因为前者够不到侧边栏、顶栏与标签条：yudao 用一套自己的命名空间驱动这三者，默认成
-产品并不使用的深藏青。它是**翻译，不是拷贝**——`Web-Admin-Vue` 把这同一套样子陈述在（`.admin-aside` ·
-`.el-menu-nav`）这些在这里并不存在的类名上，故那些规则无法入库。其中每一个**取值**都是对已入库令牌的
-`var(--el-*)` 引用，于是配色仍然只有一个源；被重述的只是结构。它在本仓撰写，不参与同步。
+| 皮肤 | 文件 | 覆盖什么 |
+|---|---|---|
+| `harbor` | `skins/harbor/harbor.scss` → `keelbase-theme.css` | **Element Plus 令牌面**——颜色、圆角、字体、卡片与按钮的处理 |
+| `harbor` | `skins/harbor/host-yudao-harbor.scss` → `keelbase-host.css` | **yudao 自己的布局命名空间**——`--left-menu-*` · `--top-header-*` · `--logo-*` |
+| `product` | `theme/element-theme.scss` → `keelbase-theme.css` | 同一个 Element Plus 令牌面，取 product 的取值 |
+| `product` | `theme/host-yudao.scss` → `keelbase-host.css` | 同一批 yudao 命名空间，取 product 的取值 |
+
+每套皮肤里后者之所以存在，都是因为前者够不到侧边栏、顶栏与标签条：yudao 用一套自己的命名空间驱动这三者，
+默认成两套皮肤都不使用的深藏青。它是**翻译，不是拷贝**——`Web-Admin-Vue` 把这同一套样子陈述在
+（`.admin-aside` · `.el-menu-nav`）这些在这里并不存在的类名上，故那些规则无法入库。其中每一个**取值**都是
+对本皮肤令牌的引用（`product` 是 `var(--el-*)`，`harbor` 是 `var(--harbor-*)`），于是每套配色仍然只有
+一个源；被重述的只是结构。两个适配层都在本仓撰写，不参与同步。
 
 ## 这一层怎么铺上去
 
 **构建期注入**——视觉层只存在于产物里，从不进入源码。
 
-    bash scripts/build-host-ui.sh              # 按需拉取、装依赖、构建、注入
-    bash scripts/build-host-ui.sh --skip-build # 在已有的产物目录上注入
+    bash scripts/build-host-ui.sh                          # 按需拉取、装依赖、构建、注入（harbor）
+    KEELBASE_UI_SKIN=product bash scripts/build-host-ui.sh # 同上，改用 product 皮肤
+    bash scripts/build-host-ui.sh --skip-build             # 在已有的产物目录上注入
+
+`--skip-build` 跳过拉取、装依赖与构建应用，但仍会把所选皮肤的样式表编译并注入到已有产物目录。它要求
+检出里已经带着我们的增量（语言包等）——那只有完整构建才会铺上去；缺了它构建会停下并说明原因。
 
 构建所用的检出始终不会被改动。代价是：界面自己的开发服务器（dev 模式）渲染的仍是上游的样子；
 只有构建产物带着这一层。

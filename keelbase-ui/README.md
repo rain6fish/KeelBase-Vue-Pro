@@ -1,12 +1,26 @@
 # keelbase-ui — the visual layer this host renders with
 
-These files are the KeelBase visual layer: the Element Plus token set (colours, radii, typography)
-used by the product's own front end. They are here so the host's UI can be rendered with our look
-**without editing a single upstream file**.
+These files are the KeelBase visual layer: two complete skins, either of which can be compiled into
+the host's UI **without editing a single upstream file**. `harbor` is the default; `product` — the
+Element Plus token set (colours, radii, typography) authored for the product's own front end — is
+still available.
 
-## They are a generated copy
+## Two skins
 
-The tokens are authored once, in `Web-Admin-Vue`:
+| `KEELBASE_UI_SKIN` | lives in | what it is |
+|---|---|---|
+| `harbor` (default) | `skins/harbor/` | the product's own skin, whose starting point is Materio Free 2.3.0 and which has been heavily adapted since; every token prefix is `--harbor-` |
+| `product` | `theme/` | the earlier KeelBase product skin, kept available |
+
+The default is the `KEELBASE_UI_SKIN:-harbor` line in `scripts/build-host-ui.sh`. The build compiles
+and links only the chosen skin's pair of stylesheets, and both skins use the same two artefact names,
+so building the other skin into the same output directory replaces the first — an artefact never
+carries both. Any other value stops the build with `unknown KEELBASE_UI_SKIN: <value> (expected
+harbor or product)` and exit code 2.
+
+## The product skin is a generated copy
+
+The `product` skin's tokens are authored once, in `Web-Admin-Vue`:
 
     Web-Admin-Vue/src/styles/element-theme.scss
     Web-Admin-Vue/src/styles/themes/{_blue,_teal,_graphite}.scss
@@ -17,9 +31,10 @@ Edit them **there**, then re-vendor and verify:
     bash scripts/sync-ui-theme.sh --check  # verify only; non-zero on drift
 
 The copy must stay byte-identical (line endings normalised), so do not edit these files in place —
-`--check` exists to catch exactly that.
+`--check` exists to catch exactly that. The `harbor` skin does not take part in this sync: it is
+vendored here, and its file headers record the provenance.
 
-## What these tokens are
+## What the product skin's tokens are
 
 Pure CSS custom properties, applied through `<html data-theme>` and `<html class="dark">`: three
 switchable themes (deep indigo default / teal / graphite) crossed with light and dark. Nothing here
@@ -30,26 +45,37 @@ In this host only the **default (deep indigo) theme** is live: the app has no `d
 so the `teal` and `graphite` blocks never match. They travel with the copy anyway, so the three
 themes stay one authored thing rather than a fork.
 
-## Two stylesheets, two jobs
+## Two stylesheets per skin
 
-| file | covers |
-|---|---|
-| `theme/element-theme.scss` → `keelbase-theme.css` | the **Element Plus token surface** — colours, radii, typography, card and button treatment |
-| `theme/host-yudao.scss` → `keelbase-host.css` | **yudao's own layout namespaces** — `--left-menu-*`, `--top-header-*`, `--logo-*` |
+Each skin ships a pair: one stylesheet for the Element Plus surface, one for yudao's shell.
 
-The second one exists because the first cannot reach the sidebar, the top bar or the tab strip: yudao
-drives all three through a namespace of its own and defaults it to a dark navy the product does not
-use. It is a **translation, not a copy** — `Web-Admin-Vue` states the same look against class names
-(`.admin-aside`, `.el-menu-nav`) that do not exist here, so those rules cannot be vendored. Every
-*value* in it is a `var(--el-*)` reference into the vendored tokens, so the palette still has one
-source; only the structure is restated. It is authored here, not synced.
+| skin | file | covers |
+|---|---|---|
+| `harbor` | `skins/harbor/harbor.scss` → `keelbase-theme.css` | the **Element Plus token surface** — colours, radii, typography, card and button treatment |
+| `harbor` | `skins/harbor/host-yudao-harbor.scss` → `keelbase-host.css` | **yudao's own layout namespaces** — `--left-menu-*`, `--top-header-*`, `--logo-*` |
+| `product` | `theme/element-theme.scss` → `keelbase-theme.css` | the same Element Plus surface, with the product's values |
+| `product` | `theme/host-yudao.scss` → `keelbase-host.css` | the same yudao namespaces, with the product's values |
+
+In each skin the second file exists because the first cannot reach the sidebar, the top bar or the
+tab strip: yudao drives all three through a namespace of its own and defaults it to a dark navy
+neither skin uses. It is a **translation, not a copy** — `Web-Admin-Vue` states the same look
+against class names (`.admin-aside`, `.el-menu-nav`) that do not exist here, so those rules cannot
+be vendored. Every *value* in it is a reference into that skin's own tokens (`var(--el-*)` for
+`product`, `var(--harbor-*)` for `harbor`), so each palette still has one source; only the structure
+is restated. Both adapters are authored here, not synced.
 
 ## How the layer is applied
 
 **Build-time injection** — the layer lives in the artefact, never in the source.
 
-    bash scripts/build-host-ui.sh              # fetch if needed, install, build, inject
-    bash scripts/build-host-ui.sh --skip-build # inject into an existing out dir
+    bash scripts/build-host-ui.sh                          # fetch if needed, install, build, inject (harbor)
+    KEELBASE_UI_SKIN=product bash scripts/build-host-ui.sh # the same, with the product skin
+    bash scripts/build-host-ui.sh --skip-build             # inject into an existing out dir
+
+`--skip-build` skips fetching, installing and building the app, but it still compiles and injects the
+selected skin's stylesheets into the existing out dir. It does need the checkout to already carry our
+delta — the locale messages and the rest — which only a full build lays down; without it the build
+stops and says so.
 
 The checkout the app is built from is never modified. The trade is that the UI's own dev server
 renders upstream's look; only the built artefact carries the layer.

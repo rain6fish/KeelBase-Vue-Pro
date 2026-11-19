@@ -55,21 +55,21 @@
 #   KEELBASE_UI_SKIN         皮肤：harbor（默认）| product
 #   KEELBASE_YUDAO_UI        检出位置（默认 <repo>/target/yudao-ui-admin-vue3）
 #   KEELBASE_YUDAO_UI_REPO   克隆地址（默认 Gitee 镜像）
-#   KEELBASE_YUDAO_UI_REF    要取的提交 / 分支 / 标签（默认钉在上游 9bd6a91 —— 四份补丁所针对的那个提交）
+#   KEELBASE_YUDAO_UI_REF    要取的提交 / 分支 / 标签（默认钉在上游 9bd6a91 —— 六份补丁所针对的那个提交）
 #
-#   默认值钉在**提交**上，不是分支上：四份补丁是在那一个上游提交上写的，上游 master 一往前动，补丁就地失效。
-#   抬这个默认值是**刻意的编辑**，必须**与补丁一起**做：四份补丁要重基到新提交，不能只改这一行。
+#   默认值钉在**提交**上，不是分支上：六份补丁是在那一个上游提交上写的，上游 master 一往前动，补丁就地失效。
+#   抬这个默认值是**刻意的编辑**，必须**与补丁一起**做：六份补丁要重基到新提交，不能只改这一行。
 #
 # Overridable:
 #   KEELBASE_UI_SKIN         skin: harbor (default) | product
 #   KEELBASE_YUDAO_UI        checkout location   (default <repo>/target/yudao-ui-admin-vue3)
 #   KEELBASE_YUDAO_UI_REPO   clone URL           (default the Gitee mirror)
 #   KEELBASE_YUDAO_UI_REF    commit / branch / tag to fetch
-#                            (default pinned to upstream 9bd6a91, the commit the four patches target)
+#                            (default pinned to upstream 9bd6a91, the commit the six patches target)
 #
-#   The default is pinned to a **commit**, not a branch: the four patches were written against that one
+#   The default is pinned to a **commit**, not a branch: the six patches were written against that one
 #   upstream commit, and upstream master moving past it makes them stop applying. Raising the pin is a
-#   deliberate edit made **together with the patches** — all four have to be rebased onto the new
+#   deliberate edit made **together with the patches** — all six have to be rebased onto the new
 #   commit; this line is never changed on its own.
 set -euo pipefail
 
