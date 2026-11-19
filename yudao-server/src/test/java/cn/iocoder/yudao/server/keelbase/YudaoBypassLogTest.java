@@ -15,6 +15,7 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 /**
@@ -58,7 +59,9 @@ class YudaoBypassLogTest {
                     + " ('2026-10-31T09:01:00Z', 'DELETE', '/admin-api/crm/customer/delete', 'crm', 'customer',"
                     + "  9001, 1, 200, 403, 5, null, null, null),"
                     + " ('2026-10-31T09:02:00Z', 'POST', '/admin-api/system/dict-data/create', 'system', 'dict-data',"
-                    + "  42, 2, 200, 0, 7, null, null, null)");
+                    + "  42, 2, 200, 0, 7, null, null, null),"
+                    + " ('2026-10-31T08:00:00Z', 'POST', '/admin-api/crm/clue/create', 'crm', 'clue',"
+                    + "  9001, null, 200, 0, 3, null, null, null)");
         }
         trail = new YudaoBypassLog(dataSource);
     }
@@ -107,6 +110,19 @@ class YudaoBypassLogTest {
         assertEquals(YudaoBypassLog.MAX_LIMIT, capped.limit(), "a page cannot be larger than the cap");
         assertEquals(0, pastTheEnd.items().size(), "past the end is an empty page, not a failure");
         assertEquals(2, pastTheEnd.total(), "and the total still says how many there are");
+    }
+
+    @Test
+    void rowsWithNoTenantArePresentButNoTenantCanReadThem() {
+        JdbcTemplate raw = new JdbcTemplate(dataSource);
+        assertEquals(1, raw.queryForObject(
+                        "select count(*) from keelbase_bypass_log where tenant_id is null", Integer.class),
+                "the seed really does hold one no-tenant row");
+
+        assertEquals(2, trail.page(1L, 1, 100).total(), "tenant 1's page excludes the no-tenant row");
+        assertEquals(1, trail.page(2L, 1, 100).total(), "tenant 2's page excludes it too");
+        assertTrue(trail.page(1L, 1, 100).items().stream().allMatch((row) -> row.tenantId() != null),
+                "no page hands a no-tenant write to a tenant — that would be the attribution this face refuses");
     }
 
     @Test

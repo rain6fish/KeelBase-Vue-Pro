@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 package cn.iocoder.yudao.server.keelbase;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PreDestroy;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -9,10 +11,10 @@ import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -56,6 +58,17 @@ import org.springframework.stereotype.Component;
  * runtime's `ai_audit_logs` would mix the trail into the audit chain — keeping them apart is why this
  * layer exists at all. So a {@link JdbcTemplate} is built from the {@link DataSource}, the way
  * `YudaoCallerDirectory` and `YudaoRecordNames` already do it.
+ *
+ * <p><b>The drop count is a metric, not only a log line.</b> `keelbase.bypass.audit.dropped` is a
+ * micrometer counter on the host's existing actuator surface — in the deployed profile it is readable at
+ * `/actuator/metrics/keelbase.bypass.audit.dropped`. The once-per-hundred log line stays for an operator
+ * reading logs; the counter is what a scrape or a dashboard can read without waiting for the hundredth
+ * drop. No new endpoint and no new response field: the host already exposes metrics.
+ *
+ * <p><b>丢弃数是取得到的指标，不只是一行日志。</b>`keelbase.bypass.audit.dropped` 是宿主既有 actuator 面上的
+ * micrometer 计数器 —— 在部署档下可于 `/actuator/metrics/keelbase.bypass.audit.dropped` 读到。每百次一句的
+ * 日志仍在，留给读日志的人；计数器给的是抓取与看板不必等到第一百次丢弃就能读到的东西。不新增端点、不新增
+ * 响应字段：宿主本来就有指标面。
  */
 @Component
 @ConditionalOnProperty(prefix = "keelbase.bypass-audit", name = "enabled",
@@ -79,19 +92,47 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
             + "http_status, result_code, duration_ms, body_length, body_sha256, body_fields) "
             + "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-    private final BlockingQueue<YudaoBypassAuditRow> queue = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
-    private final AtomicLong dropped = new AtomicLong();
+    /**
+     * The metric the drop count is published under. The name is a constant because the test reads the
+     * same surface an operator does, rather than a field behind it.
+     *
+     * 丢弃计数发布的指标名。名字写成常量，是因为测试读的必须是操作者读的同一个面，而不是它背后的一个字段。
+     */
+    static final String DROPPED_METRIC = "keelbase.bypass.audit.dropped";
+
+    private final BlockingQueue<YudaoBypassAuditRow> queue;
+    private final Counter dropped;
     private final DataSource dataSource;
-    private final Thread writer;
+    // Not final: the public constructor delegates to the queue-taking one and then builds it; the test
+    // seam has no drainer (null).
+    // 非 final：公开构造器委托给带队列的那个，再在委托之后把它建起来；测试缝那一档没有回收端（为 null）。
+    private Thread writer;
     private volatile JdbcTemplate jdbc;
 
-    public YudaoBypassAuditJdbcSink(DataSource dataSource) {
-        this.dataSource = dataSource;
+    @Autowired
+    public YudaoBypassAuditJdbcSink(DataSource dataSource, MeterRegistry meters) {
+        this(dataSource, meters, new ArrayBlockingQueue<>(QUEUE_CAPACITY));
         this.writer = new Thread(this::drain, "keelbase-bypass-audit");
         // 守护线程：一个只负责留痕的回收端不该拦住 JVM 退出。
         // A daemon thread: a record-only drainer must not hold the JVM open.
         this.writer.setDaemon(true);
         this.writer.start();
+    }
+
+    /**
+     * A test seam: a queue of the test's own and **no drainer** — the only shape in which a test can fill
+     * the queue to the brim deterministically. Package-private, and nothing in production calls it.
+     *
+     * 测试缝：队列由测试自带、**不起回收端** —— 只有这种形状才能确定地把队列打满。包级私有，生产代码不调它。
+     */
+    YudaoBypassAuditJdbcSink(DataSource dataSource, MeterRegistry meters,
+                             BlockingQueue<YudaoBypassAuditRow> queue) {
+        this.dataSource = dataSource;
+        this.queue = queue;
+        this.writer = null;
+        this.dropped = Counter.builder(DROPPED_METRIC)
+                .description("Bypass trail rows dropped because the bounded queue was full.")
+                .register(meters);
     }
 
     @Override
@@ -101,9 +142,12 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
         }
         if (!queue.offer(row)) {
             // 有界队列满了：丢，并计数。每 100 次说一句 —— 每次都说会把日志变成噪声，永不说则读不出在丢。
+            // 计数本身在构造时注册进 meter registry，故这一处自增即可被外部读到。
             // A full bounded queue drops, counted. Said once per hundred: every time is noise, never is
-            // a drop nobody can read.
-            long lost = dropped.incrementAndGet();
+            // a drop nobody can read. The counter is registered with the meter registry at construction,
+            // so this one increment is what the outside surface reads.
+            dropped.increment();
+            long lost = (long) dropped.count();
             if (lost % 100 == 1) {
                 LOG.warn("bypass trail queue is full; {} row(s) dropped so far", lost);
             }
@@ -169,7 +213,9 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
      */
     @PreDestroy
     void stop() {
-        writer.interrupt();
+        if (writer != null) {
+            writer.interrupt();
+        }
         List<YudaoBypassAuditRow> left = new ArrayList<>();
         queue.drainTo(left);
         for (YudaoBypassAuditRow row : left) {
@@ -178,8 +224,9 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
         if (!left.isEmpty()) {
             LOG.info("bypass trail flushed {} row(s) at shutdown", left.size());
         }
-        if (dropped.get() > 0) {
-            LOG.warn("bypass trail dropped {} row(s) in total", dropped.get());
+        long lost = (long) dropped.count();
+        if (lost > 0) {
+            LOG.warn("bypass trail dropped {} row(s) in total", lost);
         }
     }
 
