@@ -345,9 +345,12 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title .el-sub-menu__i
   right: auto;
   margin: 0 0 0 6px;
   vertical-align: middle;
-  // The original draws this chevron at icon size (1.25rem); Element Plus ships it at 12px.
-  // 原版按图标尺寸（1.25rem）画这个箭头；Element Plus 默认是 12px。
-  font-size: 1.25rem;
+  // The original draws this chevron at icon size (1.25rem), which is larger than the row's own 16px
+  // icon and reads as a second icon rather than a hint (2026-11-18, user feedback). It goes back to
+  // Element Plus's 12px, which is also what the product skin leaves it at.
+  // 原版把这个箭头按图标尺寸（1.25rem）画，比行内图标自己的 16px 还大，读起来像第二个图标而不是提示
+  // （2026-11-18 用户反馈）。改回 Element Plus 的 12px——产品皮肤也是这个值。
+  font-size: 0.75rem;
 }
 
 // Collapsed rail: the active row keeps the same tint and picks up the same rounding.
@@ -502,12 +505,47 @@ html body .v-tags-view .v-tags-view__item.is-active {
 html body .v-tags-view .el-scrollbar__bar {
   display: none;
 }
+// The host's fold control sits at the left end of the tags strip, right beside the sidebar, and draws
+// its chevron at 18px while every icon around it is 16px — next to the menu it reads as a second, heavier
+// control rather than a small affordance (2026-11-19, user feedback). It takes 14px: clearly subordinate
+// to the tag chips beside it, still legible as a chevron. The host sets the size inline on the icon
+// element, hence `!important`.
+// 宿主的折叠控件在标签条最左端、紧挨着侧栏，它的箭头画成 18px，而周围图标都是 16px——放在菜单旁边像是另一个
+// 更重的控件，而不是一个小操作（2026-11-19 用户反馈）。改为 14px：比旁边的标签小片明显退后，仍认得出是箭头。
+// 宿主把尺寸以内联样式写在图标元素上，故需要 `!important`。
+html body .v-collapse .el-icon,
+html body .v-collapse .el-icon svg {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+}
 
 // Dictionary values in lists come with a tinted background; there the chip is a capsule rather than
 // the button radius, so the tint reads as a status badge and not as a control.
 // 列表里的数据字典值带底色；那里用胶囊而不是按钮圆角，让底色读作状态徽标，而不是控件。
 html body .dict-tag .el-tag {
   border-radius: var(--el-border-radius-round);
+}
+// A chip is wider than the text it carries (18px of padding and 2px of border), and a row of link
+// actions is wider than the words in it, but the table's auto columns are sized against Element
+// Plus's own 12px cell padding while this skin insets cells by 20px. The label therefore lost its last
+// pixels to the cell's `overflow: hidden` (measured 2026-11-18: "自定义" is a 59px pill in a 43px content
+// box, cut by 16px on /system/role; "开启" in the 处理状态 column of /infra/apiErrorLog and the three
+// actions of /system/dict wrap for the same reason). Cells holding a chip take an 8px inset and cells
+// holding a row of actions 10px: both fit whole, and text cells keep the skin's 20px. The chip keeps
+// the extra 2px because at 10px a three-character label sat flush against the content edge (0.5px).
+// 胶囊比它装的文字宽（左右各 9px 内边距 + 2px 边框），一行链接按钮也比里面的字宽；而表格的自适应列是按
+// Element Plus 自己的 12px 单元格内边距算的，本皮肤却给单元格 20px。于是标签最后几个像素被单元格的
+// `overflow: hidden` 吃掉（2026-11-18 实测：/system/role 的「自定义」是 59px 胶囊、内容框只有 43px，被切掉
+// 16px；/infra/apiErrorLog 的「处理状态」与 /system/dict 的三个操作按钮同理）。装这两类内容的单元格改用
+// 10px（胶囊列 8px，多留 2px 余量）：胶囊与操作行完整放下，纯文字单元格仍保留皮肤的 20px。
+html body .el-table td.el-table__cell:has(.dict-tag) {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+html body .el-table td.el-table__cell:has(> .cell > .el-button.is-link) {
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 // Component details from the original that the Element Plus token bridge does not carry:
@@ -590,6 +628,17 @@ html body .el-button.el-button--large {
   font-size: 14px;
   line-height: 1;
 }
+// Link buttons are inline actions, not boxes: Element Plus gives them `height: auto; padding: 2px`, and
+// the product skin leaves that alone. The blanket rule above would otherwise hand every table's
+// 编辑/删除 a 32px-tall, 15px-padded box — which wraps a three-action column onto two lines
+// (measured 2026-11-18 on /system/dict: 修改/数据/删除 in a 160px column).
+// 链接按钮是行内动作、不是方块：Element Plus 给它 `height: auto; padding: 2px`，产品皮肤也原样不动。
+// 上面那条无差别的规则会塞给表格里每个「编辑/删除」一个 32px 高、左右 15px 的盒子——三个动作的操作列
+// 因此折成两行（2026-11-18 在 /system/dict 实测：160px 列里的 修改/数据/删除）。
+html body .el-button.is-link {
+  min-height: auto;
+  padding: 2px;
+}
 html body .el-input__wrapper,
 html body .el-select__wrapper,
 html body .el-input-number,
@@ -627,6 +676,17 @@ html body .el-popover,
 html body .el-drawer__header,
 html body .el-dropdown__popper .el-dropdown-menu {
   border-radius: 12px !important;
+}
+// The host's own Dialog wrapper draws a 1px rule above the footer (`.com-dialog .el-dialog__footer`),
+// while the skin's footer has no top padding — the buttons end up 1px under that rule (measured
+// 2026-11-18 in the avatar-cropper dialog: footer top 708, button top 709). The 16px top padding puts
+// the buttons back under the rule with the same air as the body above it. Footers without the rule are
+// untouched: there the body's own 20px bottom padding is the gap.
+// 宿主自己的 Dialog 包装在页脚上方画了一条 1px 分隔线（`.com-dialog .el-dialog__footer`），而皮肤的页脚
+// 上内边距为 0——按钮就贴在线上 1px 处（2026-11-18 在头像裁剪弹窗实测：页脚 top 708、按钮 top 709）。
+// 16px 上内边距让按钮离线上方同样留白。没有这条线的页脚不受影响：那里由弹窗正文自己的 20px 下内边距留白。
+html body .com-dialog .el-dialog__footer {
+  padding-top: 16px;
 }
 // Element Plus hard-codes the select's minimum height at 32px rather than taking the component size;
 // with the main repository's geometry that is exactly the wanted value.

@@ -1,0 +1,250 @@
+diff --git a/index.html b/index.html
+--- a/index.html
++++ b/index.html
+@@ -13,13 +13,17 @@
+     <div id="app">
+       <style>
+         .app-loading {
++          /* Full-viewport, not `height: 100%` of `#app`: before mount `#app` has no height, so the
++             declared background never painted and the screen stayed the browser's white. */
++          /* 铺满视口，而不是 `#app` 的 `height: 100%`：挂载前 `#app` 没有高度，声明的底色其实从未画出，
++             整屏一直是浏览器默认的白。 */
++          position: fixed;
++          inset: 0;
+           display: flex;
+-          width: 100%;
+-          height: 100%;
+           justify-content: center;
+           align-items: center;
+           flex-direction: column;
+-          background: #f0f2f5;
++          background: #f5f7fb;
+         }
+ 
+         .app-loading .app-loading-wrap {
+@@ -34,102 +38,165 @@
+           flex-direction: column;
+         }
+ 
+-        .app-loading .app-loading-title {
+-          margin-bottom: 30px;
+-          font-size: 20px;
+-          font-weight: bold;
+-          text-align: center;
+-        }
+-
+-        .app-loading .app-loading-item {
++        /*
++         * The boot mark: KeelBase's shield-and-check turning over on its vertical axis inside a turning
++         * arc, with a white shine sweeping across the body as it faces front. The shield is the
++         * product's own mark (the same path as the tab icon and the app logo), and the check is a hole
++         * in it, so the sweep reads as the mark itself working rather than as a second spinner. There
++         * is no wordmark: at boot the mark alone is the brand. Everything here is static HTML and CSS
++         * because it paints before the app boots.
++         *
++         * 启动标记：转动弧线里，KeelBase 盾形对勾绕竖轴翻转，面朝正前时一道白光扫过盾体。盾形是产品
++         * 自己的标记（与页签图标、应用 logo 同一份路径），对勾是盾形上的镂空，因此白光读作「标记在工作」，
++         * 而不是另配一个转圈。不写字：启动这一刻，标记本身就是品牌。这里全是静态 HTML 与 CSS，因为它在
++         * 应用启动之前就要画出来。
++         */
++        .app-loading .kb-loader {
+           position: relative;
+-          display: inline-block;
+-          width: 60px;
+-          height: 60px;
+-          vertical-align: middle;
+-          border-radius: 50%;
++          width: 96px;
++          height: 96px;
+         }
+ 
+-        .app-loading .app-loading-outter {
++        .app-loading .kb-loader__ring {
+           position: absolute;
++          top: 0;
++          left: 0;
+           width: 100%;
+           height: 100%;
+-          border: 4px solid #2d8cf0;
+-          border-bottom: 0;
+-          border-left-color: transparent;
+-          border-radius: 50%;
+-          animation: loader-outter 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
++          overflow: visible;
++        }
++
++        .app-loading .kb-loader__track {
++          stroke: rgba(29, 78, 216, 0.16);
++        }
++
++        .app-loading .kb-loader__arc {
++          stroke: #1d4ed8;
++          stroke-dasharray: 44 139;
++          transform-origin: 32px 32px;
++          animation: kb-loader-spin 1.4s linear infinite;
+         }
+ 
+-        .app-loading .app-loading-inner {
++        .app-loading .kb-loader__mark {
+           position: absolute;
+-          top: calc(50% - 20px);
+-          left: calc(50% - 20px);
+-          width: 40px;
+-          height: 40px;
+-          border: 4px solid #87bdff;
+-          border-right: 0;
+-          border-top-color: transparent;
+-          border-radius: 50%;
+-          animation: loader-inner 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
++          top: 50%;
++          left: 50%;
++          width: 52px;
++          height: 52px;
++          margin: -26px 0 0 -26px;
++          transform-origin: 50% 50%;
++          animation: kb-loader-flip 4s ease-in-out infinite;
+         }
+ 
+-        @-webkit-keyframes loader-outter {
+-          0% {
+-            -webkit-transform: rotate(0deg);
+-            transform: rotate(0deg);
+-          }
++        .app-loading .kb-loader__shield {
++          fill: #1d4ed8;
++        }
+ 
+-          100% {
+-            -webkit-transform: rotate(360deg);
++        .app-loading .kb-loader__shine {
++          fill: #fff;
++          opacity: 0.35;
++          animation: kb-loader-shine 4s ease-in-out infinite;
++        }
++
++        @keyframes kb-loader-spin {
++          to {
+             transform: rotate(360deg);
+           }
+         }
+ 
+-        @keyframes loader-outter {
++        /* One turn out and back, not a continuous spin: the shield shows its face, turns over, and
++           comes back face-first, with the eased ends giving it a beat at each side. */
++        /* 翻过去再翻回来，而不是一直转：盾形正面朝前 → 翻到背面 → 再翻回正面；两端用缓动，各停一拍。 */
++        @keyframes kb-loader-flip {
+           0% {
+-            -webkit-transform: rotate(0deg);
+-            transform: rotate(0deg);
++            transform: perspective(520px) rotateY(0deg);
++          }
++
++          50% {
++            transform: perspective(520px) rotateY(180deg);
+           }
+ 
+           100% {
+-            -webkit-transform: rotate(360deg);
+-            transform: rotate(360deg);
++            transform: perspective(520px) rotateY(0deg);
+           }
+         }
+ 
+-        @-webkit-keyframes loader-inner {
+-          0% {
+-            -webkit-transform: rotate(0deg);
+-            transform: rotate(0deg);
++        @keyframes kb-loader-shine {
++          0%,
++          8% {
++            transform: skewX(-16deg) translateX(0);
+           }
+ 
++          40%,
+           100% {
+-            -webkit-transform: rotate(-360deg);
+-            transform: rotate(-360deg);
++            transform: skewX(-16deg) translateX(40px);
+           }
+         }
+ 
+-        @keyframes loader-inner {
+-          0% {
+-            -webkit-transform: rotate(0deg);
+-            transform: rotate(0deg);
++        /* The boot screen paints before the app reads its saved theme, so the OS preference is the
++           only hint available; it decides whether the screen starts light or dark. */
++        /* 启动画面在应用读到已保存的主题之前就已画出，故操作系统的偏好是唯一可用的线索；由它决定这一屏
++           从亮还是从暗开始。 */
++        @media (prefers-color-scheme: dark) {
++          .app-loading {
++            background: #14121f;
+           }
+ 
+-          100% {
+-            -webkit-transform: rotate(-360deg);
+-            transform: rotate(-360deg);
++          .app-loading .kb-loader__track {
++            stroke: rgba(255, 255, 255, 0.16);
++          }
++
++          .app-loading .kb-loader__arc {
++            stroke: #6ea0ff;
++          }
++
++          .app-loading .kb-loader__shield {
++            fill: #4f7df0;
++          }
++        }
++
++        @media (prefers-reduced-motion: reduce) {
++          .app-loading .kb-loader__arc,
++          .app-loading .kb-loader__mark,
++          .app-loading .kb-loader__shine {
++            animation: none;
+           }
+         }
+       </style>
+       <div class="app-loading">
+         <div class="app-loading-wrap">
+-          <div class="app-loading-title">
+-            <div class="app-loading-title">%VITE_APP_TITLE%</div>
+-          </div>
+-          <div class="app-loading-item">
+-            <div class="app-loading-outter"></div>
+-            <div class="app-loading-inner"></div>
++          <div class="kb-loader" role="status" aria-label="加载中 Loading">
++            <svg class="kb-loader__ring" viewBox="0 0 64 64" aria-hidden="true">
++              <circle class="kb-loader__track" cx="32" cy="32" r="29" fill="none" stroke-width="2.5" />
++              <circle
++                class="kb-loader__arc"
++                cx="32"
++                cy="32"
++                r="29"
++                fill="none"
++                stroke-width="2.5"
++                stroke-linecap="round"
++              />
++            </svg>
++            <svg class="kb-loader__mark" viewBox="0 0 24 24" aria-hidden="true">
++              <defs>
++                <clipPath id="kb-loader-clip">
++                  <path
++                    d="M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"
++                  />
++                </clipPath>
++              </defs>
++              <path
++                class="kb-loader__shield"
++                d="M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"
++              />
++              <!-- The clip sits on a group with no transform of its own: a clip-path on the moving
++                   rect would travel with it and clip the shine away. -->
++              <!-- 裁剪放在不带自身变换的分组上：若直接落在会移动的 rect 上，裁剪会跟着走，白光就被裁没了。 -->
++              <g clip-path="url(#kb-loader-clip)">
++                <rect class="kb-loader__shine" x="-14" y="0" width="6" height="24" />
++              </g>
++            </svg>
+           </div>
+         </div>
+       </div>

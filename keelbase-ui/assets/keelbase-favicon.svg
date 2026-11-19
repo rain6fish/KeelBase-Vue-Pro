@@ -1,0 +1,13 @@
+<!-- KeelBase's tab mark: the product's shield-and-check, the same path and colour as
+     `host-overlay/src/assets/imgs/keelbase-logo.svg`, Web-Admin-Vue's AppLogo component and that
+     project's own favicon — one mark, one source. (The first version of this file traced the supplied
+     tab screenshot, which turned out to be the host vendor's two-wedge logo, so the tab still read as
+     theirs.) The build copies this file into the artefact and points the page's one
+     `<link rel="icon">` at it (scripts/build-host-ui.sh, section 5b). -->
+<!-- KeelBase 的页签图标：产品的盾形对勾，与 `host-overlay/src/assets/imgs/keelbase-logo.svg`、
+     Web-Admin-Vue 的 AppLogo 组件以及那个项目自己的 favicon 同一份路径与颜色——一个标记，一个来源。
+     （上一版这个文件按用户给的页签截图描了形，而那其实是宿主厂商的双楔形标志，页签因此仍读作他们的。）
+     构建时由 scripts/build-host-ui.sh 第 5b 段拷进产物，并把页面唯一那条 `<link rel="icon">` 指过来。 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path fill="#1d4ed8" d="M10,17L6,13L7.41,11.59L10,14.17L16.59,7.58L18,9M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"/>
+</svg>
