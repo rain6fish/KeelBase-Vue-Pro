@@ -1,17 +1,17 @@
 /*!
- * Materio skin — vendored copy, do not edit here.
+ * Harbor skin — vendored copy, do not edit here.
  * Source: vue-element-plus-admin v3.1.0, materio-theme/feedback.less
  *         (working copy: D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette)
  * Design source: Materio Free 2.3.0 (ThemeSelection), written against Element Plus 2.14.4.
  * License: MIT, inherited from the source package.
- * Only the extension changed (.less -> .scss); the file contains no LESS-specific syntax.
+ * The extension changed (.less -> .scss) and the token prefix was renamed (--materio- -> --harbor-); no LESS-specific syntax was present.
  *
- * Materio 皮肤——vendor 副本，请勿在此编辑。
+ * Harbor 皮肤——vendor 副本，请勿在此编辑。
  * 来源：vue-element-plus-admin v3.1.0 的 materio-theme/feedback.less
  *      （工作副本：D:/Rain6fish/vue-element-plus-admin-stage7-enterprise-palette）
  * 设计来源：Materio Free 2.3.0（ThemeSelection），按 Element Plus 2.14.4 编写。
  * 许可：MIT，随来源包。
- * 只改了扩展名（.less -> .scss）；文件内没有 LESS 特有的语法。
+ * 改了扩展名（.less -> .scss），并把令牌前缀由 --materio- 改为 --harbor-；文件内没有 LESS 特有的语法。
  */
 /*
  * Materio Free 2.3.0 dialog, snackbar, tooltip and feedback styling
@@ -19,13 +19,13 @@
  */
 
 :root {
-  --materio-dialog-header-padding: 20px;
-  --materio-dialog-body-padding: 0 20px 20px;
-  --materio-snackbar-padding: 12px 16px;
-  --materio-snackbar-min-height: 44px;
-  --materio-tooltip-radius: 4px;
-  --materio-tooltip-font-size: 0.8125rem;
-  --materio-tooltip-padding: 4px 12px;
+  --harbor-dialog-header-padding: 20px;
+  --harbor-dialog-body-padding: 0 20px 20px;
+  --harbor-snackbar-padding: 12px 16px;
+  --harbor-snackbar-min-height: 44px;
+  --harbor-tooltip-radius: 4px;
+  --harbor-tooltip-font-size: 0.8125rem;
+  --harbor-tooltip-padding: 4px 12px;
 }
 
 /* Dialogs and drawers share Materio's surface, border and elevation language. */
@@ -38,29 +38,29 @@
 .el-dialog,
 .el-drawer {
   background-color: var(--el-bg-color-overlay);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-10);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-10);
 }
 
 .el-dialog__header {
-  padding: var(--materio-dialog-header-padding);
+  padding: var(--harbor-dialog-header-padding);
   margin-right: 0;
   border-bottom: 1px solid var(--el-border-color);
 }
 
 .el-dialog__title {
   color: var(--el-text-color-primary);
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-card-title-size);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-card-title-size);
   font-weight: 500;
-  line-height: var(--materio-card-title-line-height);
+  line-height: var(--harbor-card-title-line-height);
 }
 
 .el-dialog__body {
-  padding: var(--materio-dialog-body-padding);
+  padding: var(--harbor-dialog-body-padding);
   color: var(--el-text-color-regular);
-  font-size: var(--materio-body-1-size);
-  line-height: var(--materio-body-1-line-height);
+  font-size: var(--harbor-body-1-size);
+  line-height: var(--harbor-body-1-line-height);
 }
 
 .el-dialog__footer {
@@ -81,37 +81,37 @@
   color: var(--el-text-color-primary);
   background-color: var(--el-bg-color-overlay);
   border-color: var(--el-border-color);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-5);
-  font-family: var(--materio-font-family);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-5);
+  font-family: var(--harbor-font-family);
 }
 
 .el-message__content,
 .el-notification__content,
 .el-message-box__message {
   color: var(--el-text-color-regular);
-  font-size: var(--materio-body-1-size);
-  line-height: var(--materio-body-1-line-height);
+  font-size: var(--harbor-body-1-size);
+  line-height: var(--harbor-body-1-line-height);
 }
 
 .el-notification__title,
 .el-message-box__title {
   color: var(--el-text-color-primary);
-  font-size: var(--materio-subtitle-1-size);
+  font-size: var(--harbor-subtitle-1-size);
   font-weight: 500;
 }
 
 /* Element Plus tooltip: Materio radius, type scale and padding. */
 .el-popper.is-dark,
 .el-tooltip__popper.is-dark {
-  border-radius: var(--materio-tooltip-radius);
-  font-family: var(--materio-font-family);
-  font-size: var(--materio-tooltip-font-size);
-  padding: var(--materio-tooltip-padding);
+  border-radius: var(--harbor-tooltip-radius);
+  font-family: var(--harbor-font-family);
+  font-size: var(--harbor-tooltip-font-size);
+  padding: var(--harbor-tooltip-padding);
 }
 
 .el-overlay {
-  background-color: color-mix(in srgb, var(--materio-overlay-scrim) 50%, transparent);
+  background-color: color-mix(in srgb, var(--harbor-overlay-scrim) 50%, transparent);
 }
 
 .el-loading-mask {

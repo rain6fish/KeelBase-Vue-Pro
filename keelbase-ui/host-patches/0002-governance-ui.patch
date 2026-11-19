@@ -1,8 +1,8 @@
 diff --git a/src/locales/en.ts b/src/locales/en.ts
-index 96269a8..2611a9b 100644
+index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,797 @@
+@@ -1,4 +1,799 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -81,6 +81,8 @@ index 96269a8..2611a9b 100644
 +      exportRefused: 'The export was refused: a cell in "{column}" carries an internal name',
 +      queryHits: 'Matched {n} row(s) in what was scanned',
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
++      keyOnlyHint:
++        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -777,9 +779,9 @@ index 96269a8..2611a9b 100644
 +    },
 +    record: {
 +      crm_customer: 'Customer',
-+      follow_up: 'Follow-up',
++      follow_up: 'Sample follow-up',
 +      pm_project: 'Project',
-+      crm_follow_up_record: 'Follow-up record',
++      crm_follow_up_record: 'CRM follow-up record',
 +      crm_business: 'Business opportunity',
 +      crm_clue: 'Lead',
 +      crm_contact: 'Contact',
@@ -801,10 +803,10 @@ index 96269a8..2611a9b 100644
      inputText: 'Please input',
      selectText: 'Please select',
 diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
-index 35f1e1a..856d201 100644
+index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,789 @@
+@@ -1,4 +1,791 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -883,6 +885,8 @@ index 35f1e1a..856d201 100644
 +      exportRefused: '导出已拒绝：「{column}」这一格带着内部名',
 +      queryHits: '扫描到的范围里命中 {n} 行',
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
++      keyOnlyHint:
++        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',
@@ -1571,9 +1575,9 @@ index 35f1e1a..856d201 100644
 +    },
 +    record: {
 +      crm_customer: '客户',
-+      follow_up: '跟进记录',
++      follow_up: '示例跟进记录',
 +      pm_project: '项目',
-+      crm_follow_up_record: '跟进记录',
++      crm_follow_up_record: 'CRM 跟进记录',
 +      crm_business: '商机',
 +      crm_clue: '线索',
 +      crm_contact: '联系人',

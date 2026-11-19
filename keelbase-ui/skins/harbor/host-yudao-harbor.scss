@@ -31,19 +31,19 @@
 html:root {
   --left-menu-max-width: 260px;
   --left-menu-min-width: 68px;
-  --left-menu-bg-color: var(--materio-background) !important;
-  --left-menu-bg-light-color: var(--materio-expansion-panel-text-bg) !important;
-  --left-menu-bg-active-color: color-mix(in srgb, var(--materio-on-surface) 8%, transparent) !important;
+  --left-menu-bg-color: var(--harbor-background) !important;
+  --left-menu-bg-light-color: var(--harbor-expansion-panel-text-bg) !important;
+  --left-menu-bg-active-color: color-mix(in srgb, var(--harbor-on-surface) 8%, transparent) !important;
   --left-menu-text-color: var(--el-text-color-regular) !important;
   --left-menu-text-active-color: var(--el-color-primary) !important;
-  --left-menu-collapse-bg-active-color: color-mix(in srgb, var(--materio-on-surface) 8%, transparent) !important;
+  --left-menu-collapse-bg-active-color: color-mix(in srgb, var(--harbor-on-surface) 8%, transparent) !important;
 
   --logo-height: 64px;
-  --logo-title-text-color: var(--materio-on-surface);
+  --logo-title-text-color: var(--harbor-on-surface);
 
-  --top-header-bg-color: var(--materio-background) !important;
+  --top-header-bg-color: var(--harbor-background) !important;
   --top-header-text-color: var(--el-text-color-regular) !important;
-  --top-header-hover-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  --top-header-hover-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent) !important;
   --top-tool-height: var(--logo-height);
   --top-tool-p-x: 0;
   --tags-view-height: 38px;
@@ -52,7 +52,7 @@ html:root {
   // without the margins dominating the page.
   // 原版页面内边距 24px；取 20px 作舒适值——左右与顶部有留白，但不至于压过内容。
   --app-content-padding: 20px;
-  --app-content-bg-color: var(--materio-background);
+  --app-content-bg-color: var(--harbor-background);
   --app-footer-height: 56px;
   --transition-time-02: 0.2s;
   --layout-border-color: var(--el-border-color);
@@ -72,15 +72,15 @@ html:root {
   // Not in the skin's var.css: yudao paints the login page with this one, and leaving it at the
   // host's navy would keep one screen out of the skin entirely.
   // 皮肤 var.css 里没有这个变量：yudao 用它铺登录页，留着宿主的深藏青会让唯一一屏完全落在皮肤之外。
-  --login-bg-color: var(--materio-background);
+  --login-bg-color: var(--harbor-background);
 
   // feedback.scss reads these two card-title tokens, but the vendored tokens.css never defines them,
   // so Element Plus falls back to an inherited size. The values are the card-title scale the source
   // package documents (1.125rem / 1.75rem); they live here rather than in the vendored file.
   // feedback.scss 读了这两个 card-title 令牌，而 vendor 的 tokens.css 从未定义它们，Element Plus 于是退回
   // 继承字号。取值用来源包文档里的 card-title 字号（1.125rem / 1.75rem）；写在适配层，不动 vendor 文件。
-  --materio-card-title-size: 1.125rem;
-  --materio-card-title-line-height: 1.75rem;
+  --harbor-card-title-size: 1.125rem;
+  --harbor-card-title-line-height: 1.75rem;
 }
 
 // Element Plus's light-N scale mixes N×10% white into the colour, so light-9 is the palest tint. The
@@ -93,19 +93,19 @@ html:root {
 // 改写在适配层而不是 vendor 文件里，这样以后重新 vendor 也不会悄悄把反向带回来。`!important` 对齐构建
 // 对主色族的钉住；`html:root` 对齐来源块的特异性。
 html:root {
-  --el-color-primary-light-3: color-mix(in srgb, var(--materio-primary) 70%, #fff) !important;
-  --el-color-primary-light-5: color-mix(in srgb, var(--materio-primary) 50%, #fff) !important;
-  --el-color-primary-light-7: color-mix(in srgb, var(--materio-primary) 30%, #fff) !important;
-  --el-color-primary-light-8: color-mix(in srgb, var(--materio-primary) 20%, #fff) !important;
-  --el-color-primary-light-9: color-mix(in srgb, var(--materio-primary) 10%, #fff) !important;
+  --el-color-primary-light-3: color-mix(in srgb, var(--harbor-primary) 70%, #fff) !important;
+  --el-color-primary-light-5: color-mix(in srgb, var(--harbor-primary) 50%, #fff) !important;
+  --el-color-primary-light-7: color-mix(in srgb, var(--harbor-primary) 30%, #fff) !important;
+  --el-color-primary-light-8: color-mix(in srgb, var(--harbor-primary) 20%, #fff) !important;
+  --el-color-primary-light-9: color-mix(in srgb, var(--harbor-primary) 10%, #fff) !important;
 }
 
 html:root.dark {
-  --el-color-primary-light-3: color-mix(in srgb, var(--materio-primary) 70%, var(--materio-background)) !important;
-  --el-color-primary-light-5: color-mix(in srgb, var(--materio-primary) 50%, var(--materio-background)) !important;
-  --el-color-primary-light-7: color-mix(in srgb, var(--materio-primary) 30%, var(--materio-background)) !important;
-  --el-color-primary-light-8: color-mix(in srgb, var(--materio-primary) 20%, var(--materio-background)) !important;
-  --el-color-primary-light-9: color-mix(in srgb, var(--materio-primary) 10%, var(--materio-background)) !important;
+  --el-color-primary-light-3: color-mix(in srgb, var(--harbor-primary) 70%, var(--harbor-background)) !important;
+  --el-color-primary-light-5: color-mix(in srgb, var(--harbor-primary) 50%, var(--harbor-background)) !important;
+  --el-color-primary-light-7: color-mix(in srgb, var(--harbor-primary) 30%, var(--harbor-background)) !important;
+  --el-color-primary-light-8: color-mix(in srgb, var(--harbor-primary) 20%, var(--harbor-background)) !important;
+  --el-color-primary-light-9: color-mix(in srgb, var(--harbor-primary) 10%, var(--harbor-background)) !important;
 }
 
 // Sidebar rows: Materio's navigation is a list of rounded rows on the surface, not full-bleed bands.
@@ -129,11 +129,11 @@ html body .v-menu .el-menu .el-sub-menu__title .el-icon:not(.el-sub-menu__icon-a
 }
 html body .v-menu .el-menu .el-menu-item {
   margin: 2px 0;
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 html body .v-menu .el-menu .el-sub-menu__title {
   margin: 2px 0;
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 
 // yudao's own hover rule paints the row with the sidebar background and the active text colour, so
@@ -142,12 +142,12 @@ html body .v-menu .el-menu .el-sub-menu__title {
 // 更高权重压过它。
 html body .v-menu .el-menu.el-menu--vertical .el-menu-item:not(.is-active):hover {
   color: var(--el-text-color-primary) !important;
-  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  background-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent) !important;
   border-radius: 0 999px 999px 0;
 }
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
-  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  background-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent) !important;
   border-radius: 0 999px 999px 0;
 }
 
@@ -181,7 +181,7 @@ html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active::before {
   right: 0;
   border-radius: 0 999px 999px 0;
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
-  box-shadow: 0 3px 6px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
+  box-shadow: 0 3px 6px 0 rgba(var(--harbor-shadow-key-color), var(--harbor-shadow-sm-opacity));
 }
 html body .v-menu .el-menu.el-menu--vertical .el-menu-item.is-active:hover {
   background-color: transparent !important;
@@ -207,7 +207,7 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-activ
   right: 0;
   border-radius: 0 999px 999px 0;
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
-  box-shadow: 0 3px 6px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
+  box-shadow: 0 3px 6px 0 rgba(var(--harbor-shadow-key-color), var(--harbor-shadow-sm-opacity));
 }
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu-item.is-active:hover::before {
   background: linear-gradient(90deg, var(--el-color-primary-light-3) 0%, var(--el-color-primary) 100%);
@@ -240,7 +240,7 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-sub-menu_
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-menu-item:not(.is-active):hover,
 html body .v-menu .el-menu.el-menu--vertical .el-sub-menu .el-menu .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
-  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  background-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent) !important;
   border-radius: 0 999px 999px 0;
 }
 
@@ -356,10 +356,10 @@ html body .v-menu .el-menu.el-menu--vertical .el-sub-menu__title .el-sub-menu__i
 // Collapsed rail: the active row keeps the same tint and picks up the same rounding.
 // 折叠态：激活行沿用同一层淡色，并同样收圆角。
 html body .v-menu .el-menu.el-menu--collapse .el-menu-item.is-active {
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 html body .v-menu .el-menu.el-menu--collapse .el-sub-menu.is-active > .el-sub-menu__title {
-  border-radius: var(--materio-radius);
+  border-radius: var(--harbor-radius);
 }
 
 // The original's collapsed vertical nav is 80px wide, not the host's 64px. The host writes its width
@@ -382,19 +382,19 @@ html body .v-menu-popper--vertical .el-menu--popup,
 html body .v-menu-popper--horizontal .el-menu--popup {
   padding: 4px;
   border: 1px solid var(--el-border-color);
-  border-radius: var(--materio-radius);
-  box-shadow: var(--materio-shadow-5);
+  border-radius: var(--harbor-radius);
+  box-shadow: var(--harbor-shadow-5);
 }
 html body .v-menu-popper--vertical .el-menu-item,
 html body .v-menu-popper--horizontal .el-menu-item {
-  border-radius: var(--materio-radius-sm);
+  border-radius: var(--harbor-radius-sm);
 }
 html body .v-menu-popper--vertical .el-menu-item:hover,
 html body .v-menu-popper--vertical .el-sub-menu__title:hover,
 html body .v-menu-popper--horizontal .el-menu-item:hover,
 html body .v-menu-popper--horizontal .el-sub-menu__title:hover {
   color: var(--el-text-color-primary) !important;
-  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent) !important;
+  background-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent) !important;
   border-radius: 0 999px 999px 0;
 }
 html body .v-menu-popper--vertical .el-menu-item.is-active,
@@ -413,7 +413,7 @@ html body .v-tab-menu__item {
 }
 html body .v-tab-menu__item:hover {
   color: var(--el-color-primary);
-  background-color: color-mix(in srgb, var(--materio-on-surface) 4%, transparent);
+  background-color: color-mix(in srgb, var(--harbor-on-surface) 4%, transparent);
 }
 
 // On a dark surface every semantic colour is too dark to read on its own tint or on the surface: the
@@ -436,14 +436,14 @@ html body .v-tab-menu__item:hover {
   }
 }
 html:root.dark .v-menu .el-menu.el-menu--vertical .el-sub-menu.is-active > .el-sub-menu__title {
-  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+  color: color-mix(in srgb, var(--harbor-primary) 72%, #fff) !important;
 }
 // The two-column rail labels are yudao markup outside `.v-menu`; its active/hover label also uses the
 // base primary colour, which is the same contrast failure on a dark surface.
 // 双列窄栏的标签是 `.v-menu` 之外的 yudao 标记；它的选中/悬停标签也用基础主色，在暗色表面上同样看不清。
 html:root.dark .v-tab-menu__item:hover,
 html:root.dark .v-tab-menu__item.is-active {
-  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+  color: color-mix(in srgb, var(--harbor-primary) 72%, #fff) !important;
 }
 // The collapsed sidebar's submenu lives in a teleported popper; its active row and active group keep
 // the base primary colour, which is the same contrast problem on a dark surface.
@@ -452,13 +452,13 @@ html:root.dark .v-menu-popper--vertical .el-menu-item.is-active,
 html:root.dark .v-menu-popper--horizontal .el-menu-item.is-active,
 html:root.dark .v-menu-popper--vertical .el-sub-menu.is-active > .el-sub-menu__title,
 html:root.dark .v-menu-popper--horizontal .el-sub-menu.is-active > .el-sub-menu__title {
-  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+  color: color-mix(in srgb, var(--harbor-primary) 72%, #fff) !important;
 }
 html:root.dark .v-menu.v-menu--header .el-menu-item:hover,
 html:root.dark .v-menu.v-menu--header .el-sub-menu__title:hover,
 html:root.dark .v-menu.v-menu--header .el-menu-item.is-active,
 html:root.dark .v-menu.v-menu--header .el-sub-menu.is-active > .el-sub-menu__title {
-  color: color-mix(in srgb, var(--materio-primary) 72%, #fff) !important;
+  color: color-mix(in srgb, var(--harbor-primary) 72%, #fff) !important;
 }
 
 // The shell surfaces sit on the page's tinted canvas rather than on white: the top bar (which carries
@@ -468,10 +468,10 @@ html:root.dark .v-menu.v-menu--header .el-sub-menu.is-active > .el-sub-menu__tit
 // 外壳表面改坐在页面淡底上，而不是白色：顶栏（面包屑在其中）与标签条取页面底色，卡片成为唯一的表面。
 // yudao 把标签条底色写死为白色、暗色下另走 `.dark` 工具类，故两条都带 `!important`，亮暗一并覆盖。
 html body .v-tool-header {
-  background-color: var(--materio-background) !important;
+  background-color: var(--harbor-background) !important;
 }
 html body .v-tags-view {
-  background-color: var(--materio-background) !important;
+  background-color: var(--harbor-background) !important;
 }
 
 // The shell's dividers are 1px pseudo-element lines (`layout-border__*`); with the menu, the top bar
@@ -498,6 +498,12 @@ html body .v-tags-view .v-tags-view__item {
 }
 html body .v-tags-view .v-tags-view__item.is-active {
   border-color: var(--el-color-primary);
+}
+// The tags strip already has its own ‹‹ ›› scroll buttons; Element Plus's scrollbar under it is
+// redundant and appears as soon as there are enough tabs to overflow. The arrows keep working.
+// 标签条本身已有 ‹‹ ›› 滚动按钮；Element Plus 的滚动条是多余的，标签一多就会露出来。箭头仍可正常滚动。
+html body .v-tags-view .el-scrollbar__bar {
+  display: none;
 }
 
 // Dictionary values in lists come with a tinted background; there the chip is a capsule rather than
@@ -535,7 +541,7 @@ html body .el-table td.el-table__cell:has(> .cell > .el-button.is-link) {
 //   · 实心按钮在 elevation 2（一层 0 2px 4px 的柔和投影），按下时落平；
 //   · 小号标签是 13px/500，而不是 Element Plus 的 12px/400。
 html body .el-button:not(.is-text):not(.is-link):not(.is-plain) {
-  box-shadow: 0 2px 4px 0 rgba(var(--materio-shadow-key-color), var(--materio-shadow-sm-opacity));
+  box-shadow: 0 2px 4px 0 rgba(var(--harbor-shadow-key-color), var(--harbor-shadow-sm-opacity));
 }
 html body .el-button:not(.is-text):not(.is-link):not(.is-plain):active {
   box-shadow: none;
@@ -701,7 +707,7 @@ html body .el-card__header {
 // The original draws scrollbar thumbs in its own token (#dbdade light / #4a5072 dark).
 // 原版用自己的令牌画滚动条（亮色 #dbdade / 暗色 #4a5072）。
 html body .el-scrollbar__thumb {
-  background-color: var(--materio-scrollbar-thumb);
+  background-color: var(--harbor-scrollbar-thumb);
 }
 
 // The host's page rhythm is wider than the original's: 15px between cards and around the pager, 18px

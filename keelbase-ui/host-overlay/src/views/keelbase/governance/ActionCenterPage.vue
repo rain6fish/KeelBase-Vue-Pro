@@ -479,14 +479,14 @@ const pending = ref<ConfirmationItem[]>([])
 /** 已经裁决过的记录 —— 不带 `status` 时端点就会把它们答回来。 */
 const decided = ref<ConfirmationItem[]>([])
 /**
- * 别人发起、由**当前这个人**作为第二批准人裁决过的行。`/ai/my/confirmations` 只答调用方自己发起的
- * `mode=immediate` 行，故 R4 那一笔不在它里面 —— 这一半从全局队列与自己的审计裁决行配出来（见
- * `loadApproverDecisions`）。它只对管理员有内容：只有管理员能裁决。
- *
  * Rows raised by someone else and decided by **this person** as the second approver.
  * `/ai/my/confirmations` answers only the caller's own `immediate` rows, so an R4 row is not in it; this
  * half is paired from the global queue and the caller's own decision audit rows (see
  * `loadApproverDecisions`). It is only non-empty for an administrator, the only role that may decide.
+ *
+ * 别人发起、由**当前这个人**作为第二批准人裁决过的行。`/ai/my/confirmations` 只答调用方自己发起的
+ * `mode=immediate` 行，故 R4 那一笔不在它里面 —— 这一半从全局队列与自己的审计裁决行配出来（见
+ * `loadApproverDecisions`）。它只对管理员有内容：只有管理员能裁决。
  */
 const decidedAsApprover = ref<ConfirmationItem[]>([])
 const approverHistoryError = ref('')
@@ -683,17 +683,6 @@ function initiatedByMe(c: ConfirmationItem): boolean {
 }
 
 /**
- * 「最近裁决」的另一半：别人发起、由**我**裁决过的行。
- *
- * 确认记录的投影不带裁决人 id（冻结对象里没有这个字段），而那次裁决在审计链上另有一行：
- * `action=tool_confirmation`、`outcome=approved|declined`，它的 `user_id` 就是裁决人。故按调用方读
- * `/audit/logs?userId=` 拿我自己的裁决行，再把它配到全局队列里**已裁决**的 approval 行上。两条记录之间
- * 没有共同的键，故唯一诚实的配法是 **同一工具、五秒之内、恰好一个候选** —— 与发起人配对、轨迹上的裁决人
- * 配对用的同一条规则。配不上（没有、或不止一个）就**不列**：把别人的裁决说成自己的，比少一行更糟。
- *
- * 读失败不拖垮那张待批卡：这里只清空这一半，并在卡片上说一句「这次没有读到」，而不是把它画成
- * 「你没有裁决过」。
- *
  * The other half of "recent decisions": rows raised by someone else and decided by **me**.
  *
  * The confirmation projection carries no approver id (the frozen object has no such field), while the
@@ -706,6 +695,17 @@ function initiatedByMe(c: ConfirmationItem): boolean {
  *
  * A failed read does not take the waiting card down with it: it clears this half only and says so on the
  * card, rather than drawing it as "you have decided nothing".
+ *
+ * 「最近裁决」的另一半：别人发起、由**我**裁决过的行。
+ *
+ * 确认记录的投影不带裁决人 id（冻结对象里没有这个字段），而那次裁决在审计链上另有一行：
+ * `action=tool_confirmation`、`outcome=approved|declined`，它的 `user_id` 就是裁决人。故按调用方读
+ * `/audit/logs?userId=` 拿我自己的裁决行，再把它配到全局队列里**已裁决**的 approval 行上。两条记录之间
+ * 没有共同的键，故唯一诚实的配法是 **同一工具、五秒之内、恰好一个候选** —— 与发起人配对、轨迹上的裁决人
+ * 配对用的同一条规则。配不上（没有、或不止一个）就**不列**：把别人的裁决说成自己的，比少一行更糟。
+ *
+ * 读失败不拖垮那张待批卡：这里只清空这一半，并在卡片上说一句「这次没有读到」，而不是把它画成
+ * 「你没有裁决过」。
  */
 async function loadApproverDecisions(queue: ConfirmationItem[]) {
   decidedAsApprover.value = []
@@ -745,8 +745,8 @@ async function loadApprovals() {
     approvalVisible.value = true
     approvalScanBound.value = bound
     approvalRows.value = items.filter((c) => c.mode === 'approval' && c.status === 'pending')
-    // 「最近裁决」的另一半用的是**同一份队列**：这里已经读过，就不再为它读第二遍。
     // The other half of "recent decisions" reads the **same queue**: it is already here, so no second read.
+    // 「最近裁决」的另一半用的是**同一份队列**：这里已经读过，就不再为它读第二遍。
     await loadApproverDecisions(items)
     if (!approvalRows.value.length) {
       approvalInitiators.value = {}
