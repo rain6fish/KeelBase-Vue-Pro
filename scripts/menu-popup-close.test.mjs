@@ -33,7 +33,11 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PATCH = 'keelbase-ui/host-patches/0007-menu-popup-close.patch'
-const patch = readFileSync(join(ROOT, PATCH), 'utf8')
+// A checkout with `core.autocrlf` hands the patch back with CRLF; the assertions below anchor on
+// `\n`, so the text is normalized the way the other patch tests do it.
+//
+// 开了 `core.autocrlf` 的检出会把补丁读成 CRLF，而下面的断言以 `\n` 为锚点，故按其它补丁测试的做法归一化。
+const patch = readFileSync(join(ROOT, PATCH), 'utf8').replace(/\r\n/g, '\n')
 const added = patch
   .split('\n')
   .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
