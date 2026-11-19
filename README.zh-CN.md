@@ -19,6 +19,9 @@
 > **赶时间？** [KEELBASE-HOST.md](keelbase-docs/KEELBASE-HOST.zh-CN.md) —— 本仓为什么存在、它主张什么与
 > 不主张什么、以及这条线现在站在哪。
 
+> **公共底座，私有交付。** KeelBase-Vue-Pro 是 KeelBase 的公开应用 / 集成层。客户定制的扩展、皮肤、
+> 集成与业务资产另在私有仓中维护。本仓是公共底座，不是任何客户项目的源码。
+
 **系列长文** —— 这些决定背后的长文，分「AI 执行治理」「AI 审计证据」两条线：[知乎文集](https://www.zhihu.com/people/56-10-10-68)。
 
 <!-- BEGIN keelbase-family:zh sha256:2fca82b630125b02af1bb0f762f35c35effc94635209f5f5453231790c5f1259 -->
