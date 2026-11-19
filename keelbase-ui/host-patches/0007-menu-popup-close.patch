@@ -1,0 +1,115 @@
+diff --git a/src/layout/components/Menu/src/Menu.vue b/src/layout/components/Menu/src/Menu.vue
+index bc7d8ca..edb44ff 100644
+--- a/src/layout/components/Menu/src/Menu.vue
++++ b/src/layout/components/Menu/src/Menu.vue
+@@ -73,6 +73,18 @@ export default defineComponent({
+ 
+     const collapse = computed(() => appStore.getCollapse)
+ 
++    /**
++     * Collapse only when the menu really renders as a rail; the two-column layout keeps it open.
++     *
++     * 只有菜单真的以窄条渲染时才折叠；两栏布局里它一直是展开的。
++     */
++    const menuCollapsed = computed(
++      () =>
++        unref(menuMode) !== 'horizontal' &&
++        !isTwoColumnLayout(unref(layout)) &&
++        unref(collapse)
++    )
++
+     const uniqueOpened = computed(() => appStore.getUniqueOpened)
+ 
+     const horizontalOverflowOpened = ref(false)
+@@ -209,6 +221,14 @@ export default defineComponent({
+       if (props.rootOnly) {
+         return []
+       }
++      // A collapsed vertical submenu is a popper, not an inline list: auto-opening it on load lays a
++      // panel over the page before the reader touches anything. Open it on demand instead.
++      //
++      // 折叠后的垂直子菜单是一个 popper，而不是内联列表：载入时自动展开它，会在读者动手之前先把一块
++      // 面板盖在页面上。改成按需展开。
++      if (unref(menuCollapsed)) {
++        return []
++      }
+       return findOpenMenuPaths(unref(routers), normalizeMenuTargetPath(unref(activeMenu)))
+     })
+ 
+@@ -361,16 +381,76 @@ export default defineComponent({
+       horizontalOverflowOpened.value = true
+     }
+ 
++    /**
++     * Close a collapsed menu's open popper no matter what the pointer did.
++     *
++     * Element Plus closes a collapsed vertical submenu only on `mouseleave`. A narrow or embedded
++     * browser that does not deliver that event leaves the panel on screen: Escape and a click
++     * elsewhere do nothing, because `closeOnClickOutside` is off by default. Dispatching `mouseleave`
++     * runs the same close path the pointer would have run.
++     *
++     * 不管指针做过什么，都把折叠菜单已打开的浮层收起。
++     *
++     * Element Plus 只在 `mouseleave` 时收起折叠的垂直子菜单。窄屏或内嵌浏览器不派发那个事件时，
++     * 面板就留在屏幕上：Esc 与点击别处都没用，因为 `closeOnClickOutside` 默认关闭。派发一次
++     * `mouseleave`，走的就是指针本该触发的那条收起路径。
++     */
++    const closeCollapsedPopups = () => {
++      if (!unref(menuCollapsed)) {
++        return
++      }
++      unref(menuWrapRef)
++        ?.querySelectorAll('.el-menu--collapse > .el-sub-menu')
++        .forEach((el) => el.dispatchEvent(new MouseEvent('mouseleave')))
++      document.querySelectorAll(`.${prefixCls}-popper--vertical`).forEach((el) => {
++        const container = el.querySelector('.el-menu--popup-container') || el
++        container.dispatchEvent(new MouseEvent('mouseleave'))
++      })
++    }
++
++    const onDocumentPointerDown = (event: PointerEvent) => {
++      if (!unref(menuCollapsed)) {
++        return
++      }
++      const target = event.target as Element | null
++      if (!target) {
++        return
++      }
++      if (menuWrapRef.value?.contains(target)) {
++        return
++      }
++      if (target.closest?.('.el-menu--popup-container')) {
++        return
++      }
++      closeCollapsedPopups()
++    }
++
++    const onDocumentKeydown = (event: KeyboardEvent) => {
++      if (event.key === 'Escape') {
++        closeCollapsedPopups()
++      }
++    }
++
++    watch(
++      () => unref(currentRoute).path,
++      () => nextTick(closeCollapsedPopups),
++      { flush: 'post' }
++    )
++
+     onMounted(() => {
+       const wrapper = unref(menuWrapRef)
+       wrapper?.addEventListener('click', openHorizontalOverflowMenu, true)
+       wrapper?.addEventListener('mouseover', openHorizontalOverflowMenu, true)
++      document.addEventListener('pointerdown', onDocumentPointerDown, true)
++      document.addEventListener('keydown', onDocumentKeydown, true)
+     })
+ 
+     onBeforeUnmount(() => {
+       const wrapper = unref(menuWrapRef)
+       wrapper?.removeEventListener('click', openHorizontalOverflowMenu, true)
+       wrapper?.removeEventListener('mouseover', openHorizontalOverflowMenu, true)
++      document.removeEventListener('pointerdown', onDocumentPointerDown, true)
++      document.removeEventListener('keydown', onDocumentKeydown, true)
+     })
+ 
+     const menuSelect = (index: string) => {
