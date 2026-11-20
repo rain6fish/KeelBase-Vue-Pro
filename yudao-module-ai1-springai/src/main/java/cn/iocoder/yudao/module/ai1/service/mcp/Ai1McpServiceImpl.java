@@ -147,7 +147,7 @@ public class Ai1McpServiceImpl implements Ai1McpService {
         } catch (RuntimeException e) {
             // A call that never got an answer still reached out; an exception must not erase that.
             // 没答上来的一次调用也已经伸了手；异常不能把这件事抹掉。
-            recordConnectAudit(mcp, false, System.currentTimeMillis() - startTime, errorCategory(e.getMessage()),
+            recordConnectAudit(mcp, false, System.currentTimeMillis() - startTime, errorCategory(e),
                     e.getMessage());
             throw e;
         }
@@ -213,6 +213,27 @@ public class Ai1McpServiceImpl implements Ai1McpService {
     }
 
     /**
+     * The category of a failure, with the cause chain folded in. A wrapper's message can be a sentence
+     * that names nothing ("Client failed to initialize by explicit API call"), while the chain's classes
+     * say what happened; both are read, and the mapping below stays the same.
+     *
+     * 失败的类别，把因果链折进来。包装异常的消息可能是一句什么都不指名的话（「Client failed to
+     * initialize by explicit API call」），而链上的类名说明了发生了什么；两者都读，下面的映射不变。
+     */
+    private static String errorCategory(Throwable failure) {
+        StringBuilder words = new StringBuilder();
+        Throwable cause = failure;
+        for (int depth = 0; cause != null && depth < 5; depth++) {
+            words.append(cause.getClass().getSimpleName()).append(' ');
+            if (StrUtil.isNotBlank(cause.getMessage())) {
+                words.append(cause.getMessage()).append(' ');
+            }
+            cause = cause.getCause() == cause ? null : cause.getCause();
+        }
+        return errorCategory(words.toString());
+    }
+
+    /**
      * The category, not the whole sentence: a reader filtering the chain asks "timeouts or refusals",
      * and the wording of an exception is the implementer's to change.
      *
@@ -229,12 +250,15 @@ public class Ai1McpServiceImpl implements Ai1McpService {
         if (lower.contains("timed out") || lower.contains("timeout") || message.contains("超时")) {
             return "timeout";
         }
-        if (lower.contains("unknownhost") || lower.contains("name or service not known")
-                || lower.contains("nodename nor servname")) {
+        // Class names count too: a JDK connect failure can carry no message at all, and the chain's
+        // class is then the only word that says what happened.
+        // 类名也算在内：JDK 的建连失败可能一个字的 message 都没有，链上的类名就是唯一说明发生了什么的东西。
+        if (lower.contains("unknownhost") || lower.contains("unresolvedaddress")
+                || lower.contains("name or service not known") || lower.contains("nodename nor servname")) {
             return "dns";
         }
         if (lower.contains("connection refused") || lower.contains("connection reset")
-                || lower.contains("connectexception")) {
+                || lower.contains("connectexception") || lower.contains("closedchannel")) {
             return "connect";
         }
         if (lower.contains("unauthorized") || lower.contains("forbidden")

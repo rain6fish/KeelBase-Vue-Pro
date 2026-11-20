@@ -20,6 +20,7 @@ import jakarta.annotation.Resource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +30,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -381,6 +383,49 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
         assertTrue(row.getDetail().contains("result=failed"));
         assertTrue(row.getDetail().contains("error=other"));
         assertTrue(row.getDetail().contains("message=dial failed"));
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "Client failed to initialize by explicit API call (ConnectException) | connect",
+            "Client failed to initialize by explicit API call (UnknownHostException) | dns",
+            "Client failed to initialize by explicit API call (HttpConnectTimeoutException) | timeout",
+            "Unexpected status code: 401 | auth",
+            "Client failed to initialize by explicit API call | other",
+    })
+    public void testTestMcpConnect_failureCategoryReadsTheReason(String message, String category) {
+        // mock 数据：SDK 的顶层句子里没有根因，根因的类名由 Ai1McpClientTool 补进 message
+        Long id = mcpService.createMcp(buildMcpSaveReqVO(Ai1McpTransportEnum.HTTP.getTransport())
+                .setUrl("http://127.0.0.1:8081/mcp"));
+        when(mcpClientTool.testConnect(any())).thenReturn(new Ai1McpConnectRespVO()
+                .setConnectable(false).setToolCount(0).setTools(new ArrayList<>())
+                .setElapsedMs(21L).setMessage(message));
+        AuditLogRepository logRepository = installRealAuditService();
+
+        // 调用
+        mcpService.testMcpConnect(id);
+
+        // 断言
+        AuditLog row = captureSavedRow(logRepository);
+        assertTrue(row.getDetail().contains("error=" + category));
+    }
+
+    @Test
+    public void testTestMcpConnect_thrownChainCategoryReadsTheCauseClasses() {
+        // mock 数据：工具直接抛异常时，类别也要看整条链，而不是只看包装句
+        Long id = mcpService.createMcp(buildMcpSaveReqVO(Ai1McpTransportEnum.HTTP.getTransport())
+                .setUrl("http://127.0.0.1:8081/mcp"));
+        when(mcpClientTool.testConnect(any())).thenThrow(new RuntimeException(
+                "Client failed to initialize by explicit API call", new ConnectException()));
+        AuditLogRepository logRepository = installRealAuditService();
+
+        // 调用
+        assertThrows(RuntimeException.class, () -> mcpService.testMcpConnect(id));
+
+        // 断言：包装句只说了失败，链上的 ConnectException 说明是被拒
+        AuditLog row = captureSavedRow(logRepository);
+        assertTrue(row.getDetail().contains("error=connect"));
+        assertTrue(row.getDetail().contains("message=Client failed to initialize by explicit API call"));
     }
 
     @Test

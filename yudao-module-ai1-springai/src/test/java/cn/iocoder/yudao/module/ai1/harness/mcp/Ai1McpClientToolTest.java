@@ -7,8 +7,10 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -135,6 +137,40 @@ public class Ai1McpClientToolTest {
         } finally {
             server.stop(0);
         }
+    }
+
+    @Test
+    public void testFailureReason_keepsTheSdkSentenceAndNamesTheCause() {
+        // 准备参数：SDK 的包装句 + 真正原因（JDK 的 ConnectException 没有 message）
+        RuntimeException failure = new RuntimeException("Client failed to initialize by explicit API call",
+                new ConnectException());
+
+        // 调用
+        String reason = Ai1McpClientTool.failureReason(failure);
+
+        // 断言：包装句保留，原因以类名补上
+        assertEquals("Client failed to initialize by explicit API call (ConnectException)", reason);
+    }
+
+    @Test
+    public void testFailureReason_namesTheCauseChainWithoutDuplicates() {
+        // 断言：消息里已有的类名不再追加
+        assertEquals("ConnectException from the SDK",
+                Ai1McpClientTool.failureReason(new RuntimeException("ConnectException from the SDK",
+                        new ConnectException())));
+        // 断言：cause 的类名补在句末，cause 自己的 message 不进这句话
+        assertEquals("init failed (UnknownHostException)",
+                Ai1McpClientTool.failureReason(new RuntimeException("init failed",
+                        new UnknownHostException("mcp.invalid"))));
+    }
+
+    @Test
+    public void testFailureReason_fallsBackToTheClassWhenTheWrapperSaysNothing() {
+        // 调用
+        String reason = Ai1McpClientTool.failureReason(new ConnectException());
+
+        // 断言
+        assertEquals("ConnectException", reason);
     }
 
 }
