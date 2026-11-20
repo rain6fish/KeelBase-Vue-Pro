@@ -426,6 +426,14 @@ test('an empty object answer is scanned again, because the row may name its obje
     /\[\.\.\.RECORD_TYPES, \.\.\.OBJECT_KEY_TYPES\]/,
     'the object filter offers only the ledger kinds, so an MCP connection cannot be chosen at all',
   )
+  // 只由句末句子点名的种类，读面收到的是它的**种类词**：运行时在台账答空后按这个词逐字对键。
+  // A kind only the sentence names goes to the read face as its **kind word**: the runtime compares
+  // that word, character for character, when the ledger answers nothing.
+  assert.match(
+    script,
+    /const serverType = OBJECT_KEY_KINDS\[wantedType\] \|\| wantedType/,
+    'the page sends the internal type for a sentence-only kind, so the runtime cannot match its key',
+  )
 })
 
 test('the MCP connection kind has one word in each bundle, and it is not the table name', () => {
