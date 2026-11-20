@@ -323,6 +323,57 @@ export function recordedObjectIn(row) {
 }
 
 /**
+ * 行末那个**带类型**的键的类型词，与检索用的结果类型之间的对照。写这一行的那一侧用**可读的词**
+ * （`object MCP connection #12`），因为这段文字会进六问的第三格、也进导出，而内部名会让整份导出被拒；
+ * 检索按 `(resultType, resultId)` 判等，故读面把词映射回类型再比 —— 两边只在**这个词**上耦合。
+ *
+ * 表里只有**确实会写这种键**的对象。表外的词一律不认：一句 `object ai1_mcp#12`（把表名写进去的坏键）
+ * 不回落到任何东西上 —— 宁可说「未记录」，也不把一个内部名当成一条对象。
+ *
+ * The type words of the **typed** key at a row's end, and the result types searches use. The side that
+ * writes the row spells a **readable word** (`object MCP connection #12`), because that text reaches the
+ * third answer and the export, and an internal name refuses the whole export; a search compares
+ * `(resultType, resultId)`, so the read side maps the word back to its type first — the two sides are
+ * coupled on **this word** alone.
+ *
+ * The table holds only objects that actually write such a key. A word outside it is never recognised: a
+ * sentence like `object ai1_mcp#12` (a bad key carrying the table name) falls back to nothing — better to
+ * say 「未记录」 than to treat an internal name as an object.
+ */
+export const OBJECT_KEY_KINDS = Object.freeze({ ai1_mcp: 'MCP connection' })
+
+const KIND_BY_WORD = new Map(Object.entries(OBJECT_KEY_KINDS).map(([type, word]) => [word, type]))
+
+/** 检索面板要给出的类型：只靠行末这个键才认得出来的那几种。 / The kinds a search panel offers that only this key names. */
+export const OBJECT_KEY_TYPES = Object.keys(OBJECT_KEY_KINDS)
+
+/**
+ * 这一行在句末自己记下的**带类型**的对象键（` · object MCP connection #12`），读成 `(类型, 主键)`。
+ * 只认句末这一种拼写，且类型词必须在 `OBJECT_KEY_KINDS` 里；否则回 `null` —— 不认的词不算
+ * 「没有对象」，也不算「这一条」，它只是没被读出来。
+ *
+ * 与 `recordedObjectIn` 并存而不是取代它：那一种是**被拦下**的调用写的、种类来自工具声明；这一种是
+ * **没有工具**的动作（如一次 MCP 连通测试）写的、种类就写在句子里。两者都只在句末，都只认一种拼写。
+ *
+ * The **typed** object key a row records at the end of its own sentence (` · object MCP connection #12`),
+ * read as `(type, key)`. Only that spelling, only at the end, and the word must be in
+ * `OBJECT_KEY_KINDS`; anything else is `null` — an unrecognised word is not "no object" and not
+ * "some other object", it simply was not read.
+ *
+ * It sits beside `recordedObjectIn` rather than replacing it: that one is written by a **blocked** call
+ * with the kind taken from the tool's declaration; this one is written by an action with **no tool** (an
+ * MCP connect test) and carries its kind in the sentence. Both are end-anchored and single-spelling.
+ */
+export function recordedTypedObject(row) {
+  const hit = String(row?.detail ?? '').match(/ · object (.+?) #(\d+)\s*$/)
+  if (!hit) return null
+  const resultType = KIND_BY_WORD.get(hit[1].trim())
+  const id = Number(hit[2])
+  if (!resultType || !Number.isSafeInteger(id)) return null
+  return { resultType, resultId: id }
+}
+
+/**
  * ③ 哪个业务对象 —— 业务名 + 业务主键，外加宿主自己的那条记录名（**掩码之后**）。
  *
  * 台账里没有这一行，**不等于**运行时没记。被扣下或被拒的调用不写台账（什么都没进系统），但运行时把这次

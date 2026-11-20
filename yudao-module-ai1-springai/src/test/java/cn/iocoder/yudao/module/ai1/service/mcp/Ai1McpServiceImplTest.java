@@ -339,6 +339,11 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
         assertTrue(row.getDetail().contains("result=ok"));
         assertTrue(row.getDetail().contains("elapsedMs=37"));
         assertTrue(row.getDetail().contains("error=none"));
+        // The typed object key is the last thing on the sentence, and it is a readable word: the
+        // console draws it in the six answers and in the export, so the table name must not be here.
+        // 带类型的对象键在句末；它是**可读的词** —— 控制台会把它画进六问与导出，故这里不能是表名。
+        assertTrue(row.getDetail().endsWith(" · object MCP connection #" + id));
+        assertFalse(row.getDetail().contains("ai1_mcp"));
         assertNotNull(row.getHash());
     }
 
@@ -364,6 +369,9 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
         assertTrue(row.getDetail().contains("result=failed"));
         assertTrue(row.getDetail().contains("error=connect"));
         assertTrue(row.getDetail().contains("message=Connection refused"));
+        // A failed attempt records the same object: the row answers "which MCP" whether or not it answered.
+        // 失败的一次也记同一条对象：通与不通，这一行都答得出「哪一个 MCP」。
+        assertTrue(row.getDetail().endsWith(" · object MCP connection #" + id));
     }
 
     @Test

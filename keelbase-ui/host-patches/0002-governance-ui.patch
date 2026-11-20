@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,799 @@
+@@ -1,4 +1,800 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -797,6 +797,7 @@ index 9d14564..3382e27 100644
 +      system_notice: 'Notice',
 +      system_notify_message: 'In-site message',
 +      products: 'Goods',
++      ai1_mcp: 'MCP connection',
 +    },
 +  },
    common: {
@@ -806,7 +807,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,791 @@
+@@ -1,4 +1,792 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1593,6 +1594,7 @@ index 13065de..f476283 100644
 +      system_notice: '通知公告',
 +      system_notify_message: '站内消息',
 +      products: '商品',
++      ai1_mcp: 'MCP 连接',
 +    },
 +  },
    common: {

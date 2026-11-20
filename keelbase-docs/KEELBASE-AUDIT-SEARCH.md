@@ -48,8 +48,18 @@ evidence chain the audit page already uses**, in this order:
    rather than falling back to tool and time — that fallback is how two executions get put together.
 2. the **confirmation record** — a held or refused call. Same tool, and within five seconds of either
    the proposal's creation or its decision, exactly one candidate.
-3. the **key at the end of the row's own sentence** (`… · intended object #12`) — a gate-blocked call.
-   The kind comes from the tool's own `resultType()` declaration, never from the sentence.
+3. the **key at the end of the row's own sentence** — a call that wrote no ledger row. Two spellings:
+   the blocked-call one (`… · intended object #12`, the kind from the tool's own `resultType()`
+   declaration) and the **typed** one (`… · object MCP connection #12`, the kind in the sentence),
+   written by an action that has no tool at all — a connect test or a probe, which is neither a tool
+   call nor a write.
+
+The typed key spells a **readable word**, never a table name: that sentence reaches the third answer
+and the export, where an internal name refuses the whole file. The console maps the word back to the
+type a search compares by (`OBJECT_KEY_KINDS` in `sixQuestions.mjs`), and a word outside that table is
+not read as an object at all. A row whose object only this key names cannot come back from the read
+face's object filter — that filter resolves through the ledger — so an empty object answer is scanned
+again by range and the local chain above picks from it. A ledger hit never reaches that second scan.
 
 None of the three means the runtime did not record where the call landed, and the row is **not**
 matched to any object.
