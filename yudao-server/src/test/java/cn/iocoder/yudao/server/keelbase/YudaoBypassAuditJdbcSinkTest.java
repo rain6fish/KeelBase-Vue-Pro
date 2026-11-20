@@ -30,9 +30,12 @@ import org.junit.jupiter.api.Test;
  * what it must never touch.
  *
  * <p>The drop count is measured on the same surface an operator reads: a full queue is filled by hand,
- * the counter starts at zero, and only the row beyond the cap moves it.
+ * the counter starts at zero, and only the row beyond the cap moves it. A row whose insert fails did not
+ * reach the table either, so it moves the same counter — that is what makes the count a shortfall rather
+ * than a queue statistic.
  *
- * 丢弃数在操作者读的同一个面上量：队列由测试亲手填满，计数器从 0 开始，只有越过容量的那一行让它动。
+ * 丢弃数在操作者读的同一个面上量：队列由测试亲手填满，计数器从 0 开始，只有越过容量的那一行让它动。插入
+ * 失败的行同样没进表，因此也动同一个计数器 —— 这才让这个数代表留痕的缺口，而不是一条队列统计。
  */
 class YudaoBypassAuditJdbcSinkTest {
 
@@ -75,6 +78,34 @@ class YudaoBypassAuditJdbcSinkTest {
         assertTrue(dropped.count() > 0,
                 "the row beyond the cap is dropped, and the drop is readable where an operator reads it");
         assertEquals(1.0, dropped.count(), "one row beyond the cap is exactly one dropped row");
+    }
+
+    @Test
+    void aRowTheDatabaseRefusesIsCountedAsDropped() throws SQLException {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        YudaoBypassAuditJdbcSink sink = new YudaoBypassAuditJdbcSink(brokenDataSource(), meters,
+                new ArrayBlockingQueue<>(YudaoBypassAuditJdbcSink.QUEUE_CAPACITY));
+
+        sink.write(ROW);
+        sink.write(ROW);
+
+        assertEquals(2.0, meters.get(YudaoBypassAuditJdbcSink.DROPPED_METRIC).counter().count(),
+                "each insert the database refuses never reached the table, so each one is a dropped row");
+    }
+
+    @Test
+    void queueOverflowAndFailedInsertsShareTheOneDropCount() throws SQLException {
+        SimpleMeterRegistry meters = new SimpleMeterRegistry();
+        YudaoBypassAuditJdbcSink sink = new YudaoBypassAuditJdbcSink(brokenDataSource(), meters,
+                new ArrayBlockingQueue<>(2));
+
+        sink.write(ROW);   // the insert fails: one row lost
+        sink.record(ROW);
+        sink.record(ROW);  // the queue is now exactly full
+        sink.record(ROW);  // the full queue refuses this one: a second row lost
+
+        assertEquals(2.0, meters.get(YudaoBypassAuditJdbcSink.DROPPED_METRIC).counter().count(),
+                "the count is the trail's shortfall, whichever cause produced it");
     }
 
     private static DataSource brokenDataSource() throws SQLException {

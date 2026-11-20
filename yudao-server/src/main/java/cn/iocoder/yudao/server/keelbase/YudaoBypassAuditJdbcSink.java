@@ -30,8 +30,8 @@ import org.springframework.stereotype.Component;
  *       这一层「不改行为」的读数里，耗时就包含在内。</li>
  *   <li><b>有界</b>：队列满了就**丢**，并记下丢了多少。反过来（阻塞请求线程等空位）会让一张记满日志的表
  *       把整台宿主拖停 —— 一个只负责留痕的组件没有这个资格。丢行的计数是这条取舍的痕迹，读得出来。</li>
- *   <li><b>失败只写日志</b>：插入抛错（表不在、库断了、类型不对）只报警，不重试、不回传。留痕缺席是一次
- *       **少报**，不是一次失败的写。</li>
+ *   <li><b>失败只写日志</b>：插入抛错（表不在、库断了、类型不对）只报警，不重试、不回传；那一行确实没进表，
+ *       故与队列满一样计入丢弃数。留痕缺席是一次**少报**，不是一次失败的写。</li>
  * </ul>
  *
  * <p><b>为什么不走 MyBatis 或运行时那张审计表。</b>走 MyBatis 会过芋道的租户拦截器（这张表按调用时的租户
@@ -50,7 +50,8 @@ import org.springframework.stereotype.Component;
  *       thread until there is room) lets a full trail table stop the whole host, which a
  *       record-only component has no business doing. The drop counter is the trace of that trade.</li>
  *   <li><b>Failures logged only</b> — an insert that throws (missing table, dead database, type
- *       mismatch) warns and stops. A missing trail row is a **shallow** record, not a failed write.</li>
+ *       mismatch) warns and stops. The row really did not land, so it counts as dropped, the same way a
+ *       full queue's drop does. A missing trail row is a **shallow** record, not a failed write.</li>
  * </ul>
  *
  * <p><b>Why not MyBatis, and why not the runtime's audit table.</b> MyBatis would run the tenant
@@ -61,14 +62,20 @@ import org.springframework.stereotype.Component;
  *
  * <p><b>The drop count is a metric, not only a log line.</b> `keelbase.bypass.audit.dropped` is a
  * micrometer counter on the host's existing actuator surface — in the deployed profile it is readable at
- * `/actuator/metrics/keelbase.bypass.audit.dropped`. The once-per-hundred log line stays for an operator
- * reading logs; the counter is what a scrape or a dashboard can read without waiting for the hundredth
- * drop. No new endpoint and no new response field: the host already exposes metrics.
+ * `/actuator/metrics/keelbase.bypass.audit.dropped`. **It counts every row that never reached the
+ * table**: one the queue refused while full, and one whose insert failed. That is the number the
+ * arithmetic "writes minus rows landed" wants, and it stays one series, so a scrape need not know the
+ * reasons and add them up; which reason it was is still readable from the log — a repeated
+ * `queue is full` line versus a per-row `row not written` line. The once-per-hundred log line stays for
+ * an operator reading logs; the counter is what a scrape or a dashboard can read without waiting for the
+ * hundredth drop. No new endpoint and no new response field: the host already exposes metrics.
  *
  * <p><b>丢弃数是取得到的指标，不只是一行日志。</b>`keelbase.bypass.audit.dropped` 是宿主既有 actuator 面上的
- * micrometer 计数器 —— 在部署档下可于 `/actuator/metrics/keelbase.bypass.audit.dropped` 读到。每百次一句的
- * 日志仍在，留给读日志的人；计数器给的是抓取与看板不必等到第一百次丢弃就能读到的东西。不新增端点、不新增
- * 响应字段：宿主本来就有指标面。
+ * micrometer 计数器 —— 在部署档下可于 `/actuator/metrics/keelbase.bypass.audit.dropped` 读到。**它计的是每一条
+ * 没能进表的行**：队列满时被拒的那条，与插入失败的那条。这正是「写次数减去落库行数」这笔算术要的数，而且它仍是
+ * 一条序列，抓取端不必知道有几种原因再去相加；原因是哪一种，日志里仍读得出 —— 反复出现的 `queue is full` 与
+ * 逐行的 `row not written`。每百次一句的日志仍在，留给读日志的人；计数器给的是抓取与看板不必等到第一百次丢弃
+ * 就能读到的东西。不新增端点、不新增响应字段：宿主本来就有指标面。
  */
 @Component
 @ConditionalOnProperty(prefix = "keelbase.bypass-audit", name = "enabled",
@@ -94,9 +101,11 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
 
     /**
      * The metric the drop count is published under. The name is a constant because the test reads the
-     * same surface an operator does, rather than a field behind it.
+     * same surface an operator does, rather than a field behind it. It counts every row that did not
+     * land — a full queue's and a failed insert's alike; see the class note.
      *
      * 丢弃计数发布的指标名。名字写成常量，是因为测试读的必须是操作者读的同一个面，而不是它背后的一个字段。
+     * 它计的是每一条没进表的行 —— 队列满的与插入失败的都在内；见类注释。
      */
     static final String DROPPED_METRIC = "keelbase.bypass.audit.dropped";
 
@@ -131,7 +140,8 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
         this.queue = queue;
         this.writer = null;
         this.dropped = Counter.builder(DROPPED_METRIC)
-                .description("Bypass trail rows dropped because the bounded queue was full.")
+                .description("Bypass trail rows that never reached the table "
+                        + "(a full queue or a failed insert).")
                 .register(meters);
     }
 
@@ -145,11 +155,12 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
             // 计数本身在构造时注册进 meter registry，故这一处自增即可被外部读到。
             // A full bounded queue drops, counted. Said once per hundred: every time is noise, never is
             // a drop nobody can read. The counter is registered with the meter registry at construction,
-            // so this one increment is what the outside surface reads.
+            // so this one increment is what the outside surface reads. The count it prints is the
+            // counter's total, so it can exceed the queue's own share — it says "in total" for that.
             dropped.increment();
             long lost = (long) dropped.count();
             if (lost % 100 == 1) {
-                LOG.warn("bypass trail queue is full; {} row(s) dropped so far", lost);
+                LOG.warn("bypass trail queue is full; {} row(s) dropped in total so far", lost);
             }
         }
     }
@@ -189,6 +200,10 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
                     row.httpStatus(), row.resultCode(), row.durationMs(),
                     row.bodyLength(), row.bodySha256(), row.bodyFields());
         } catch (RuntimeException failed) {
+            // A row that did not land is a dropped row just as a full queue's is — one counter, see the
+            // class note. The warning below still names the cause.
+            // 行没能进表：与队列满一样，留痕少了一行，故计入同一个丢弃数（见类注释）。日志照旧说原因。
+            dropped.increment();
             // 报**最里层**那句：`BadSqlGrammarException` 只说「语法不对」，而真正的原因（表不在这个 schema、
             // 库连错了、类型对不上）在它的 cause 里。一条读不出原因的警告，等于让人去猜。
             // Name the **innermost** message: `BadSqlGrammarException` only says "bad grammar", and the reason
