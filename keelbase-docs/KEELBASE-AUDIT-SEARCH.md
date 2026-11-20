@@ -14,14 +14,18 @@ already reads answer these pieces of it:
 
 | Face | Takes | Answers |
 |---|---|---|
-| `GET /audit/logs` | `userId`, `since`, `isError`, `limit`, `offset` | audit rows, newest first: who, when, action, tool, outcome, authorization |
+| `GET /audit/logs` | `userId`, `since`, `until`, `objectType` + `objectId`, `isError`, `limit`, `offset` | audit rows, newest first: who, when, action, tool, outcome, authorization |
 | `GET /ai/tool-effects` | `userId`, `conversationId`, `page`, `limit` | the write ledger: tool, `resultType`, `resultId`, `executionId`, snapshots |
 | `GET /ai/confirmations` | `page`, `limit` | held / refused proposals: tool plus the arguments it would have run with |
 | `GET /admin-api/keelbase/record-names` | `refs=type:key,…` | the record's name, **masked server-side**, for references a ledger already named |
 
-Two of the three things the question needs are **not** on the audit face: an object filter and the
-**end** of the range. The runtime refuses filters it does not apply — a filter that is accepted and
-not applied returns a list that looks filtered and is not — and that refusal is right.
+Two of the three things the question needs were once **not** on the audit face: an object filter and
+the **end** of the range. The runtime's `objectRange` change put both on that face — the object is
+resolved through the ledger: the effects carrying that pair give their execution ids, and the rows of
+exactly those executions are the answer. "Refused, never silently widened" still holds: half an
+object filter is a 400, and a deployment with no ledger answers 503, rather than a list that looks
+filtered and is not. The console's own narrowing still runs — it is the fallback on an older runtime,
+and on a runtime without the sentence road it is the only place that road's key can be read.
 
 ## 2. Where the query runs, and why
 
@@ -82,9 +86,11 @@ word, not by editing a second list.
 
 ## 4. The range
 
-`since` is the audit face's own parameter. `until` is applied **client-side**, because the face has
-no end; the page says so. Both ends are inclusive. A row whose timestamp cannot be read is in no
-range: a row that cannot be placed cannot be claimed to satisfy `since`.
+`since` and `until` are both the audit face's own parameters (`until` since the runtime's
+`objectRange`). The page sends both and also applies them **client-side**: a runtime that honours
+them answers already narrowed, and an older one that ignores unknown parameters is still decided by
+the local layer — the answer agrees either way. Both ends are inclusive. A row whose timestamp
+cannot be read is in no range: a row that cannot be placed cannot be claimed to satisfy `since`.
 
 ## 5. The CSV
 
