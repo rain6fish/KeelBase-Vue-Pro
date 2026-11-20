@@ -929,7 +929,7 @@ function recordedObjectOf(
   row: AuditRow,
   effect: EffectRow | null,
   proposal: { resultType: string; resultId: number | string } | null,
-): { resultType: string; resultId: number } | null {
+): { resultType: string; resultId: number | string } | null {
   // 没有工具的动作（一次 MCP 连通测试）在句末写的是**带类型**的键，种类就在句子里 —— 不需要 `row.tool`。
   // An action with no tool (an MCP connect test) writes the **typed** key, its kind in the sentence —
   // `row.tool` is not needed for it.
