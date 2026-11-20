@@ -412,6 +412,7 @@ import {
   approverOf,
   composeSix,
   objectLine,
+  OBJECT_KEY_KINDS,
   OBJECT_KEY_TYPES,
   recordedObjectIn,
   recordedTypedObject,
@@ -1126,10 +1127,17 @@ async function runQuery() {
       return
     }
     // Both halves of an object filter go to the read face together; sending only one would be a 400
-    // on a runtime that applies them, and the page only ever asks with both.
-    // 对象过滤的两半一起发给读面；只发一半在会施加它的运行时上是 400，而页面从来只用两半一起问。
+    // on a runtime that applies them, and the page only ever asks with both. The type half is the
+    // **kind word** for a kind that only the row's own sentence can name (`MCP connection`): the
+    // runtime resolves the pair through the ledger first and, when that answers nothing, matches the
+    // pair against the typed key at the end of a sentence, word for word. A ledger kind goes as its
+    // result type, which is what the ledger is keyed by.
+    // 对象过滤的两半一起发给读面；只发一半在会施加它的运行时上是 400，而页面从来只用两半一起问。类型那一半
+    // 对**只由行末句子点名**的种类发**种类词**（`MCP connection`）：运行时先把这一对经台账解析，台账什么都没
+    // 答时再把它与句末带类型的键**逐字**对上。台账认识的种类照旧发它的结果类型 —— 那才是台账的键。
+    const serverType = OBJECT_KEY_KINDS[wantedType] || wantedType
     const objectForServer =
-      wantedType && wantedKey ? { type: wantedType, id: wantedKey } : undefined
+      wantedType && wantedKey ? { type: serverType, id: wantedKey } : undefined
     const sinceIso = since.value ? since.value.toISOString() : undefined
     const untilIso = until.value ? until.value.toISOString() : undefined
     let audit = await scanAudit(sinceIso, untilIso, objectForServer)

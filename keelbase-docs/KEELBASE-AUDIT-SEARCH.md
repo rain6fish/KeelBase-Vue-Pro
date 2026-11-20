@@ -57,9 +57,12 @@ evidence chain the audit page already uses**, in this order:
 The typed key spells a **readable word**, never a table name: that sentence reaches the third answer
 and the export, where an internal name refuses the whole file. The console maps the word back to the
 type a search compares by (`OBJECT_KEY_KINDS` in `sixQuestions.mjs`), and a word outside that table is
-not read as an object at all. A row whose object only this key names cannot come back from the read
-face's object filter — that filter resolves through the ledger — so an empty object answer is scanned
-again by range and the local chain above picks from it. A ledger hit never reaches that second scan.
+not read as an object at all. For a kind only the sentence can name, the page sends the **kind word**
+as the object filter's type half; the read face resolves the pair through the ledger first and, when
+that answers nothing, matches the pair against the sentence's key word for word. A runtime that has
+no such road answers empty, and the page scans the range again and picks with the local chain above —
+so the same search works on both, and only the number of rows scanned differs. A ledger hit never
+reaches either fallback.
 
 None of the three means the runtime did not record where the call landed, and the row is **not**
 matched to any object.
