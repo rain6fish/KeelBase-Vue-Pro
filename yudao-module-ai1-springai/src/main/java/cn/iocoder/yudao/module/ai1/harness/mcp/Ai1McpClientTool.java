@@ -186,10 +186,35 @@ public class Ai1McpClientTool {
                     .setElapsedMs(System.currentTimeMillis() - startTime);
         } catch (Exception e) {
             log.warn("[testConnect][MCP({}/{}) 连通测试失败]", mcp.getId(), mcp.getName(), e);
-            return buildConnectFailResult(String.valueOf(e.getMessage()), startTime);
+            return buildConnectFailResult(failureReason(e), startTime);
         } finally {
             closeQuietly(client);
         }
+    }
+
+    /**
+     * The failure in words a reader can act on. The SDK's own sentence often says only that
+     * initialization failed; the classes in the cause chain say what did — a refused socket, an
+     * unresolvable host, a timeout — and the audit row's category is read from exactly that. Cause
+     * messages stay out: one can carry a URL or a token, and the class is all the category needs.
+     *
+     * 失败的可行动说法。SDK 自己的句子常常只说了初始化失败；因果链上的类名才说明是什么——连接被拒、主机
+     * 解析不了、超时——审计行的类别正是从这里读的。cause 的 message 不进这句话：它可能带 URL 或 token，
+     * 而类别只需要类名。
+     */
+    static String failureReason(Throwable failure) {
+        String reason = StrUtil.isBlank(failure.getMessage())
+                ? failure.getClass().getSimpleName() : failure.getMessage();
+        List<String> chain = new ArrayList<>();
+        Throwable cause = failure.getCause();
+        for (int depth = 0; cause != null && cause != failure && depth < 5; depth++) {
+            String name = cause.getClass().getSimpleName();
+            if (!reason.contains(name) && !chain.contains(name)) {
+                chain.add(name);
+            }
+            cause = cause.getCause();
+        }
+        return chain.isEmpty() ? reason : reason + " (" + String.join(", ", chain) + ")";
     }
 
     /**
