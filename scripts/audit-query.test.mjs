@@ -143,6 +143,28 @@ test('a connect test takes its object from the typed key at the end of its row',
   assert.deepEqual(q.objectRefOf(row, { resultTypeOf }), { resultType: 'ai1_mcp', resultId: 12 })
 })
 
+test('the console reads the typed key exactly the way the runtime endpoint does', () => {
+  // 判据以运行时为准：句末必须**恰好**收尾，主键 1–18 位、前导零有意义、长主键不丢位数。
+  // The runtime is authoritative: the key must end the sentence exactly, the key is 1–18 digits,
+  // leading zeros are significant, and a long key keeps every digit.
+  const at = (detail) => ({
+    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    createdAt: '2026-11-20T01:00:00.000Z', detail,
+  })
+  assert.equal(recordedTypedObject(at('x · object MCP connection #12 ')), null,
+    'a trailing space is not the end of the key')
+  assert.equal(recordedTypedObject(at('x · object MCP connection #12\n')), null,
+    'a trailing line break is not the end of the key')
+  assert.equal(recordedTypedObject(at('x · object MCP connection #12.')), null,
+    'a trailing period is not the end of the key')
+  assert.deepEqual(recordedTypedObject(at('x · object MCP connection #007')),
+    { resultType: 'ai1_mcp', resultId: '007' }, '#007 is not #7')
+  assert.deepEqual(recordedTypedObject(at('x · object MCP connection #123456789012345678')),
+    { resultType: 'ai1_mcp', resultId: '123456789012345678' }, 'an eighteen-digit key keeps every digit')
+  assert.equal(recordedTypedObject(at('x · object MCP connection #1234567890123456789')), null,
+    'nineteen digits are not a key')
+})
+
 test('the typed key picks the row when the ledger has nothing for that object', () => {
   const row = {
     id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,

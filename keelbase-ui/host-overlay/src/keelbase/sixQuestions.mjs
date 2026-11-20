@@ -365,12 +365,21 @@ export const OBJECT_KEY_TYPES = Object.keys(OBJECT_KEY_KINDS)
  * MCP connect test) and carries its kind in the sentence. Both are end-anchored and single-spelling.
  */
 export function recordedTypedObject(row) {
-  const hit = String(row?.detail ?? '').match(/ · object (.+?) #(\d+)\s*$/)
+  // 判据以**运行时**为准（`conformance/typed-object-key.json`）：键必须**恰好**收尾 —— 尾随空白
+  // 不算；主键 1–18 位 ASCII 数字、**前导零有意义**、17–18 位超出 `Number` 的安全范围，故按写下的
+  // 字符串保留，绝不把 `#007` 读成 `#7`、也绝不把长主键截成浮点。
+  //
+  // The criterion is the **runtime's** (`conformance/typed-object-key.json`): the key must end the
+  // sentence exactly — a trailing space is not the end; the key is 1–18 ASCII digits, **leading zeros
+  // are significant**, and 17–18 digits are past `Number`'s safe range, so they are kept as written —
+  // `#007` is never read as `#7`, and a long key is never rounded into a float.
+  const hit = String(row?.detail ?? '').match(/ · object (.+?) #(\d{1,18})$/)
   if (!hit) return null
   const resultType = KIND_BY_WORD.get(hit[1].trim())
-  const id = Number(hit[2])
-  if (!resultType || !Number.isSafeInteger(id)) return null
-  return { resultType, resultId: id }
+  if (!resultType) return null
+  const digits = hit[2]
+  const id = Number(digits)
+  return { resultType, resultId: Number.isSafeInteger(id) && String(id) === digits ? id : digits }
 }
 
 /**
