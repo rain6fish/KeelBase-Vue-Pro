@@ -84,6 +84,11 @@ bash bootstrap-db.sh        # 建库并灌 schema（幂等；RESET=1 重灌）
 docker compose up -d
 ```
 
+宿主栈要**先起**：本栈加入它的网络与数据存储。宿主 nginx 的 `demo2.keelbase.com.cn` 块按**请求时**解析
+`yudao-admin`，所以本栈还没起来时它答 **502** 而不是退出；本栈起来后自动恢复，不必重启 `keelbase-web-1`。
+若宿主那份 `nginx.https.conf` 还是旧版（启动时解析 upstream），第一次部署要在本栈起来后重启一次宿主 web 容器，
+否则 nginx 会反复退出。
+
 `bootstrap-db.sh` 的 `load` 清单来自同目录的 `seed-manifest.txt`。那份清单把**每一份**
 `sql/keelbase-*.sql` 都归类一次 —— `load`、`separate`（由自己的步骤跑，因为它要参数）、或 `skip`
 （带理由）—— 于是新增的种子文件不可能被静默忽略。`node scripts/check-seed-list.mjs` 拿它与 SQL 目录、

@@ -97,6 +97,13 @@ bash bootstrap-db.sh        # create the database and load the schema (idempoten
 docker compose up -d
 ```
 
+The host stack comes **first**: this stack joins its network and datastore. The host nginx's
+`demo2.keelbase.com.cn` block resolves `yudao-admin` **per request**, so while this stack is down it
+answers **502** instead of exiting, and recovers by itself once the stack is up — no restart of
+`keelbase-web-1` needed. If the host still runs the older `nginx.https.conf` (which resolved the
+upstream at startup), the first deployment has to restart the host web container once this stack is
+up, or nginx will exit in a loop.
+
 `bootstrap-db.sh` takes its `load` list from `seed-manifest.txt` beside it. That manifest classifies
 **every** `sql/keelbase-*.sql` once — `load`, `separate` (run by its own step because it takes a
 parameter), or `skip` (with a reason) — so a new seed file cannot be ignored silently.
