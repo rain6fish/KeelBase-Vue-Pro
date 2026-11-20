@@ -49,6 +49,18 @@ public class Ai1McpServiceImpl implements Ai1McpService {
     /** The same "no identity" sentinel the runtime's own rows use. / 与运行时自己的行同一个「没有身份」哨兵。 */
     private static final String NO_IDENTITY = "0";
 
+    /**
+     * The type word the row records for the object it dialled. A readable word, never the table name
+     * `ai1_mcp`: the key is part of `detail`, `detail` is part of the chain's hash payload, and the
+     * console renders this object in the six answers and in the CSV export — an internal name there
+     * refuses the whole export (`leaksIn`). The reader maps this word back to the type it searches by.
+     *
+     * 这一行记下的、它拨向的那条对象的类型词。是**可读的词**、不是表名 `ai1_mcp`：这个键属于 `detail`，
+     * `detail` 属于链的哈希载荷，而控制台会把这条对象画进六问与 CSV 导出 —— 那里出现内部名会让**整份导出**
+     * 被拒（`leaksIn`）。读面按这个词映射回它检索用的类型。
+     */
+    static final String AUDIT_OBJECT_KIND = "MCP connection";
+
     @Resource
     private Ai1McpMapper mcpMapper;
 
@@ -127,7 +139,10 @@ public class Ai1McpServiceImpl implements Ai1McpService {
      *
      * <p>The action is {@value #AUDIT_ACTION} with no `outcome`, which the contract allows for an action
      * outside the tool vocabulary. What the row must answer is in `detail`: which MCP, which host it was
-     * dialled at, whether it worked, how long it took, and — when it did not — the error's category.
+     * dialled at, whether it worked, how long it took, and — when it did not — the error's category. The
+     * sentence ends with a typed key (` · object MCP connection #12`) so the row can be found by object
+     * even though a test produces no ledger row: the ledger is the read face's first road, this is the
+     * second.
      *
      * 测试一个 MCP 端点，每一次尝试都在宿主的审计链上留一行。
      *
@@ -135,7 +150,9 @@ public class Ai1McpServiceImpl implements Ai1McpService {
      * 失败的请求：端点照原样作答，写不进审计只记在日志上、不变 500 —— 痕迹是旁路，不是结果。
      *
      * <p>动作是 {@value #AUDIT_ACTION}、不带 `outcome`，契约对工具词表之外的动作正是这么允许的。这一行要回答
-     * 的东西都在 `detail` 里：哪一个 MCP、拨向哪个 host、通没通、花了多久，以及没通时的错误类别。
+     * 的东西都在 `detail` 里：哪一个 MCP、拨向哪个 host、通没通、花了多久，以及没通时的错误类别。句子末尾带一个
+     * 带类型的键（` · object MCP connection #12`），于是即便测试不产生台账行，这一行也能按对象找到：台账是读面的
+     * 第一条路，这是第二条。
      */
     @Override
     public Ai1McpConnectRespVO testMcpConnect(Long id) {
@@ -173,7 +190,13 @@ public class Ai1McpServiceImpl implements Ai1McpService {
                     + " result=" + (connectable ? "ok" : "failed")
                     + " elapsedMs=" + elapsedMs
                     + " error=" + errorCategory
-                    + (StrUtil.isBlank(message) ? "" : " message=" + clip(message));
+                    + (StrUtil.isBlank(message) ? "" : " message=" + clip(message))
+                    // The typed object key goes last, and only at the end, so the reader can take it
+                    // off the sentence without guessing. A test produces no ledger row: this is the
+                    // only place the row says which object it was about.
+                    // 带类型的对象键放在**最后**、也只在句末，读面才能不猜地从这句话上取下来。测试不产生台账行：
+                    // 这一行说得出它是关于哪条对象，靠的就是这里。
+                    + " · object " + AUDIT_OBJECT_KIND + " #" + mcp.getId();
             Long caller = SecurityFrameworkUtils.getLoginUserId();
             auditService.append(AUDIT_ACTION, caller == null ? NO_IDENTITY : String.valueOf(caller),
                     detail, !connectable, null, null);

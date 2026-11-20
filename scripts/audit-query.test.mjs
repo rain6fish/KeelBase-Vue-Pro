@@ -29,7 +29,7 @@ const QUERY = join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs')
 const PAGE = 'keelbase-ui/host-overlay/src/views/keelbase/governance/AuditChainPage.vue'
 
 const q = await import(pathToFileURL(QUERY).href)
-const { SIX_QUESTIONS } = await import(
+const { leaksIn, recordedTypedObject, SIX_QUESTIONS } = await import(
   pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/sixQuestions.mjs')).href
 )
 
@@ -129,6 +129,81 @@ test('a blocked call takes its object from the key its own row recorded', () => 
 test('a row that records none of the three answers nothing', () => {
   const row = operation({ executionId: null, detail: 'something else' })
   assert.equal(q.objectRefOf(row, { resultTypeOf }), null)
+})
+
+test('a connect test takes its object from the typed key at the end of its row', () => {
+  // 一次 MCP 连通测试没有工具，也不写台账：它把**带类型**的键写在句末。句子里是可读的词，检索按类型判等。
+  // An MCP connect test has no tool and writes no ledger row: it puts a **typed** key at the end of its
+  // sentence. The sentence carries a readable word; the search still compares by type.
+  const row = {
+    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+  }
+  assert.deepEqual(recordedTypedObject(row), { resultType: 'ai1_mcp', resultId: 12 })
+  assert.deepEqual(q.objectRefOf(row, { resultTypeOf }), { resultType: 'ai1_mcp', resultId: 12 })
+})
+
+test('the typed key picks the row when the ledger has nothing for that object', () => {
+  const row = {
+    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+  }
+  const picked = q.selectRows([row], {
+    object: { resultType: 'ai1_mcp', resultId: '12' },
+    effects: [],
+    proposals: [],
+    resultTypeOf,
+  })
+  assert.deepEqual(picked.map((entry) => entry.row.id), [7], 'the ledger had no match, the sentence did')
+})
+
+test('the typed key does not answer a search for another kind', () => {
+  const row = {
+    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+  }
+  assert.deepEqual(
+    q.selectRows([row], {
+      object: { resultType: 'crm_customer', resultId: '12' },
+      effects: [],
+      proposals: [],
+      resultTypeOf,
+    }).map((entry) => entry.row.id),
+    [],
+    'a key about an MCP connection must not answer a customer search',
+  )
+  assert.deepEqual(
+    q.selectRows([row], {
+      object: { resultType: '', resultId: '12' },
+      effects: [],
+      proposals: [],
+      resultTypeOf,
+    }).map((entry) => entry.row.id),
+    [7],
+    'a key-only search still finds the row: the kind is known, the search just did not name one',
+  )
+})
+
+test('the ledger still wins over the typed key on the same row', () => {
+  const row = operation({ detail: 'update_crm_customer -> ok · object MCP connection #12' })
+  assert.deepEqual(q.objectRefOf(row, { effects: [effect()], resultTypeOf }), {
+    resultType: 'crm_customer',
+    resultId: 9005,
+  })
+})
+
+test('a key that spells the table name is not an object, and would refuse the export', () => {
+  // 坏键（把表名写进 detail）不该被读成一条对象：宁可「未记录」。而如果它真到了某一格，导出的防线仍在。
+  // A bad key (the table name in `detail`) is not read as an object: better 「未记录」. And if it did
+  // reach a cell, the export's guard still stands.
+  const row = {
+    id: 7, userId: '1', action: 'mcp_connect_test', tool: null,
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 result=ok · object ai1_mcp#12',
+  }
+  assert.equal(recordedTypedObject(row), null)
+  assert.equal(q.objectRefOf(row, { resultTypeOf }), null)
+  assert.deepEqual(leaksIn(' · object ai1_mcp#12'), ['ai1_mcp'], 'the guard no longer sees the table name')
+  assert.deepEqual(leaksIn(' · object MCP connection #12'), [], 'the readable key must not trip the guard')
 })
 
 test('the range includes both ends and excludes a row it cannot place', () => {
@@ -298,6 +373,24 @@ test('a camelCase internal name in a six-question cell refuses the six-column ex
       return true
     },
   )
+})
+
+test('a six-question cell carrying the table name refuses the six-column export', () => {
+  // 这次键的写法就是为了这一条：句末的键会进第三格，若它是表名，整份导出必须被拒、且只说哪一格。
+  // This is what the key's spelling is for: the end-of-sentence key reaches the third cell, and if it
+  // were the table name the whole export must be refused — naming the cell only.
+  const answers = answersOf(['KeelBase', '2026-11-20 09:00:00 UTC+08:00', 'MCP connection · ai1_mcp#12', '—', '—', 'Failed'])
+  assert.throws(
+    () => q.csvText([{ answers }], LABELS),
+    (error) => {
+      assert.equal(error.name, 'CsvLeak')
+      assert.equal(error.column, 'object')
+      assert.doesNotMatch(error.message, /ai1_mcp/, 'the refusal echoes the internal name')
+      return true
+    },
+  )
+  const readable = answersOf(['KeelBase', '2026-11-20 09:00:00 UTC+08:00', 'MCP connection · #12', '—', '—', 'Failed'])
+  assert.equal(q.csvText([{ answers: readable }], LABELS).trimEnd().split('\r\n').length, 2)
 })
 
 test('the verification file name says what it is, without an internal name', () => {

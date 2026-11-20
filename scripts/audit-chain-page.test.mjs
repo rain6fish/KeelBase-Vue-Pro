@@ -398,6 +398,53 @@ test('the search hands the range end and the object to the read face', () => {
   assert.match(run, /until\.value \? until\.value\.toISOString\(\)/, 'the range end is not passed to scanAudit')
 })
 
+test('an empty object answer is scanned again, because the row may name its object in the sentence', () => {
+  // 读面的对象筛选只走台账。一次 MCP 连通测试不写台账，它把带类型的键写在句末；读面按对象答空时，
+  // 页面必须按区间重扫一次，再由本地证据链挑行 —— 否则这一行永远检索不到。台账命中时这一步不发生。
+  //
+  // The read face's object filter goes through the ledger alone. An MCP connect test writes no ledger row
+  // and names its object in the typed key at the end of the sentence; an empty object answer must be
+  // scanned again by range, with the local evidence chain picking, or the row is never found. A ledger
+  // hit never gets here.
+  const runStart = script.indexOf('async function runQuery')
+  const runRest = script.slice(runStart)
+  const runNext = runRest.indexOf('async function ', 10)
+  const run = runNext === -1 ? runRest : runRest.slice(0, runNext)
+  assert.match(
+    run,
+    /if \(objectForServer && audit\.rows\.length === 0\) \{\s*audit = await scanAudit\(sinceIso, untilIso, undefined\)/,
+    'the narrowed answer is never re-scanned, so a row that only names its object in `detail` stays unfindable',
+  )
+  assert.match(script, /recordedTypedObject/, 'the page does not read the typed key at the end of a row')
+  assert.match(
+    script,
+    /const typed = recordedTypedObject\(row\)\s*\n\s*if \(typed\) return typed/,
+    'the typed key is not the road the object column takes',
+  )
+  assert.match(
+    script,
+    /\[\.\.\.RECORD_TYPES, \.\.\.OBJECT_KEY_TYPES\]/,
+    'the object filter offers only the ledger kinds, so an MCP connection cannot be chosen at all',
+  )
+})
+
+test('the MCP connection kind has one word in each bundle, and it is not the table name', () => {
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  const words = {}
+  for (const lang of ['en', 'zh-CN']) {
+    const start = patch.indexOf(`diff --git a/src/locales/${lang}.ts`)
+    const next = patch.indexOf('diff --git', start + 10)
+    const body = patch.slice(start, next < 0 ? undefined : next)
+    const hit = body.match(/^\+\s+ai1_mcp: '([^']*)',$/m)
+    assert.ok(hit, `${lang}: the MCP connection kind has no word, so the option would print a key name`)
+    words[lang] = hit[1]
+  }
+  assert.notEqual(words.en, words.zh)
+  for (const word of Object.values(words)) {
+    assert.doesNotMatch(word, /ai1_mcp/, 'a bundle word leaks the table name into the page and the export')
+  }
+})
+
 test('the two follow-up kinds read differently, and a key-only search says why it can match more', () => {
   // The 2026-11-17 real-stack reading: the kind select carried `crm_follow_up_record` and `follow_up` both
   // reading 「跟进记录」, picking the wrong one first matched nothing; the key alone matched four rows (a

@@ -408,7 +408,15 @@ import {
 } from '@/keelbase/auditQuery.mjs'
 import { maskTitle } from '@/keelbase/mask'
 import { RECORD_TYPES, resolveRecordName, resolveRecordNames, toolResultType } from '@/keelbase/recordNames'
-import { approverOf, composeSix, objectLine, recordedObjectIn, zonedTime } from '@/keelbase/sixQuestions.mjs'
+import {
+  approverOf,
+  composeSix,
+  objectLine,
+  OBJECT_KEY_TYPES,
+  recordedObjectIn,
+  recordedTypedObject,
+  zonedTime,
+} from '@/keelbase/sixQuestions.mjs'
 import { timeText } from '@/keelbase/time'
 
 defineOptions({ name: 'KeelbaseGovernanceAuditChain' })
@@ -606,10 +614,17 @@ const viewRows = computed(() => (queryRan.value ? scanAuditRows.value : rows.val
 const viewEffects = computed(() => (queryRan.value ? scanEffects.value : effects.value))
 const viewProposals = computed(() => (queryRan.value ? scanProposals.value : proposals.value))
 
-/** 种类的下拉只列**消息表里有业务词**的记录种类：加一个词就多一种可查的对象，不必改代码。 */
-/** The kind select lists only kinds the message tree has a business word for: add a word and the kind
- *  becomes searchable, with no code change. */
-const recordTypes = RECORD_TYPES.filter((kind) => te(`keelbase.record.${kind}`))
+/**
+ * 对象筛选能选哪些类型：台账认识的那些，加上**只靠行末带类型的键才认得出**的那几种（一次 MCP 连通测试
+ * 不写台账，它的对象只在 `detail` 里）。两种都只列**消息表里有业务词**的 —— 加一个词就多一种可查的对象，
+ * 不必改代码；没有词条的选项只会印出一串键名。
+ *
+ * Which types the object filter offers: those the ledger knows, plus the ones **only the typed key at a
+ * row's end** can name (an MCP connect test writes no ledger row; its object lives in `detail` alone).
+ * Either kind is listed only when the message tree has a **business word** for it — add a word and the
+ * kind becomes searchable with no code change; an option without one prints a key name.
+ */
+const recordTypes = [...RECORD_TYPES, ...OBJECT_KEY_TYPES].filter((kind) => te(`keelbase.record.${kind}`))
 
 /** 审计行一次取 200（运行时的上限），最多 5 页 —— 1000 行是那条面能走到的深度（`offset` 上限也是 1000）。 */
 /** Audit rows: 200 a page (the runtime's cap), 5 pages at most — 1000 rows is as deep as that face goes
@@ -863,14 +878,18 @@ function objectOf(row: AuditRow): string {
 
 /**
  * 被**闸门拦下**的调用既没有台账行、也没有提议时，它本来落在哪条记录上 —— 读运行时写在那条审计行
- * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。
+ * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。**根本没有工具**的动作（一次 MCP 连通测试）
+ * 写的是**带类型**的键（` · object MCP connection #12`），种类就在句子里（见 `recordedTypedObject`）；
+ * 这条路先读。
  *
  * 表格那一列与展开的六问**都从这里取**：同一条审计行的第三问只该有一个答案。两处各拼一份，正是它们
  * 会给出两个答案的方式（2026-11-08 走查实测：列上说「未记录」、展开说「项目 · #1」）。
  *
  * Which record a **gate-blocked** call was about when it has neither a ledger row nor a proposal — the key
  * the runtime wrote at the end of that audit row's own sentence (see `recordedObjectIn`), with the kind
- * taken from the tool's own declaration.
+ * taken from the tool's own declaration. An action that has **no tool** at all (an MCP connect test)
+ * writes a **typed** key instead (` · object MCP connection #12`), and its kind comes from the sentence
+ * (see `recordedTypedObject`); that road is read first.
  *
  * The table column and the expanded six answers **both take it from here**: one audit row must answer its
  * third question one way. Composing it twice at the two call sites is exactly how they came to disagree
@@ -881,6 +900,13 @@ function recordedObjectOf(
   effect: EffectRow | null,
   proposal: { resultType: string; resultId: number | string } | null,
 ): { resultType: string; resultId: number } | null {
+  // 没有工具的动作（一次 MCP 连通测试）在句末写的是**带类型**的键，种类就在句子里 —— 不需要 `row.tool`。
+  // An action with no tool (an MCP connect test) writes the **typed** key, its kind in the sentence —
+  // `row.tool` is not needed for it.
+  if (!effect && !proposal) {
+    const typed = recordedTypedObject(row)
+    if (typed) return typed
+  }
   const recordedId = effect || proposal ? null : recordedObjectIn(row)
   return recordedId === null || !row.tool
     ? null
@@ -1104,11 +1130,21 @@ async function runQuery() {
     // 对象过滤的两半一起发给读面；只发一半在会施加它的运行时上是 400，而页面从来只用两半一起问。
     const objectForServer =
       wantedType && wantedKey ? { type: wantedType, id: wantedKey } : undefined
-    const audit = await scanAudit(
-      since.value ? since.value.toISOString() : undefined,
-      until.value ? until.value.toISOString() : undefined,
-      objectForServer,
-    )
+    const sinceIso = since.value ? since.value.toISOString() : undefined
+    const untilIso = until.value ? until.value.toISOString() : undefined
+    let audit = await scanAudit(sinceIso, untilIso, objectForServer)
+    // 读面的对象筛选只走**台账**。台账里没有这一对时它答空 —— 但这一行可能仍在：没有工具的动作（一次
+    // MCP 连通测试）不写台账，它在句末的带类型键里说得出自己是哪条对象。故空答案按区间重扫一次，由下面
+    // 本地那条证据链再挑；台账命中时这一步不发生，台账优先的语义不变。
+    //
+    // The read face's object filter goes through the **ledger** alone. When the ledger has no such pair
+    // it answers empty — but the row may still exist: an action with no tool (an MCP connect test)
+    // writes no ledger row and names its object in the typed key at the end of its sentence. So an
+    // empty answer is scanned again by range, and the local evidence chain below picks from it; a
+    // ledger hit never gets here, so "the ledger wins" still holds.
+    if (objectForServer && audit.rows.length === 0) {
+      audit = await scanAudit(sinceIso, untilIso, undefined)
+    }
     const ledger = await scanLedger(since.value)
     let proposals: ConfirmationItem[] = []
     try {

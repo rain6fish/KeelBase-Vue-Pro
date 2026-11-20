@@ -33,7 +33,7 @@
 // six exported columns are exactly the six cells the page renders, so the file cannot drift from the
 // screen — a single cell carrying an internal name refuses the whole export.
 
-import { BLANK, leaksIn, recordedObjectIn, SIX_QUESTIONS } from './sixQuestions.mjs'
+import { BLANK, leaksIn, recordedObjectIn, recordedTypedObject, SIX_QUESTIONS } from './sixQuestions.mjs'
 
 /** CSV 的六列，按审计人员提问的次序。 / The CSV's columns, in the order an auditor asks the six questions. */
 export const CSV_QUESTION_KEYS = SIX_QUESTIONS
@@ -44,16 +44,25 @@ export const PAIR_WINDOW_MS = 5000
 
 /**
  * 这一行的**业务对象**，按 `(类型, 主键)`。三条来路与审计页同一次序，取到第一条为止：
- * 台账行（一次真的写）→ 确认记录里的提议（被扣下或被拒）→ 行末自己记下的键（被闸门拦下）。
+ * 台账行（一次真的写）→ 确认记录里的提议（被扣下或被拒）→ 行末自己记下的键。
  * 三条都没有时回 `null`：那就是运行时确实没记下这次调用落在哪条记录上。
+ *
+ * 行末的键有两种拼写，先认**带类型**的那一种（` · object MCP connection #12`，写在没有工具的动作上，
+ * 种类就在句子里），再认被拦下那种（` · intended object #12`，种类来自工具声明）。台账与提议仍然优先：
+ * 有它们时，行末的键一个字都不读。
  *
  * 台账**优先按 `executionId` 精确配**（契约 v6 的关联键）。带了这个键却在窗口里找不到那一行时回
  * `null`，**不**退回去按「工具 + 五秒」猜：那一猜正是把两条不同的执行摆到一起的路。
  *
  * The **business object** of this row, as `(type, key)`. Three roads in the audit page's own order, the
  * first one that answers wins: the ledger row (a write that happened) → the proposal in a confirmation
- * record (held or refused) → the key recorded at the end of the row's own sentence (blocked by the
- * gate). None of the three means `null`: the runtime genuinely did not record where the call landed.
+ * record (held or refused) → the key recorded at the end of the row's own sentence. None of the three
+ * means `null`: the runtime genuinely did not record where the call landed.
+ *
+ * The end-of-sentence key has two spellings. The **typed** one is read first (` · object MCP connection
+ * #12`, written by an action with no tool, its kind in the sentence), then the blocked-call one (` ·
+ * intended object #12`, its kind from the tool's declaration). The ledger and the proposal still win:
+ * when either answers, not a character of the sentence is read.
  *
  * The ledger is matched **by `executionId` first** (contract v6's correlation key). When the row carries
  * one and the window has no such row, this returns `null` rather than falling back to "tool + five
@@ -75,6 +84,8 @@ export function objectRefOf(row, { effects = [], proposals = [], resultTypeOf = 
       return { resultType: resultTypeOf(proposal.toolName) || '', resultId: id }
     }
   }
+  const typed = recordedTypedObject(row)
+  if (typed) return typed
   const recorded = recordedObjectIn(row)
   if (recorded !== null && row.tool) {
     return { resultType: resultTypeOf(row.tool) || '', resultId: recorded }
