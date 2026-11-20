@@ -315,10 +315,51 @@ test('D-1: a search narrows the table to its matches, and clearing restores the 
   assert.match(template, /@click="clearQueryResults\(\)"/, 'the clear-search control is not wired')
   assert.match(template, /v-if="!queryRan" class="pager"/, 'the pager is still drawn over a search result')
   assert.match(script, /for \(const row of displayRows\.value\)/, 'the summary still counts the list window')
+  assert.match(template, /:empty-text="emptyText"/, 'the table does not take its empty text from the page')
+  assert.match(
+    script,
+    /queryRan\.value\s*\?\s*t\('keelbase\.audit\.queryEmpty'\)/,
+    'an empty search result keeps the generic empty text',
+  )
+})
+
+test('an unfinished search does not read as one that matched nothing', () => {
+  // Measured in the browser on 2026-11-20: when the read face answered 500, the page said "0 row(s) matched"
+  // and "No row matched this search" — both assert a search that finished, while the request had failed.
+  // A failure has to be said apart from "finished, matched nothing".
+  //
+  // 2026-11-20 浏览器复核实测：读面回 500 时，页面同时说「命中 0 行」「这次检索没有命中任何行」——前两句
+  // 断言了一次跑完的检索，而实际是请求失败。失败必须与「跑完了、没命中」分开说。
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
   assert.match(
     template,
-    /:empty-text="queryRan \? t\('keelbase\.audit\.queryEmpty'\)/,
-    'an empty search result keeps the generic empty text',
+    /v-if="queryRan && !queryFailed" class="query-status"/,
+    'the hit count is still drawn over a search that did not finish',
+  )
+  assert.match(
+    script,
+    /const emptyText = computed\(\(\) =>\s*queryFailed\.value\s*\?\s*t\('keelbase\.audit\.queryFailed'\)\s*:\s*queryRan\.value\s*\?\s*t\('keelbase\.audit\.queryEmpty'\)\s*:\s*undefined/,
+    'the empty text does not tell "did not finish" apart from "matched nothing"',
+  )
+  assert.match(
+    script,
+    /catch \(e\) \{[\s\S]{0,400}?queryFailed\.value = true/,
+    'a failed search is not marked as unfinished',
+  )
+  assert.match(
+    script,
+    /function clearQueryResults\(\) \{[\s\S]{0,400}?queryFailed\.value = false/,
+    'clearing the search does not clear the failure',
+  )
+  assert.match(
+    script,
+    /queryRunning\.value = true\s*\n\s*exportError\.value = ''\s*\n\s*queryFailed\.value = false/,
+    'a new search starts without clearing the previous failure',
+  )
+  assert.match(
+    script,
+    /const keyOnlySearch = computed\(\s*\(\) =>\s*queryRan\.value &&\s*!queryFailed\.value/,
+    'the key-only hint is drawn over a search that did not finish',
   )
 })
 
@@ -493,7 +534,7 @@ test('the two follow-up kinds read differently, and a key-only search says why i
 
   assert.match(
     script,
-    /const keyOnlySearch = computed\(\s*\(\) => queryRan\.value && !objectQuery\.resultType/,
+    /const keyOnlySearch = computed\(\s*\(\) =>\s*queryRan\.value &&\s*!queryFailed\.value &&\s*!objectQuery\.resultType/,
     'the hint is not gated on a search that gave the key and no kind',
   )
   const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))

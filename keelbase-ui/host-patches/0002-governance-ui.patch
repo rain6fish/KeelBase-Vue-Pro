@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,800 @@
+@@ -1,4 +1,801 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -77,6 +77,7 @@ index 9d14564..3382e27 100644
 +      exportCheck: 'Export with IDs and checks',
 +      clearSearch: 'Clear search',
 +      queryEmpty: 'No row matched this search',
++      queryFailed: 'This search did not finish',
 +      checksNotRecorded: 'not recorded — this row recorded no checks',
 +      exportRefused: 'The export was refused: a cell in "{column}" carries an internal name',
 +      queryHits: 'Matched {n} row(s) in what was scanned',
@@ -807,7 +808,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,792 @@
+@@ -1,4 +1,793 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -882,6 +883,7 @@ index 13065de..f476283 100644
 +      exportCheck: '导出核对 CSV',
 +      clearSearch: '清空检索',
 +      queryEmpty: '这次检索没有命中任何行',
++      queryFailed: '这次检索没有完成',
 +      checksNotRecorded: '未记录 —— 这一行没有记下判定依据',
 +      exportRefused: '导出已拒绝：「{column}」这一格带着内部名',
 +      queryHits: '扫描到的范围里命中 {n} 行',

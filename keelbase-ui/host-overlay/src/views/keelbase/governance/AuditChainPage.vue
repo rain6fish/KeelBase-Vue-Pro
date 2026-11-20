@@ -126,7 +126,7 @@
     <!-- 扫到哪儿、命中几行、有没有到上界 —— 查询的边界要说出来，不然「没有行」会被读成「没有这件事」。 -->
     <!-- Where the scan went, how many rows matched, whether it hit its bound — an unspoken bound makes
          "no rows" read as "nothing happened". -->
-    <div v-if="queryRan" class="query-status">
+    <div v-if="queryRan && !queryFailed" class="query-status">
       {{ t('keelbase.audit.queryHits', { n: queryRows.length }) }}
       <!-- 区间照写出来：「起始」与上面的列表共用同一个控件，不说出来读者不会知道这次查的是哪一段。 -->
       <!-- The range is spelled out: its start shares the list's control above, and an unspoken window
@@ -216,7 +216,7 @@
       v-loading="rowsLoading"
       :data="displayRows"
       stripe
-      :empty-text="queryRan ? t('keelbase.audit.queryEmpty') : undefined"
+      :empty-text="emptyText"
       @expand-change="(row: AuditRow) => void onExpand(row)"
     >
       <!-- Opening a row lays out the whole of it in one place: the sentence the list compresses. -->
@@ -568,6 +568,15 @@ const objectQuery = reactive<{ resultType: string; resultId: string }>({ resultT
 const until = ref<Date | null>(null)
 const queryRows = ref<AuditRow[]>([])
 const queryRan = ref(false)
+/**
+ * This search **did not finish** (the read face refused or failed). That is not the same as "finished, matched
+ * nothing": the status line and the empty state must say so separately, or a read-face fault reads as "there
+ * are indeed no such rows".
+ *
+ * 这一次检索**没有跑完**（读面拒绝或出错）。它与「跑完了、只是没命中」是两件事：状态行与空态都必须分开说，
+ * 否则一次读面故障会被读成「确实没有这类行」。
+ */
+const queryFailed = ref(false)
 const queryTruncated = ref(false)
 const queryRunning = ref(false)
 const exportError = ref('')
@@ -589,6 +598,22 @@ const displayRows = computed(() =>
 )
 
 /**
+ * The table's empty text. Only a search that **finished** may say "no row matched"; when the request itself
+ * failed, that sentence turns a read-face fault into "there are indeed no such rows", so it says the search
+ * did not finish instead — the same thing the error line above says.
+ *
+ * 表格的空态文案。只有**跑完**且没命中的检索才说「没有命中任何行」；这次请求**失败**时那句话会把一次读面
+ * 故障读成「确实没有这类行」，故改说「这次检索没有完成」——与旁边的错误行同一件事。
+ */
+const emptyText = computed(() =>
+  queryFailed.value
+    ? t('keelbase.audit.queryFailed')
+    : queryRan.value
+      ? t('keelbase.audit.queryEmpty')
+      : undefined,
+)
+
+/**
  * Whether this search gave the key and no kind. Any change to the conditions clears the result, so this reads
  * the set the search actually ran under. What key-only means — this record under any kind, rows with no kind
  * recorded included — and why it can match more than kind + key is said by one line on the page; see
@@ -599,7 +624,11 @@ const displayRows = computed(() =>
  * 「类型 + 主键」这件事，由页面上的一句说明来讲，见模板里的 `keyOnlyHint`。
  */
 const keyOnlySearch = computed(
-  () => queryRan.value && !objectQuery.resultType && String(objectQuery.resultId || '').trim() !== '',
+  () =>
+    queryRan.value &&
+    !queryFailed.value &&
+    !objectQuery.resultType &&
+    String(objectQuery.resultId || '').trim() !== '',
 )
 
 /**
@@ -1093,6 +1122,7 @@ function rangeText(): string {
  */
 function clearQueryResults() {
   queryRan.value = false
+  queryFailed.value = false
   queryRows.value = []
   queryTruncated.value = false
   scanAuditRows.value = []
@@ -1119,6 +1149,7 @@ function clearQueryResults() {
 async function runQuery() {
   queryRunning.value = true
   exportError.value = ''
+  queryFailed.value = false
   try {
     const wantedType = objectQuery.resultType || ''
     const wantedKey = String(objectQuery.resultId || '').trim().replace(/^#/, '')
@@ -1182,6 +1213,7 @@ async function runQuery() {
     queryRows.value = []
     queryTruncated.value = false
     queryRan.value = true
+    queryFailed.value = true
     exportError.value = runtimeErrorMessage(e, t('keelbase.common.loadFailed'))
   } finally {
     queryRunning.value = false
