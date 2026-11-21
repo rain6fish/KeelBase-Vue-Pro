@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,810 @@
+@@ -1,4 +1,812 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -89,6 +89,8 @@ index 9d14564..3382e27 100644
 +      secondEntryHint:
 +        'The same business object also leaves a row in the host\'s own operation log (and in the action centre\'s write ledger). The two are related by business key and time, not hard-linked: nothing writes a shared id between the trails, and each side words the act its own way — this page uses the tool\'s name, the host its operation name. To cross-check, line up the business key and the time, then read the second entry knowing the words may differ.',
 +      exportNote: 'Related, not linked: each row\'s business key plus its time pairs this line with the same operation in the host\'s own operation log; the two trails share no id, and that log words the act differently.',
++      readFaceUnfiltered:
++        'The runtime’s audit read face did not apply this search’s object or end — an application produced by the generator ignores parameters it does not know. The rows above are this page’s own narrowing, and both exports carry the same set; query /audit/logs directly for the read face’s own answer.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -817,7 +819,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,802 @@
+@@ -1,4 +1,804 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -904,6 +906,8 @@ index 13065de..f476283 100644
 +      secondEntryHint:
 +        '同一个业务对象在宿主自己的操作日志（以及行动中心的写入台账）里也会留一行。两边按业务主键与时间对上 —— 不是硬链接：两条轨之间没有任何东西写下共享编号，各边对动作的叫法也各按自己的词（本页用工具名，宿主用操作名）。交叉核对时先按业务主键与时间对齐，再看第二入口，并知道两边的词可能不一样。',
 +      exportNote: '相关、非硬链接：每一行的业务主键与时间，可把它与宿主自己的操作日志里的同一次操作对上；两条轨之间没有共享编号，那张日志对动作的叫法也不同。',
++      readFaceUnfiltered:
++        '运行时的审计读面没有施加这次检索的对象或终点筛选（生成器产出的应用会忽略它不认识的参数）。上面的行由本页自己挑出，两份导出沿用同一份命中；要以读面自己的答复为准，请直接查询 /audit/logs。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',

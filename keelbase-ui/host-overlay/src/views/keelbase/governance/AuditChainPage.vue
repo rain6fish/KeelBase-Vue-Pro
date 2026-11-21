@@ -68,15 +68,19 @@
     <!--
       按业务对象 + 区间查，并把六问导成 CSV。对象只按**类型 + 主键**判等：显示文本会被掩码、会被翻译，
       不能当键用。查询走的是本页**已有的几条读面**（审计行、写入台账、确认记录、记录名），扫描有上界、
-      扫到哪儿就说哪儿 —— 运行时那条审计读面没有对象与终点这两个筛选（见模块头）。
+      扫到哪儿就说哪儿。对象与终点**也发给读面**：会施加它们的运行时先收窄，不施加的（生成器产出的应用
+      会静默忽略不认识的参数）由本页自己挑 —— 故两种运行下命中相同，页面对「读面明显更宽」有证据时说出来。
       导出的六列就是本页渲染的那六格，故文件不会与屏幕漂开。
 
       Search by business object + range, and export the six answers as CSV. The object is compared by
       **type + key** only: the text shown is masked and translated, so it cannot be the key. The search
       runs over the **faces this page already reads** (audit rows, write ledger, confirmation records,
-      record names); the scan is bounded and says where it stopped — the runtime's audit read face has
-      neither the object filter nor the end of the range (see the module header). The CSV's six columns
-      are exactly the six cells this page renders, so the file cannot drift from the screen.
+      record names); the scan is bounded and says where it stopped. The object and the range's end go to
+      the read face too: a runtime that applies them narrows first, and one that does not (an application
+      produced by the generator silently ignores parameters it does not know) leaves the picking to this
+      page — so the matched set is the same either way, and the page says so when it has evidence the
+      answer came back wider. The CSV's six columns are exactly the six cells this page renders, so the
+      file cannot drift from the screen.
     -->
     <el-form :inline="true" :model="objectQuery" class="-mb-15px" @submit.prevent>
       <el-form-item :label="t('keelbase.audit.colObject')">
@@ -154,6 +158,19 @@
       Said here, the reader who walks to that page does not take it for the same record.
     -->
     <div class="query-status muted">{{ t('keelbase.audit.secondEntryHint') }}</div>
+    <!--
+      读面比发出去的筛选更宽 —— 它没有施加对象/终点（生成器产出的应用会静默忽略不认识的参数）。这句只在
+      **有证据**时出现（见 `readFaceIgnoredFilters`），并把读者指向运行时读面自己的答复；两份导出沿用
+      同一份命中，故它同时说明导出。
+
+      The read face came back wider than the filters sent — it did not apply the object or the end (an
+      application produced by the generator silently ignores parameters it does not know). This line is
+      shown only with **evidence** (see `readFaceIgnoredFilters`) and points the reader at the read face's
+      own answer; both exports carry the same matched set, so it covers them too.
+    -->
+    <div v-if="queryRan && !queryFailed && readFaceIgnored" class="query-status muted">
+      {{ t('keelbase.audit.readFaceUnfiltered') }}
+    </div>
     <div v-if="exportError" class="text-[var(--el-color-danger)] mb-10px">{{ exportError }}</div>
 
     <!-- 覆盖声明（`D57`）：这一页读到哪、到不了哪些路径 —— 只写事实。 -->
@@ -414,6 +431,7 @@ import {
   displayRowsOf,
   instantOf,
   objectRefOf,
+  readFaceIgnoredFilters,
   selectRows,
 } from '@/keelbase/auditQuery.mjs'
 import { maskTitle } from '@/keelbase/mask'
@@ -568,11 +586,14 @@ const query = reactive<{ userId: string; isError: string }>({ userId: '', isErro
 
 /**
  * 按业务对象 + 区间查。`since` 与上面的列表**共用一个窗口起点**（同一条读面同一个含义），`until` 只属于
- * 这次检索：运行时那条面没有终点，故终点在**本地**施加 —— 页面把这件事说出来，而不是假装服务端筛过。
+ * 这次检索。对象与终点都发给读面，但**本页照旧自己挑一遍**：会施加它们的运行时先收窄，不施加的（生成器
+ * 产出的应用会静默忽略不认识的参数）也不会让答案变宽 —— 读者看到的是同一份命中。
  *
  * The object + range search. It shares the list's window **start** (`since` — same face, same meaning);
- * `until` belongs to the search alone: the runtime's face has no end, so the end is applied **locally**
- * — and the page says so rather than pretending the server filtered it.
+ * `until` belongs to the search alone. The object and the end both go to the read face, and this page
+ * picks again anyway: a runtime that applies them narrows first, and one that does not (an application
+ * produced by the generator silently ignores parameters it does not know) cannot widen the answer the
+ * reader sees — it is the same matched set.
  */
 const objectQuery = reactive<{ resultType: string; resultId: string }>({ resultType: '', resultId: '' })
 const until = ref<Date | null>(null)
@@ -588,6 +609,14 @@ const queryRan = ref(false)
  */
 const queryFailed = ref(false)
 const queryTruncated = ref(false)
+/**
+ * 读面明显比发出去的筛选更宽 —— 它没有施加对象/终点。只在**有证据**时为真（见
+ * `readFaceIgnoredFilters`），页面据此说出来；没有证据时不猜。
+ *
+ * The read face came back recognisably wider than the filters sent — it did not apply the object or the
+ * end. True only with **evidence** (see `readFaceIgnoredFilters`); with none the page does not guess.
+ */
+const readFaceIgnored = ref(false)
 const queryRunning = ref(false)
 const exportError = ref('')
 /** 这次检索实际扫到的那两窗证据 —— 导出时六问按它配，而不是按列表用的那一小窗。 */
@@ -1081,16 +1110,18 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
  * 从窗口起点往后读审计行，最多 `SCAN_PAGES` 页。`complete=false` 表示**到了上界**：区间里更早的行没读到，
  * 页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
  *
- * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，旧运行时忽略这两个参数、
- * 页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在扫回来的行数。
+ * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，不施加的（旧运行时、
+ * 生成器产出的应用）忽略这两个参数、页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在
+ * 扫回来的行数。
  *
  * Reads audit rows from the window's start, at most `SCAN_PAGES` pages. `complete=false` means the
  * **bound was hit**: older rows in the range were not read, and the page has to say so — an unspoken
  * bound turns "no rows" into "nothing happened".
  *
  * The range's end and the business object go to the read face too: a runtime that applies them answers
- * an already narrowed list, and an older one ignores the two parameters while the page's own narrowing
- * still decides — so the answer is the same under either, and only the number of rows scanned differs.
+ * an already narrowed list, and one that does not (an older runtime, or an application produced by the
+ * generator) ignores the two parameters while the page's own narrowing still decides — so the answer is
+ * the same under either, and only the number of rows scanned differs.
  */
 async function scanAudit(
   sinceIso: string | undefined,
@@ -1154,6 +1185,7 @@ function clearQueryResults() {
   queryFailed.value = false
   queryRows.value = []
   queryTruncated.value = false
+  readFaceIgnored.value = false
   scanAuditRows.value = []
   scanEffects.value = []
   scanProposals.value = []
@@ -1201,6 +1233,13 @@ async function runQuery() {
     const sinceIso = since.value ? since.value.toISOString() : undefined
     const untilIso = until.value ? until.value.toISOString() : undefined
     let audit = await scanAudit(sinceIso, untilIso, objectForServer)
+    // 取证只用**第一次**扫回来的那份：它才是带着筛选问出去的答复。下面按区间重扫的那一次是页面自己
+    // 有意放宽的，把它算成「读面忽略了筛选」会是一句假话。
+    //
+    // Evidence comes from the **first** answer only: that is the one asked for with the filters. The
+    // by-range rescan below is this page deliberately widening the ask, and counting it as "the read
+    // face ignored the filters" would be a false statement.
+    const firstAnswer = audit.rows
     // 读面的对象筛选只走**台账**。台账里没有这一对时它答空 —— 但这一行可能仍在：没有工具的动作（一次
     // MCP 连通测试）不写台账，它在句末的带类型键里说得出自己是哪条对象。故空答案按区间重扫一次，由下面
     // 本地那条证据链再挑；台账命中时这一步不发生，台账优先的语义不变。
@@ -1237,10 +1276,29 @@ async function runQuery() {
     })
     queryRows.value = picked.map((entry) => entry.row)
     queryTruncated.value = !audit.complete || !ledger.complete || proposals.length >= PROPOSAL_LIMIT
+    // 只有**真的把对象发出去过**（类型 + 主键两半都有）才拿它取证；只给种类或只给主键时页面从不发对象
+    // 筛选，把那时的行说成「读面忽略了对象」会是一句假话。判等按**控制台自己的类型**，不按发给读面的
+    // 种类词：句末带类型的键在运行时那边叫 `MCP connection`、在这边叫 `ai1_mcp`，拿种类词去比会把每一行
+    // 都误判成「读面忽略了筛选」。
+    //
+    // The object is evidence only when it was **actually sent** (both halves); a kind-only or key-only
+    // search sends no object filter at all, and calling those rows "the read face ignored the object"
+    // would be a false statement. Compare by the **console's own type**, not the kind word sent to the
+    // read face: a typed key at the end of a sentence is `MCP connection` to the runtime and `ai1_mcp`
+    // here, and comparing against the word would mark every row as "the read face ignored the filter".
+    readFaceIgnored.value = readFaceIgnoredFilters(firstAnswer, {
+      object: objectForServer ? wanted : null,
+      since: since.value,
+      until: until.value,
+      effects: ledger.items,
+      proposals,
+      resultTypeOf: toolResultType,
+    })
     queryRan.value = true
   } catch (e) {
     queryRows.value = []
     queryTruncated.value = false
+    readFaceIgnored.value = false
     queryRan.value = true
     queryFailed.value = true
     exportError.value = runtimeErrorMessage(e, t('keelbase.common.loadFailed'))

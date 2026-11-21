@@ -447,6 +447,52 @@ test('the search hands the range end and the object to the read face', () => {
   assert.match(run, /until\.value \? until\.value\.toISOString\(\)/, 'the range end is not passed to scanAudit')
 })
 
+test('a read face that ignored the filters is named as such, from the answer that carried them', () => {
+  // F10 的宿主侧：生成器产出的应用会静默忽略 `until/objectType/objectId`，同一查询回一份更宽的列表。
+  // 命中仍由本页自己挑（上一组测试钉住两种读面同一个答案），但当答复**明显更宽**时页面要说出这件事，
+  // 并把读者指向读面自己的答复。取证只用**第一次**扫回来的那份 —— 页面有意按区间重扫的那次不算。
+  //
+  // The host side of F10: an application produced by the generator silently ignores `until/objectType/objectId`
+  // and answers a wider list. The page still picks the rows itself (the tests above pin one answer on both
+  // faces), but when the answer is **recognisably wider** it says so and points the reader at the read
+  // face's own answer. Evidence comes from the **first** answer only — the page's own by-range rescan is
+  // not the face ignoring anything.
+  assert.match(
+    script,
+    /import \{[^}]*readFaceIgnoredFilters[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/s,
+    'the page does not import the wider-answer reader from the query module',
+  )
+  const runStart = script.indexOf('async function runQuery')
+  const runRest = script.slice(runStart)
+  const runNext = runRest.indexOf('async function ', 10)
+  const run = runNext === -1 ? runRest : runRest.slice(0, runNext)
+  assert.match(run, /const firstAnswer = audit\.rows/, 'the first answer is not kept for evidence')
+  assert.match(
+    run,
+    /readFaceIgnoredFilters\(firstAnswer, \{/,
+    'the wider-answer check is not made against the answer that carried the filters',
+  )
+  // 只给种类或只给主键时页面根本不发对象筛选，故不能拿对象取证 —— 否则每一次这样的检索都会被读成
+  // 「读面忽略了对象」。对象那一半只认**真的发出去过**的那一组条件。
+  //
+  // A kind-only or key-only search sends no object filter at all, so it cannot be evidence about the
+  // object — otherwise every such search would read as "the read face ignored the object". The object
+  // half is taken only from the conditions that were actually sent.
+  assert.match(
+    run,
+    /object: objectForServer \? wanted : null/,
+    'the object is used as evidence even when the page never sent it',
+  )
+  assert.match(
+    page,
+    /v-if="queryRan && !queryFailed && readFaceIgnored"[\s\S]{0,120}keelbase\.audit\.readFaceUnfiltered/,
+    'the page does not render the line that names the read face ignoring the filters',
+  )
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  assert.ok(patch.includes("readFaceUnfiltered:\n+        'The runtime’s audit read face did not apply"), 'en.ts lacks readFaceUnfiltered')
+  assert.ok(patch.includes('readFaceUnfiltered:\n+        \'运行时的审计读面没有施加'), 'zh-CN.ts lacks readFaceUnfiltered')
+})
+
 test('an empty object answer is scanned again, because the row may name its object in the sentence', () => {
   // 读面的对象筛选只走台账。一次 MCP 连通测试不写台账，它把带类型的键写在句末；读面按对象答空时，
   // 页面必须按区间重扫一次，再由本地证据链挑行 —— 否则这一行永远检索不到。台账命中时这一步不发生。
