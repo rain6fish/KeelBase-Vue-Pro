@@ -80,7 +80,7 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column :label="t('keelbase.audit.colTime')" width="175">
+      <el-table-column :label="t('keelbase.audit.colTime')" width="200">
         <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column :label="t('keelbase.audit.colWho')" width="170">

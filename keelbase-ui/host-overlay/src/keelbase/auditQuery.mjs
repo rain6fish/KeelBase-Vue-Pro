@@ -307,18 +307,32 @@ export const CHECK_COLUMN_KEYS = ['id', ...SIX_QUESTIONS, 'checks']
  * 核对 CSV 的正文。与 `csvText` 同一条转义与泄漏规则：缺答案写 `—`，任何一格带内部名就整份拒绝，
  * 且错误只说**是哪一列**。`entryRows` 的每一项是 `{ id, answers, checks }`。
  *
+ * `note` 可选：给了就在表头**之前**写一行以 `#` 开头的说明。它是这份文件与第二入口（宿主自己的操作日志）
+ * 之间关系的限度声明 —— 两份轨之间没有共享编号，只能按业务主键与时间相关。这一行是**元数据、不是数据行**：
+ * 六列/八列的判据只数数据行，故它不改变「一行就是一次操作」这件事。`#` 是这里自己定的记号：RFC 4180 没有
+ * 注释行，故下游若按纯数据解析，看到的会是一条只有一个格子的行 —— 它不会被误读成某个操作。
+ *
  * The verification CSV's body. The same escaping and leak rules as `csvText`: a missing answer is `—`, any
  * cell carrying an internal name refuses the whole file, and the error names **which column** only. Each
  * entry of `entryRows` is `{ id, answers, checks }`.
+ *
+ * `note` is optional: when given, one line beginning with `#` is written **before** the header. It states the
+ * limit of this file's relation to the second entry (the host's own operation log) — the two trails share
+ * no id and can only be related by business key and time. That line is **metadata, not a data row**: the
+ * six/eight-column criterion counts data rows only, so it does not change "one line is one operation". The
+ * `#` marker is this file's own: RFC 4180 has no comment lines, so a strict data parser sees a one-cell row
+ * — which cannot be mistaken for an operation.
  */
-export function checkCsvText(entryRows, labels) {
+export function checkCsvText(entryRows, labels, note = '') {
   if (!Array.isArray(labels) || labels.length !== CHECK_COLUMN_KEYS.length) {
     throw new Error(`the verification CSV has exactly ${CHECK_COLUMN_KEYS.length} columns`)
   }
   labels.forEach((label, i) => {
     if (leaksIn(label).length) throw new CsvLeak(CHECK_COLUMN_KEYS[i])
   })
-  const lines = [labels.map(csvField).join(',')]
+  const lines = []
+  if (note) lines.push(`# ${note}`)
+  lines.push(labels.map(csvField).join(','))
   for (const entry of entryRows || []) {
     const answers = entry?.answers
     if (!Array.isArray(answers) || answers.length !== SIX_QUESTIONS.length) {

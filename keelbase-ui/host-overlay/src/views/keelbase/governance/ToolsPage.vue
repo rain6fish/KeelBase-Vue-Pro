@@ -124,7 +124,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="t('keelbase.effects.colTime')" width="190">
+      <el-table-column :label="t('keelbase.effects.colTime')" width="200">
         <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colActions')" width="110" align="center">

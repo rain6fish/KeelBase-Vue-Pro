@@ -359,7 +359,7 @@ onMounted(() => {
 .step-time {
   font-size: 12px;
   color: var(--el-text-color-secondary);
-  min-width: 150px;
+  min-width: 200px;
 }
 .step-body {
   flex: 1;
