@@ -21,7 +21,9 @@
 //   ② 解析到的字节：本机仓库里（或产物 `BOOT-INF/lib/` 里）那份 jar 的 sha1；
 //   ③ 发布的那份：同一个坐标在发布库上的 `.sha1`。
 //
-// ② ≠ ③ 即红。取不到 ③ 也红 —— 那是「判不了」，不是「没事」，本脚本不把它读成绿。
+// ② ≠ ③ 即红。取不到 ③ 也红 —— 那是「判不了」，不是「没事」，本脚本不把它读成绿；它用 exit 2 与
+// 「字节不同」（exit 1）分开。本地的全门入口 `scripts/gates.mjs` 把这道门声明的 exit 2 记为**未核验**，
+// 不是断言失败 —— 但直接跑本脚本的地方（CI、`run-server.sh`）仍然拿到 exit 2。
 //
 // **它证明什么、不证明什么。** 它证明宿主用的这份 jar 与发布库声称的字节一致；它**不**证明发布库那份
 // 能由 tag 复现（那是发布侧的事），也**不**替代真栈读数。三道面各管一段：本机仓库面查「构建解析到了什么」，
@@ -53,7 +55,9 @@
 //   ③ the published copy: the `.sha1` served for the same coordinate.
 //
 // ② ≠ ③ is red. Being unable to read ③ is red too — that is "cannot decide", not "fine", and this script never
-// reads it as green.
+// reads it as green; exit 2 separates it from "the bytes differ" (exit 1). The local all-gates entry
+// (`scripts/gates.mjs`) records this gate's declared exit 2 as **not verified**, not as a failed assertion —
+// while anything that runs this script directly (CI, `run-server.sh`) still gets exit 2.
 //
 // **What it proves and does not.** It proves the jar this host uses matches the bytes the publishing repository
 // claims; it does **not** prove those bytes are reproducible from the tag (that is the publishing side's claim),
@@ -277,8 +281,17 @@ if (mismatched.length) {
   fail(`  Local fix: move the locally installed copies aside and resolve again (see the Build section of KEELBASE-DEV.md).`)
 }
 if (undecided.length) {
-  fail(`\n✗ 判不了 / cannot decide：`)
+  // The distinction matters: an unreachable repository or an unpublished coordinate means the bytes
+  // were **not verified**, which is not the same claim as "they differ". Exit 2 keeps this red where
+  // it runs directly (CI, `run-server.sh`), while `scripts/gates.mjs` records a declared exit 2 as
+  // "not verified" rather than as a failed assertion.
+  // 这个区分是要紧的：发布库不可达或坐标未发布意味着字节**未核验**，与「字节不一致」不是同一个断言。
+  // exit 2 让直接跑它的地方（CI、`run-server.sh`）保持红色，而 `scripts/gates.mjs` 把声明过的 exit 2
+  // 记为「未核验」，不是断言失败。
+  fail(`\n? 未核验 / not verified —— 判不了 / cannot decide：`)
   for (const line of undecided) fail(`  ${line}`)
+  fail(`  这是「未核验」，不是「不一致」：取不到发布库的 .sha1，字节有没有对上是未知。`)
+  fail(`  This is "not verified", not "mismatched": the published .sha1 is unreadable, so whether the bytes agree is unknown.`)
 }
 if (!mismatched.length && !undecided.length && rows.some((r) => r.kind === 'sha1')) {
   ok(`\n✓ 钉住的 ${version} 与实际解析到的字节一致（${rows.filter((r) => r.kind === 'sha1').length} 处比对）。`)
