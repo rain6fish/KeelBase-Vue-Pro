@@ -133,10 +133,12 @@ test('a row that records none of the three answers nothing', () => {
 
 test('a connect test takes its object from the typed key at the end of its row', () => {
   // 一次 MCP 连通测试没有工具，也不写台账：它把**带类型**的键写在句末。句子里是可读的词，检索按类型判等。
+  // 动作词是过渡借用的（契约尚无这个动作）；这条键的读法不看动作词。
   // An MCP connect test has no tool and writes no ledger row: it puts a **typed** key at the end of its
-  // sentence. The sentence carries a readable word; the search still compares by type.
+  // sentence. The sentence carries a readable word; the search still compares by type. The action word
+  // is a borrowed interim one (the contract has no word for the act yet); this reader does not look at it.
   const row = {
-    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
   }
   assert.deepEqual(recordedTypedObject(row), { resultType: 'ai1_mcp', resultId: 12 })
@@ -148,7 +150,7 @@ test('the console reads the typed key exactly the way the runtime endpoint does'
   // The runtime is authoritative: the key must end the sentence exactly, the key is 1–18 digits,
   // leading zeros are significant, and a long key keeps every digit.
   const at = (detail) => ({
-    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail,
   })
   assert.equal(recordedTypedObject(at('x · object MCP connection #12 ')), null,
@@ -167,7 +169,7 @@ test('the console reads the typed key exactly the way the runtime endpoint does'
 
 test('the typed key picks the row when the ledger has nothing for that object', () => {
   const row = {
-    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
   }
   const picked = q.selectRows([row], {
@@ -181,7 +183,7 @@ test('the typed key picks the row when the ledger has nothing for that object', 
 
 test('the typed key does not answer a search for another kind', () => {
   const row = {
-    id: 7, userId: '1', action: 'mcp_connect_test', tool: null, executionId: null,
+    id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
   }
   assert.deepEqual(
@@ -219,7 +221,7 @@ test('a key that spells the table name is not an object, and would refuse the ex
   // A bad key (the table name in `detail`) is not read as an object: better 「未记录」. And if it did
   // reach a cell, the export's guard still stands.
   const row = {
-    id: 7, userId: '1', action: 'mcp_connect_test', tool: null,
+    id: 7, userId: '1', action: 'analyze', tool: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 result=ok · object ai1_mcp#12',
   }
   assert.equal(recordedTypedObject(row), null)

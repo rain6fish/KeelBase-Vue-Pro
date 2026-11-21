@@ -327,11 +327,18 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
         // 断言：端点照常作答，链上多出一行可读的审计
         assertTrue(result.getConnectable());
         AuditLog row = captureSavedRow(logRepository);
-        assertEquals("mcp_connect_test", row.getAction());
+        // The contract's closed enum has no word for a connect test yet; the row rides on an action
+        // whose outcome may legitimately be absent, and the sentence says what the act was. Naming it
+        // `tool_call` would be illegal with a null outcome, so this also pins that it is not one.
+        // 契约的闭合枚举还没有连通测试的词；这一行借用「结局可以缺省」的既有动作，由句子说明它是什么。
+        // 它若叫 `tool_call`，配 null 结局在契约上不合法，故这里同时钉住它**不是** tool_call。
+        assertEquals("analyze", row.getAction());
+        assertNotEquals("tool_call", row.getAction());
         assertEquals("1024", row.getUserId());
         assertFalse(row.isError());
         assertNull(row.getOutcome());
         assertNull(row.getTool());
+        assertTrue(row.getDetail().startsWith("connectivity test (not a tool call) id=" + id));
         assertTrue(row.getDetail().contains("id=" + id));
         assertTrue(row.getDetail().contains("name=天气查询"));
         assertTrue(row.getDetail().contains("transport=http"));
@@ -362,10 +369,11 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
 
         // 断言
         AuditLog row = captureSavedRow(logRepository);
-        assertEquals("mcp_connect_test", row.getAction());
+        assertEquals("analyze", row.getAction());
         assertEquals("0", row.getUserId());
         assertTrue(row.isError());
         assertNull(row.getOutcome());
+        assertTrue(row.getDetail().startsWith("connectivity test (not a tool call) id=" + id));
         assertTrue(row.getDetail().contains("result=failed"));
         assertTrue(row.getDetail().contains("error=connect"));
         assertTrue(row.getDetail().contains("message=Connection refused"));
