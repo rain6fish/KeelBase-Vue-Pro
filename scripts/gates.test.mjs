@@ -54,6 +54,7 @@ import {
   LOCAL_ONLY,
   argvFor,
   checkParity,
+  classifyExit,
   parseCiGates,
   parseUiDependentTests,
 } from './gates.mjs';
@@ -273,4 +274,31 @@ test('every not-a-gate declaration carries a reason', () => {
 
 test('LOCAL_ONLY is empty — every gate here also runs in CI', () => {
   assert.deepEqual(LOCAL_ONLY, []);
+});
+
+// ── offline semantics: "cannot decide" is not a failed assertion ──────────────
+
+test('only a gate that declares its undecided code gets the third outcome', () => {
+  const declared = { id: 'runtime-pin-bytes', undecidedExitCode: 2 };
+  assert.equal(classifyExit(0, declared), 'pass');
+  assert.equal(classifyExit(2, declared), 'undecided', 'the declared code is "cannot decide"');
+  assert.equal(classifyExit(1, declared), 'fail', 'a real mismatch (exit 1) must stay red');
+  assert.equal(classifyExit(3, declared), 'fail', 'an undeclared code must stay red');
+
+  const plain = { id: 'some-other-gate' };
+  assert.equal(classifyExit(0, plain), 'pass');
+  assert.equal(classifyExit(1, plain), 'fail');
+  assert.equal(classifyExit(2, plain), 'fail', 'exit 2 is only special where the gate declares it');
+});
+
+test('the network gate is the only one declaring an undecided exit code', () => {
+  const declaring = GATES.filter((g) => g.undecidedExitCode !== undefined);
+  assert.deepEqual(declaring.map((g) => g.id), ['runtime-pin-bytes']);
+  assert.equal(declaring[0].undecidedExitCode, 2);
+});
+
+test('the network gate still fails on a byte mismatch', () => {
+  const gate = GATES.find((g) => g.id === 'runtime-pin-bytes');
+  assert.equal(classifyExit(1, gate), 'fail');
+  assert.equal(classifyExit(2, gate), 'undecided');
 });

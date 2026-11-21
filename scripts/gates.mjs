@@ -25,17 +25,19 @@
 //   stack  要一个**跑着的**宿主（CI 用 service containers 起 PG/Redis 再起宿主）。本地没有栈时这些门禁
 //          是 SKIP，不是 PASS —— 它们的读数只在真栈上才有意义。
 //
-// 另有一档**要网络**：`check-runtime-pin-bytes` 要读发布库给出的 `.sha1`。离线时它以 exit 2「判不了」
-// 收场，于是这道门是红的 —— 判不了不读成绿，这是它自己的约定，不是这里另加的。
+// 另有一档**要网络**：`check-runtime-pin-bytes` 要读发布库给出的 `.sha1`。取不到时它以 exit 2「判不了」
+// 收场；清单把那个码声明为 `undecidedExitCode`，于是本入口把它记为**未核验**、不是断言失败：正常模式
+// 仍退 0（并在汇总里把它逐条列出来），`--require-all` 退 2。CI 直接跑那个脚本、它的退出码不变 ——
+// 在 CI 里「机器有网」是环境前提，不是那一步要断言的东西。
 //
 // 用法：
 //
 //   node scripts/gates.mjs                 # 跑得动的都跑；跑不了的逐条 SKIP + 原因 + 补法
-//   node scripts/gates.mjs --require-all   # 前置缺失由 SKIP 变红（= CI 的完整条件）
+//   node scripts/gates.mjs --require-all   # 前置缺失或判不了都由 SKIP 变红（= CI 的完整条件）
 //   node scripts/gates.mjs --list          # 只打印清单，不跑
 //
-// 退出码：0 = 跑了的全绿（正常模式下允许显式 SKIP）；1 = 至少一道门红；2 = `--require-all` 且有门禁
-// 跑不了；64 = 用法错误。
+// 退出码：0 = 跑了的全绿（正常模式下允许显式 SKIP 与「判不了」）；1 = 至少一道门红；2 = `--require-all`
+// 且有门禁跑不了或判不了；64 = 用法错误。
 //
 // `MAVEN_ARGS` 原样透传给 Maven（3.9 起支持）。多会话共用一台机器时，用它把本地库指到自己那份：
 // `MAVEN_ARGS=-Dmaven.repo.local=D:/Rain6fish/.m2-gates-local node scripts/gates.mjs`。
@@ -74,15 +76,18 @@
 //          real stack.
 //
 // One class more — **network**: `check-runtime-pin-bytes` reads the `.sha1` the publishing repository
-// serves. Offline it exits 2 ("cannot decide") and this gate is therefore red; "cannot decide" is never
-// read as green, by that gate's own contract rather than by anything added here.
+// serves. When it cannot, it exits 2 ("cannot decide"); the entry declares that code as its
+// `undecidedExitCode`, so this runner records **not verified**, not a failed assertion: the normal mode
+// still exits 0 (listing it), `--require-all` exits 2. CI runs the script directly and keeps its exit
+// code — a network is an environment premise in CI, not something that step asserts.
 //
 //   node scripts/gates.mjs                 # run what can run; SKIP the rest with reason + fix
-//   node scripts/gates.mjs --require-all   # a missing prerequisite is red (= CI's full condition)
+//   node scripts/gates.mjs --require-all   # a missing prerequisite or an undecided gate is red (= CI's full condition)
 //   node scripts/gates.mjs --list          # print the manifest only
 //
-// Exit codes: 0 = everything that ran is green (explicit SKIPs allowed in the normal mode); 1 = at least
-// one gate red; 2 = `--require-all` and some gate could not run; 64 = bad usage.
+// Exit codes: 0 = everything that ran is green (explicit SKIPs and "cannot decide" allowed in the normal
+// mode); 1 = at least one gate red; 2 = `--require-all` and some gate could not run or could not decide;
+// 64 = bad usage.
 //
 // `MAVEN_ARGS` is passed through to Maven (supported since 3.9). On a machine several sessions share,
 // point the local repository at your own copy with it:
@@ -337,12 +342,17 @@ export const GATES = [
   },
 
   // ── needs the publishing repository (network) ────────────────────────────────
-  // The host's three pinned runtime jars must be the published bytes. Exits 2 when the published
-  // `.sha1` cannot be read (offline, unpublished coordinate) — a red, never a quiet pass.
+  // The host's three pinned runtime jars must be the published bytes. Exit 2 means the published
+  // `.sha1` could not be read (offline, unpublished coordinate) — "cannot decide", which this entry
+  // declares so the runner records it as not verified rather than as a failed assertion. A byte
+  // mismatch is exit 1 and stays red.
+  // 宿主钉住的三件运行时必须是发布的那份字节。exit 2 = 读不到发布库的 `.sha1`（离线、坐标未发布）——
+  // 「判不了」，由本条目声明，故 runner 记为未核验、不是断言失败。字节不一致是 exit 1，照样红。
   {
     id: 'runtime-pin-bytes',
     job: 'conformance',
     prereq: 'node',
+    undecidedExitCode: 2,
     cmd: ['node', 'scripts/check-runtime-pin-bytes.mjs'],
   },
 
@@ -963,6 +973,19 @@ function tail(text, lines = 12) {
   return trimmed.slice(-lines).join('\n');
 }
 
+/**
+ * What a gate's exit status means. Only a gate that declares `undecidedExitCode` gets the third
+ * outcome; every other non-zero status — and any declared code other than its own — is a failure.
+ *
+ * 门禁退出码的含义。只有自己声明了 `undecidedExitCode` 的门禁才有第三种结果；其余任何非零状态 ——
+ * 以及声明了却没对上的码 —— 都算失败。
+ */
+export function classifyExit(status, gate) {
+  if (status === 0) return 'pass';
+  if (gate.undecidedExitCode !== undefined && status === gate.undecidedExitCode) return 'undecided';
+  return 'fail';
+}
+
 export async function run() {
   const args = process.argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
@@ -1003,6 +1026,7 @@ export async function run() {
   const width = Math.max(...GATES.map((g) => g.id.length));
   const failures = [];
   const skipped = [];
+  const undecided = [];
   let passed = 0;
   const started = Date.now();
 
@@ -1018,18 +1042,25 @@ export async function run() {
     const t0 = Date.now();
     const result = spawnGate(argv, { ...(gate.env ?? {}), ...(gate.prereq === 'ui' ? { KEELBASE_YUDAO_UI: uiDir } : {}) });
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
-    if (result.status === 0) {
+    const verdict = classifyExit(result.status, gate);
+    if (verdict === 'pass') {
       passed += 1;
       console.log(`exit 0  ${secs}s`);
       continue;
     }
     const code = result.status ?? `signal ${result.signal}`;
-    failures.push({ gate, code, output: `${result.stdout ?? ''}${result.stderr ?? ''}` });
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+    if (verdict === 'undecided') {
+      undecided.push({ gate, code, output });
+      console.log(`SKIP  exit ${code}  ${secs}s  —— 判不了（未核验，不是断言失败）/ could not decide (not verified, not a failure)`);
+      continue;
+    }
+    failures.push({ gate, code, output });
     console.log(`exit ${code}  ${secs}s`);
   }
 
   const secs = ((Date.now() - started) / 1000).toFixed(1);
-  const ran = GATES.length - skipped.length;
+  const ran = GATES.length - skipped.length - undecided.length;
 
   if (failures.length > 0) {
     console.error(`\n[gates] ${failures.length} 道门禁红 / ${failures.length} gate(s) red:\n`);
@@ -1054,17 +1085,26 @@ export async function run() {
     }
   }
 
-  console.log(`\n[gates] ${ran} 道已跑 · ${passed} 绿 · ${failures.length} 红 · ${skipped.length} 未跑（${secs}s）`);
+  if (undecided.length > 0) {
+    console.log(`[gates] 未核验 ${undecided.length} 道（门禁自己判不了，不是断言失败）/ ${undecided.length} gate(s) could not decide (not verified, not a failed assertion):`);
+    for (const u of undecided) {
+      console.log(`  ? ${u.gate.id}  (exit ${u.code})  → ${u.gate.cmd.join(' ')}`);
+      const out = tail(u.output);
+      if (out) console.log(out.replace(/^/gm, '      '));
+    }
+  }
+
+  console.log(`\n[gates] ${ran} 道已跑 · ${passed} 绿 · ${failures.length} 红 · ${skipped.length + undecided.length} 未跑/未核验（${secs}s）`);
   if (failures.length > 0) {
     console.log('[gates] FAIL — 逐条看上面各道的输出 / read each gate\'s output above');
     return 1;
   }
-  if (skipped.length > 0) {
+  if (skipped.length + undecided.length > 0) {
     if (requireAll) {
-      console.log('[gates] FAIL（--require-all）—— 前置缺失的门禁不许记为通过 / a missing prerequisite is red in this mode');
+      console.log('[gates] FAIL（--require-all）—— 前置缺失或判不了的门禁不许记为通过 / a missing prerequisite or an undecided gate is red in this mode');
       return 2;
     }
-    console.log('[gates] PASS — 跑得了的全绿；未跑的已逐条说明。/ everything that could run is green; the rest is named above.');
+    console.log('[gates] PASS — 跑得了的全绿；未跑与未核验的已逐条说明。/ everything that could run is green; the rest is named above.');
     return 0;
   }
   console.log('[gates] PASS — 全部门禁都跑了且全绿 / every gate ran and is green');
