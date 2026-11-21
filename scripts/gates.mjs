@@ -226,6 +226,21 @@ export const GATES = [
     cmd: ['node', '--test', 'scripts/*.test.mjs'],
     globbed: true,
   },
+  // The message order is part of what this repository ships: a body that opens Chinese reads wrong in
+  // every later review, and a `Co-Authored-By` trailer is banned outright. CI points `origin/main` at
+  // the pull request's base first, because actions/checkout does not create that ref on a
+  // `pull_request`; the invocation itself is spelled the same here and there, which is what the parity
+  // check compares. Locally the range is what this branch has not pushed yet.
+  // 提交信息也是本仓交付物的一部分：正文以中文开头的提交，在之后的每一次评审里都读着不对；`Co-Authored-By`
+  // trailer 一律不许有。CI 先把 `origin/main` 指到该 PR 的基线，因为 actions/checkout 在 `pull_request` 上
+  // 不会创建这个引用；调用本身的写法两处相同 —— 比对比的就是这个。本地判的是这个分支还没推出去的那些提交。
+  {
+    id: 'commit-order',
+    job: 'commit-order',
+    prereq: 'node',
+    cmd: ['node', 'scripts/check-commit-order.mjs', '--base', 'origin/main'],
+  },
+
 
   // ── a laid-down UI checkout ───────────────────────────────────────────────────
   {
