@@ -356,6 +356,75 @@ test('after a search the table shows the matched rows, and clearing brings the l
   assert.equal(q.displayRowsOf({ queryRan: false, queryRows: [], rows }), rows)
 })
 
+test('a finished scan that hit the bound does not answer "nothing matched"', () => {
+  // 2026-11-21：一个唯一但最旧的对象落在第 1000 行以外，页面答「命中 0 行」。表格空态原来说「这次检索
+  // 没有命中任何行」—— 把「没读到」读成「没有这件事」。三种结局必须分开说，触到上界那一档还要再分两层。
+  //
+  // 2026-11-21: one unique object sitting past row 1000 answered "0 rows matched", and the table's empty
+  // text said "No row matched this search" — turning "not read" into "nothing happened". The three endings
+  // must read apart, and the finished one splits again on whether the bound was hit.
+  assert.equal(
+    q.emptyTextKey({ queryFailed: false, queryRan: true, queryScanBound: false }),
+    'keelbase.audit.queryEmpty',
+    'a scan that finished inside the bound must still say nothing matched',
+  )
+  assert.equal(
+    q.emptyTextKey({ queryFailed: false, queryRan: true, queryScanBound: true }),
+    'keelbase.audit.queryEmptyAtBound',
+    'a scan that hit its bound claims a finished, empty answer',
+  )
+  assert.equal(
+    q.emptyTextKey({ queryFailed: true, queryRan: true, queryScanBound: true }),
+    'keelbase.audit.queryFailed',
+    'a failed request is dressed up as a search that finished',
+  )
+  assert.equal(q.emptyTextKey({ queryFailed: false, queryRan: false, queryScanBound: true }), undefined,
+    'a search that never ran draws an empty state')
+})
+
+test('the bound statement rides in an export only when given, and never becomes a data row', () => {
+  // 两份导出的声明只在触到上限时出现；它是一行元数据（`#` 开头），六列与八列的判据只数数据行。
+  //
+  // The statement rides in both exports only when given; it is a metadata line (`#`), and the six/eight
+  // column criterion counts data rows only.
+  const answers = answersOf([
+    'KeelBase',
+    '2026-11-11 12:11:46 UTC+08:00',
+    'Customer · #2',
+    'a new record: it has no before',
+    'KeelBase approved this write',
+    'Executed',
+  ])
+  const plainSix = q.csvText([{ answers }], LABELS)
+  assert.equal(q.withScanBound(plainSix, ''), plainSix, 'a scan inside its bound gained a statement it did not earn')
+  assert.equal(q.withScanBound(plainSix, '   '), plainSix, 'a blank statement still wrote a metadata line')
+  assert.doesNotMatch(plainSix, /^#/m, 'the six-column export carries a statement before the bound was hit')
+
+  const boundSix = q.withScanBound(plainSix, 'this file holds only what the scan read within its bound')
+  assert.ok(boundSix.startsWith('# this file holds only what the scan read within its bound\r\n'),
+    'the statement is not the first line of the six-column export')
+  const sixData = boundSix.trimEnd().split('\r\n').filter((line) => !line.startsWith('# '))
+  assert.equal(sixData.length, 2, 'the statement changed the data rows of the six-column export')
+  assert.equal(sixData[1].split(',').length, 6, 'the six-column export stopped being six columns')
+
+  const plainCheck = q.checkCsvText(
+    [{ id: 31, answers, checks: 'passed Risk level' }],
+    CHECK_LABELS,
+    'related, not linked',
+  )
+  assert.equal(q.withScanBound(plainCheck, ''), plainCheck, 'the verification export gained a statement it did not earn')
+  const boundCheck = q.withScanBound(plainCheck, 'this file holds only what the scan read within its bound')
+  assert.ok(boundCheck.startsWith('# this file holds only what the scan read within its bound\r\n'),
+    'the statement is not the first line of the verification export')
+  assert.ok(
+    boundCheck.indexOf('# this file holds only what the scan read within its bound') < boundCheck.indexOf('ID,'),
+    'the statement sits below the header, where a reader has already trusted the numbers',
+  )
+  const checkData = boundCheck.trimEnd().split('\r\n').filter((line) => !line.startsWith('# '))
+  assert.equal(checkData.length, 2, 'the statement changed the data rows of the verification export')
+  assert.equal(checkData[1].split(',').length, 8, 'the verification export stopped being eight columns')
+})
+
 const CHECK_LABELS = ['ID', ...LABELS, 'Checks']
 
 test('the verification CSV carries the row id, the six answers and the checks', () => {

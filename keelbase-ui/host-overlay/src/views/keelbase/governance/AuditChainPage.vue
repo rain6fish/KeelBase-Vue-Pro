@@ -429,10 +429,12 @@ import {
   csvFilename,
   csvText,
   displayRowsOf,
+  emptyTextKey,
   instantOf,
   objectRefOf,
   readFaceIgnoredFilters,
   selectRows,
+  withScanBound,
 } from '@/keelbase/auditQuery.mjs'
 import { maskTitle } from '@/keelbase/mask'
 import { RECORD_TYPES, resolveRecordName, resolveRecordNames, toolResultType } from '@/keelbase/recordNames'
@@ -610,6 +612,17 @@ const queryRan = ref(false)
 const queryFailed = ref(false)
 const queryTruncated = ref(false)
 /**
+ * 这次检索的**审计扫描**触到了它自己的 1000 行上界（`SCAN_PAGES × SCAN_LIMIT`）。它与 `queryTruncated`
+ * 分开：后者还把台账与确认记录各自的窗口算在内，而导出件的声明、以及「0 行」的空态，说的只是这 1000 行
+ * 这一条上界 —— 拿合并的标记去说，会把台账的窗口说成「老的行没读到」。
+ *
+ * This search's **audit scan** hit its own 1000-row bound (`SCAN_PAGES × SCAN_LIMIT`). It is kept apart
+ * from `queryTruncated`: that one also counts the ledger's and the confirmation queue's own windows, while
+ * the export's statement — and the empty state for "0 rows" — is about this 1000-row bound alone. Using the
+ * merged flag would describe the ledger's window as "older rows were not read".
+ */
+const queryScanBound = ref(false)
+/**
  * 读面明显比发出去的筛选更宽 —— 它没有施加对象/终点。只在**有证据**时为真（见
  * `readFaceIgnoredFilters`），页面据此说出来；没有证据时不猜。
  *
@@ -644,13 +657,14 @@ const displayRows = computed(() =>
  * 表格的空态文案。只有**跑完**且没命中的检索才说「没有命中任何行」；这次请求**失败**时那句话会把一次读面
  * 故障读成「确实没有这类行」，故改说「这次检索没有完成」——与旁边的错误行同一件事。
  */
-const emptyText = computed(() =>
-  queryFailed.value
-    ? t('keelbase.audit.queryFailed')
-    : queryRan.value
-      ? t('keelbase.audit.queryEmpty')
-      : undefined,
-)
+const emptyText = computed(() => {
+  const key = emptyTextKey({
+    queryFailed: queryFailed.value,
+    queryRan: queryRan.value,
+    queryScanBound: queryScanBound.value,
+  })
+  return key ? t(key) : undefined
+})
 
 /**
  * Whether this search gave the key and no kind. Any change to the conditions clears the result, so this reads
@@ -1185,6 +1199,7 @@ function clearQueryResults() {
   queryFailed.value = false
   queryRows.value = []
   queryTruncated.value = false
+  queryScanBound.value = false
   readFaceIgnored.value = false
   scanAuditRows.value = []
   scanEffects.value = []
@@ -1275,6 +1290,7 @@ async function runQuery() {
       resultTypeOf: toolResultType,
     })
     queryRows.value = picked.map((entry) => entry.row)
+    queryScanBound.value = !audit.complete
     queryTruncated.value = !audit.complete || !ledger.complete || proposals.length >= PROPOSAL_LIMIT
     // 只有**真的把对象发出去过**（类型 + 主键两半都有）才拿它取证；只给种类或只给主键时页面从不发对象
     // 筛选，把那时的行说成「读面忽略了对象」会是一句假话。判等按**控制台自己的类型**，不按发给读面的
@@ -1298,6 +1314,7 @@ async function runQuery() {
   } catch (e) {
     queryRows.value = []
     queryTruncated.value = false
+    queryScanBound.value = false
     readFaceIgnored.value = false
     queryRan.value = true
     queryFailed.value = true
@@ -1305,6 +1322,18 @@ async function runQuery() {
   } finally {
     queryRunning.value = false
   }
+}
+
+/**
+ * 导出件里那一行上界声明。扫到 1000 行上界时给一句「这份只含上限内读到的行」，没触到时给空串（文件一个字
+ * 都不多）；两个按钮共用它，故两份导出的说法不会分叉。
+ *
+ * The bound statement that rides in an export. When the 1000-row bound was hit it says "this file holds only
+ * what the scan read within its bound"; when it was not, it is an empty string (the file gains nothing). Both
+ * buttons take it from here, so the two exports cannot drift apart.
+ */
+function scanBoundNote(): string {
+  return queryScanBound.value ? t('keelbase.audit.exportScanBound') : ''
 }
 
 /**
@@ -1352,7 +1381,7 @@ async function exportSix() {
       effects.value = prior.effects
       proposals.value = prior.proposals
     }
-    downloadCsv(csvFilename(), csvText(answerRows, labels))
+    downloadCsv(csvFilename(), withScanBound(csvText(answerRows, labels), scanBoundNote()))
   } catch (e) {
     exportError.value =
       e instanceof CsvLeak
@@ -1418,7 +1447,10 @@ async function exportCheck() {
       effects.value = prior.effects
       proposals.value = prior.proposals
     }
-    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')))
+    downloadCsv(
+      checkCsvFilename(),
+      withScanBound(checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')), scanBoundNote()),
+    )
   } catch (e) {
     exportError.value =
       e instanceof CsvLeak

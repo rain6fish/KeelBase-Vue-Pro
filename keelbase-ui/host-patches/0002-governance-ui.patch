@@ -1,8 +1,8 @@
 diff --git a/src/locales/en.ts b/src/locales/en.ts
-index 9d14564..3382e27 100644
+index 9d14564..eff8173 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,812 @@
+@@ -1,4 +1,815 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -79,11 +79,14 @@ index 9d14564..3382e27 100644
 +      exportCheck: 'Export with IDs and checks',
 +      clearSearch: 'Clear search',
 +      queryEmpty: 'No row matched this search',
++      queryEmptyAtBound: 'Nothing matched in what the scan read — and the scan hit its bound, so a match may sit outside it',
 +      queryFailed: 'This search did not finish',
 +      checksNotRecorded: 'not recorded — this row recorded no checks',
 +      exportRefused: 'The export was refused: a cell in "{column}" carries an internal name',
 +      queryHits: 'Matched {n} row(s) in what was scanned',
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
++      exportScanBound:
++        'This file holds the rows the console scan read within its bound — at most 1000 rows, newest first. Older rows in this range were not read, so a row missing from this file may sit outside the bound.',
 +      keyOnlyHint:
 +        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
 +      secondEntryHint:
@@ -816,10 +819,10 @@ index 9d14564..3382e27 100644
      inputText: 'Please input',
      selectText: 'Please select',
 diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
-index 13065de..f476283 100644
+index 13065de..23b6e1f 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,804 @@
+@@ -1,4 +1,807 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -896,11 +899,14 @@ index 13065de..f476283 100644
 +      exportCheck: '导出核对 CSV',
 +      clearSearch: '清空检索',
 +      queryEmpty: '这次检索没有命中任何行',
++      queryEmptyAtBound: '上限内扫描到的行里没有命中 —— 这次扫描已到上限，命中可能在上限之外',
 +      queryFailed: '这次检索没有完成',
 +      checksNotRecorded: '未记录 —— 这一行没有记下判定依据',
 +      exportRefused: '导出已拒绝：「{column}」这一格带着内部名',
 +      queryHits: '扫描到的范围里命中 {n} 行',
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
++      exportScanBound:
++        '这份文件只含控制台扫描在上限内读到的行（至多 1000 行，按最新在前）。这个区间里更早的行没有读到，文件里没有的行可能就在上限之外。',
 +      keyOnlyHint:
 +        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
 +      secondEntryHint:
