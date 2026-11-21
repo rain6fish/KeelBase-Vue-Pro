@@ -102,6 +102,12 @@ New-Item -ItemType Directory -Force D:\Rain6fish\handoff\n5-evidence-2026-11-2x
 4. 记下这次操作的 `executionId`：在行动中心/审计链展开行里，或从 `/audit/logs` 找同一时刻的三行。
    0.1.20 的批准行、试过行、执行行**共用同一个 `executionId`**。
 
+> **待批 token 在哪个列表里（2026-11-21 彩排实测）**：`mode=approval` 的行**不会**出现在
+> `GET /ai/my/confirmations`——该端点按设计只列 `mode=immediate` 的确认；发起人 A 读
+> `GET /ai/confirmations` 队列得 403（仅管理员/审计读者可读）。要用接口自动取 token，须用
+> **B（管理员）的令牌**读 `/ai/confirmations`。页面侧不受影响：B 在行动中心看得到待批，
+> A 的助手面只说「需要批准」。见 §4 G9。
+
 ### 2.2 审计链页取三行
 
 页面：`/keelbase-governance/audit-chain` → 「按业务对象 + 区间检索」。
@@ -317,6 +323,19 @@ executionId：<uuid>
 
 - 六问与批准人的配对规则是「同工具、五秒内、**恰好一条**」。同一工具五秒内两笔写/两次裁决时，
   第三问、第五问会如实说「未记录」而不是猜。验收操作一次一笔，避免连点。
+
+### G9 待批行在哪个列表里（2026-11-21 彩排实测）
+
+- **批准行不在 `/ai/my/confirmations`。** `ConfirmationStore.mine` 按设计只返回
+  `mode=immediate` 的行（那是「等我本人确认」的列表）；`mode=approval` 的行等的是**别人**，
+  由 `GET /ai/confirmations` 队列给出（分页，字段含 `token`、`arguments`、`status`）。
+- **发起人读不到队列。** A 调 `/ai/confirmations` 得 403（队列只给管理员/审计读者）；
+  这是按设计的收窄，不是故障。A 在自己的助手面只会读到「需要批准」的答复。
+- **对验收的影响**：页面流程不受影响——B 在行动中心看到待批并批准即可，不需要 A 持有 token。
+  只有想**用接口复现**时才要注意：取 token 的那一步要用 B 的管理员令牌；用 A 的令牌会得到
+  空列表（my）或 403（队列），不要读成「没有待批」。
+- 彩排读数：A 的 `/ai/my/confirmations` → `[]`；B 的 `/ai/confirmations?page=1&limit=10` →
+  1 条 `mode=approval`、`status=pending`、`operator` 为 A。
 
 ---
 
