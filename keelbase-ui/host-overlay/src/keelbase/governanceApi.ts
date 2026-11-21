@@ -111,8 +111,14 @@ export interface ChainVerification {
 export interface EffectRow {
   id: number
   toolName: string | null
-  /** 谁发起的这次写（JV-65）—— 运行时一直存着这个值，此前缺的只是 wire 上的一处声明。 */
-  /** Who caused the write (JV-65) — the runtime always held the value; the wire declaration was missing. */
+  /**
+   * Who caused the write (JV-65) — the runtime always held the value; the wire declaration was missing. A
+   * **read-only reader's rows omit it** (JV-63 B5 ②'s decision); for those the page pairs the caller from
+   * the audit rows by `executionId` (see `effectCallers.mjs`).
+   *
+   * 谁发起的这次写（JV-65）—— 运行时一直存着这个值，此前缺的只是 wire 上的一处声明。**只读读者的行不带
+   * 它**（JV-63 B5 ② 的裁定）；这些行的「谁」由页面按 `executionId` 从审计行配出（见 `effectCallers.mjs`）。
+   */
   userId: string | null
   resultType: string | null
   resultId: number | string | null
@@ -139,8 +145,16 @@ export interface EffectRow {
   /** The conversation this effect belongs to; null for a write made outside one. */
   /** 这条副作用所属的会话；不在会话里发生的写为 null。 */
   conversationId?: string | null
-  /** The governed execution that wrote this row. Empty on this deployment's ledger rows today. */
-  /** 写下这一行的那次受治理执行。本部署的台账行今天这一列是空的。 */
+  /**
+   * The governed execution that wrote this row — contract v6's correlation key. It is not caller
+   * linkage, so the read-only reader receives it too; the page pairs the row's caller from the same
+   * execution's `tool_call` audit row (`effectCallers.mjs`). Present on this deployment's rows
+   * (measured 2026-11-21: `b445b12f-84e1-4cf7-9a8a-2be73c9bd9fb`), not empty as an earlier comment said.
+   *
+   * 写下这一行的那次受治理执行 —— 契约 v6 的关联键。它不属于调用方关联，故只读读者也收；页面按它从同一个
+   * 执行的 `tool_call` 审计行配出这一行的发起人（`effectCallers.mjs`）。本部署的行上它有值（2026-11-21
+   * 实测：`b445b12f-84e1-4cf7-9a8a-2be73c9bd9fb`），此前注释说这列是空的那句不成立。
+   */
   executionId?: string | null
 }
 

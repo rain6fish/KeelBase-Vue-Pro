@@ -1,0 +1,83 @@
+diff --git a/src/views/system/operatelog/index.vue b/src/views/system/operatelog/index.vue
+--- a/src/views/system/operatelog/index.vue
++++ b/src/views/system/operatelog/index.vue
+@@ -93,7 +93,16 @@
+   <ContentWrap>
+     <el-table v-loading="loading" :data="list">
+       <el-table-column label="日志编号" align="center" prop="id" width="100" />
+-      <el-table-column label="操作人" align="center" prop="userName" width="120" />
++      <el-table-column label="操作人" align="center" prop="userName" width="150">
++        <template #default="{ row }">
++          <div>{{ whoText(row) }}</div>
++          <!-- Name over account — the shape the audit chain and the action centre use, so a reader comparing the pages can see it is the same person. -->
++          <!-- 名字在上、账号在下 —— 与审计链、AI 行动中心同一写法，两页并排时能直接确认是同一个人。 -->
++          <div v-if="row.userId" class="text-12px text-[var(--el-text-color-secondary)]">
++            #{{ row.userId }}
++          </div>
++        </template>
++      </el-table-column>
+       <el-table-column label="操作模块" align="center" prop="type" width="120" />
+       <el-table-column label="操作名" align="center" prop="subType" width="160" />
+       <el-table-column label="操作内容" align="center" prop="action" />
+@@ -101,8 +110,8 @@
+         label="操作时间"
+         align="center"
+         prop="createTime"
+-        width="180"
+-        :formatter="dateFormatter"
++        width="200"
++        :formatter="timeFormatter"
+       />
+       <el-table-column label="业务编号" align="center" prop="bizId" width="120" />
+       <el-table-column label="操作 IP" align="center" prop="userIp" width="120" />
+@@ -132,7 +141,8 @@
+   <OperateLogDetail ref="detailRef" />
+ </template>
+ <script lang="ts" setup>
+-import { dateFormatter } from '@/utils/formatTime'
++import { zonedTime } from '@/keelbase/sixQuestions.mjs'
++import { resolveCallerNames } from '@/keelbase/callerNames'
+ import download from '@/utils/download'
+ import * as OperateLogApi from '@/api/system/operatelog'
+ import OperateLogDetail from './OperateLogDetail.vue'
+@@ -159,6 +169,26 @@
+ const queryFormRef = ref() // 搜索的表单
+ const exportLoading = ref(false) // 导出的加载中
+ 
++/** The time goes through the same formatter as the other trails: it carries the UTC offset, so a reader can line it up with the audit chain's cell. */
++/** 操作时间走与其余留痕页同一条格式化：带 UTC 偏移量，读者能直接与审计链那一格对上。 */
++const timeFormatter = (_row: any, _column: any, value: any) => zonedTime(value)
++
++/** Names the directory holds for each row's operator, keyed by user id. */
++/** 名录给每一行的操作人配好的名字，按用户编号索引。 */
++const callerNames = ref<Record<string, string>>({})
++
++/**
++ * The "who" cell: the host's own joined nickname first; a row that kept only an id is named through the directory — the same narrow read face the audit chain and the action centre use. With neither it says the caller was not recorded, and when the directory cannot name the id it says the name was not recorded rather than printing the number as a name.
++ *
++ * 「谁」这一格：宿主自己联出来的昵称优先；只记了编号的行由名录译名 —— 与审计链、AI 行动中心同一条窄读面。两样都没有时明写「未记录」；名录也配不出名字时写「姓名未记录」，不把编号当名字印出来。
++ */
++const whoText = (row: any) => {
++  if (row.userName) return row.userName
++  if (!row.userId) return '未记录'
++  const name = callerNames.value[String(row.userId)]
++  return name && name !== String(row.userId) ? name : '姓名未记录'
++}
++
+ /** 查询列表 */
+ const getList = async () => {
+   loading.value = true
+@@ -166,6 +196,13 @@
+     const data = await OperateLogApi.getOperateLogPage(queryParams)
+     list.value = data.list
+     total.value = data.total
++    // A failed lookup only leaves the ids in place — the rows are already rendered, and the directory
++    // never rejects.
++    // 名录查询失败只让编号留在原地：行已经渲染，而那次查询从不抛错。
++    callerNames.value = {
++      ...callerNames.value,
++      ...(await resolveCallerNames(data.list.map((row) => row.userId)))
++    }
+   } finally {
+     loading.value = false
+   }
