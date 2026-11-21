@@ -51,12 +51,12 @@
           <div class="row-step">{{ stepLine(c) }}</div>
           <!--
             A human-readable summary is a field the runtime sends as null: it has no presentation
-            layer. The arguments are shown verbatim instead — they are what the call would carry,
-            which is the honest substitute for a sentence about them.
+            layer. The arguments are shown as one recorded line each — still exactly what the call
+            would carry, but read as business words rather than a bare JSON block at the moment a
+            person decides whether to approve it.
 
-            给人读的摘要是运行时**送 null** 的字段：它没有展示层。故改为原样显示参数——那是这次调用
-            真会带的东西，也是那句摘要的诚实替代品。上面那句话把这块是**什么**说清楚，好让一块裸 JSON
-            读起来是「这次调用会带的东西」，而不是一段没头没尾的文本。
+            给人读的摘要是运行时**送 null** 的字段：它没有展示层。故把参数按「记下一个、一行」摊开——
+            仍是这次调用真会带的东西，但在人决定批不批的这一刻，读起来是业务词，而不是一块裸 JSON。
           -->
           <div class="args-label">{{ t('keelbase.actionCenter.argsLabel') }}</div>
           <pre class="args">{{ formatArgs(c.arguments) }}</pre>
@@ -386,13 +386,14 @@ import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
+import { argsText } from '@/keelbase/argsText.mjs'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
 import { pairDecidedByApprover } from '@/keelbase/approverDecisions.mjs'
 import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
 
 defineOptions({ name: 'KeelbaseGovernanceActionCenter' })
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 /** The audit reader sees no write control (revoke, approve, decline); the server's verdict is unchanged. */
 /** 审计读者不出现写控件（撤销、批准、拒绝）；服务端裁决不变。 */
 const { canWrite } = useConsoleWriteAllowed()
@@ -433,16 +434,17 @@ function toolText(name: string | null | undefined): string {
  *
  * The caller the host's own row recorded: its **own name** first; when it kept only an id, that id is
  * named through **the same narrow directory the audit chain reads** (`resolveCallerNames` — same names,
- * same cache); only a row with neither stays blank.
+ * same cache); a row with neither says it recorded no caller. The chain's rule applies in full here, so
+ * an unnamed id is never printed as the name and a missing caller is never drawn as a dash.
  *
  * 2026-11-21 (`N6`) changed that middle case: a row the host left unnamed used to print the bare id, so
  * one operation was 「KeelBase」 on the audit chain and 「1」 in the host's operation log — the same person
- * written two ways, which an independent reader cannot line up. This column now follows the chain's rule;
- * the host's own name still wins, and the console only fills in what the host did not say.
+ * written two ways, which an independent reader cannot line up. This column now follows the chain's rule
+ * in full: the host's own name still wins; an unnamed id says the name was not recorded; no caller says so.
  */
 function whoText(row: BusinessLogRow): string {
   if (row.userName) return row.userName
-  if (row.userId === null || row.userId === undefined) return '—'
+  if (row.userId === null || row.userId === undefined) return t('keelbase.audit.userUnrecorded')
   return callerName(String(row.userId))
 }
 
@@ -473,14 +475,16 @@ function targetNamed(row: EffectRow): boolean {
 }
 
 /**
- * 这一行的发起人：名录认得就显示名字，认不得就原样显示 id —— 页面**只补名字、不改事实**。
+ * This row's caller, read the way the audit chain reads it: a name the directory answered, or an
+ * explicit "name not recorded" with the account left to its own line. A bare id never stands in for a
+ * name, and a dash never stands in for "no caller".
  *
- * The caller behind the row: a name when the directory knows it, the id itself otherwise — this only
- * adds a name, it never changes the fact.
+ * 这一行的发起人，与审计链同一个读法：名录答出的名字，或明写「姓名未记录」、账号留给它自己那一行。
+ * 不拿裸 id 冒充名字，也不拿破折号冒充「没有调用方」。
  */
 function callerName(id: string | null | undefined): string {
-  if (!id) return '—'
-  return names.value[String(id)] ?? String(id)
+  if (!id) return t('keelbase.audit.userUnrecorded')
+  return names.value[String(id)] || t('keelbase.audit.userUnnamed')
 }
 
 /** Whether the record this write landed on is still there — read off the row, never re-derived. */
@@ -577,12 +581,7 @@ const bizLoading = ref<Record<number, boolean>>({})
 const bizError = ref<Record<number, string>>({})
 
 function formatArgs(args: Record<string, unknown> | null): string {
-  if (!args || Object.keys(args).length === 0) return '—'
-  try {
-    return JSON.stringify(args, null, 2)
-  } catch {
-    return '—'
-  }
+  return argsText(args, { t, te })
 }
 
 /**
