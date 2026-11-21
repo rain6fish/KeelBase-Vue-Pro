@@ -425,6 +425,35 @@ test('the bound statement rides in an export only when given, and never becomes 
   assert.equal(checkData[1].split(',').length, 8, 'the verification export stopped being eight columns')
 })
 
+test('a note line is one cell starting with "# "; a data row is never one', () => {
+  // The 2026-11-21 dry run took the verification CSV's `#` note for the header. The rule that closes it
+  // is deliberately narrow: a note is a **single-cell** row starting with `# ` (hash and one space).
+  // The verification CSV's id cell is `#31` — single-cell `#31` is still not a note — and a real data
+  // row has six or eight cells, so it can never be swallowed.
+  //
+  // 2026-11-21 预演把核对 CSV 的 `#` 说明当成了表头。收口的规则有意收窄：说明行是**单格**且以
+  // `# `（井号加一个空格）开头。核对 CSV 的编号格是 `#31` —— 即使单格 `#31` 也不算说明行 ——
+  // 真数据行有六格或八格，永远不会被吞掉。
+  assert.equal(q.CSV_NOTE_MARKER, '# ')
+  assert.equal(q.isCsvNoteRow(['# related, not linked']), true, 'a one-cell note is not recognised')
+  assert.equal(q.isCsvNoteRow(['#31', 'x']), false, 'a data row was taken for a note')
+  assert.equal(q.isCsvNoteRow(['#31']), false, 'a single-cell id was taken for a note')
+  assert.equal(q.isCsvNoteRow([]), false)
+  assert.equal(q.isCsvNoteRow(['related, not linked']), false, 'a note without the marker was recognised')
+
+  const header = ['ID', ...LABELS, 'Checks']
+  const { notes, rows } = q.splitCsvNotes([
+    ['# first note'],
+    ['# second note'],
+    header,
+    ['#31', 'x', 'y', 'z', 'a', 'b', 'c', 'd'],
+  ])
+  assert.deepEqual(notes, [['# first note'], ['# second note']], 'the preamble was not split off whole')
+  assert.deepEqual(rows[0], header, 'the header did not survive the split')
+  assert.equal(rows.length, 2, 'a data row was dropped with the notes')
+  assert.deepEqual(q.splitCsvNotes([header, ['#31']]).notes, [], 'a header was taken for a note')
+})
+
 const CHECK_LABELS = ['ID', ...LABELS, 'Checks']
 
 test('the verification CSV carries the row id, the six answers and the checks', () => {

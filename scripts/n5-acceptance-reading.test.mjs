@@ -235,3 +235,80 @@ test('csvRows keeps quoted commas and newlines inside one cell', () => {
   const parsed = csvRows('a,"b,c",d\r\n"x\r\ny",z\r\n')
   assert.deepEqual(parsed, [['a', 'b,c', 'd'], ['x\r\ny', 'z']])
 })
+
+/** Put one note line in front of a file's body, keeping its BOM. */
+async function prependNote(path, note) {
+  const { readFileSync: read, writeFileSync: write } = await import('node:fs')
+  const bom = Buffer.from([0xef, 0xbb, 0xbf])
+  const buf = read(path)
+  const body = buf[0] === 0xef ? buf.subarray(3) : buf
+  write(path, Buffer.concat([bom, Buffer.from(`${note}\r\n`, 'utf8'), body]))
+}
+
+async function exportAndMutate(mutate) {
+  const { mkdtempSync, writeFileSync: write } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const dir = mkdtempSync(join(tmpdir(), 'n5-note-'))
+  const file = join(dir, 'f.json')
+  write(file, JSON.stringify(fixture({ approverId: '2', creds: { 1: 'KeelBase', 2: '张三' } })))
+  const outDir = join(dir, 'out')
+  const first = await run(['--execution', 'e-n5', '--snapshot', file, '--out', outDir], { out: () => {} })
+  assert.equal(first.exitCode, 0, 'the export itself must be green')
+  const [six, check] = first.csvPaths
+  await mutate(six, check)
+  const lines = []
+  const second = await run(
+    ['--execution', 'e-n5', '--snapshot', file, '--csv', six, '--check-csv', check],
+    { out: (line) => lines.push(line) },
+  )
+  return { dir, result: second, text: lines.join('\n') }
+}
+
+test('both CSVs may open with a leading note line, and the data still reads green', async () => {
+  // 2026-11-21 预演：核对 CSV 首行是产品写的一句 `#` 说明，机检把它当表头。这里把同一形状补到**两份**
+  // 文件上（六列那份在生产也可能因扫到上限带说明），R5 / R6 都必须照常读数据行，而不是把说明当表头。
+  //
+  // The 2026-11-21 dry run: the verification CSV opens with the product's `#` note and the checker took
+  // it as the header. The same shape is put on **both** files here (the six-column one can also carry a
+  // note when the scan hits its bound); R5 / R6 must still read the data, not the note.
+  const { rmSync } = await import('node:fs')
+  const { dir, result, text } = await exportAndMutate(async (six, check) => {
+    await prependNote(six, '# 已扫到上限：本文件只含扫描覆盖的那一段')
+    await prependNote(check, '# 相关、非硬链接：两条轨之间没有共享编号')
+  })
+  try {
+    assert.equal(result.exitCode, 0, `说明行打断了解析：\n${text}`)
+    assert.match(text, /^R5\b.*\bPASS\b/m, `六列那份没有照常读：\n${text}`)
+    assert.match(text, /^R6\b.*\bPASS\b/m, `八列那份没有照常读：\n${text}`)
+    assert.match(text, /带相关说明行/, 'R6 没有记下说明行')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a note line does not excuse a genuinely wrong header', async () => {
+  // 反例：说明行可以跳过，但跳过之后表头仍要逐字对得上。把表头第一格改错，两份都必须判红。
+  //
+  // Negative: the note may be skipped, but the header after it must still match cell for cell. The
+  // header's first cell is changed; both files must go red rather than pass on the skipped note.
+  const { rmSync } = await import('node:fs')
+  const { dir, result, text } = await exportAndMutate(async (six, check) => {
+    const { readFileSync: read, writeFileSync: write } = await import('node:fs')
+    for (const path of [six, check]) {
+      await prependNote(path, '# 说明')
+      const buf = read(path)
+      const lines = buf.subarray(3).toString('utf8').split('\r\n') // BOM removed
+      const headerLine = lines.find((line) => line.startsWith('谁,') || line.startsWith('编号,'))
+      assert.ok(headerLine, 'the fixture has no header line to break')
+      lines[lines.indexOf(headerLine)] = headerLine.replace(/^[^,]+,/, '错误表头,')
+      write(path, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from(lines.join('\r\n'), 'utf8')]))
+    }
+  })
+  try {
+    assert.equal(result.exitCode, 1, `坏表头被说明行掩盖了：\n${text}`)
+    assert.match(text, /^R5\b.*\bFAIL\b/m, `六列坏表头没有判红：\n${text}`)
+    assert.match(text, /^R6\b.*\bFAIL\b/m, `八列坏表头没有判红：\n${text}`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
