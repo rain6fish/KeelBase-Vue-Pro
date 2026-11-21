@@ -1,8 +1,8 @@
 diff --git a/src/locales/en.ts b/src/locales/en.ts
-index 9d14564..3382e27 100644
+index 9d14564..f9ec3fb 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,801 @@
+@@ -1,4 +1,804 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -197,12 +197,15 @@ index 9d14564..3382e27 100644
 +      maskedNote: '(record name masked)',
 +      maskedNoteHostLog: '(record name masked; the host log below is shown under the host\'s read permission)',
 +      writesHint:
-+        'Reading this table: “Who” is the caller recorded on that row itself — a dash means the row records nobody, not that a name failed to load, and the console does not borrow one from another trail. A bare number in the host log below is that host’s own user id (the same person the audit chain calls “Account #n”). A target is masked after its first character: a record’s own text is personal data.',
++        'Reading this table: “Who” is the caller recorded on that row itself — a dash means the row records nobody, not that a name failed to load, and the console does not borrow one from another trail. In the host log below, “Who” names the person its own row recorded, followed by the same account number the audit chain prints; a row that recorded nobody says so. A target is masked after its first character: a record’s own text is personal data.',
 +      targetUnnamed: 'name not registered',
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
 +      stateGone: 'no longer there',
-+      businessLogHint: 'Writes the host logged for this object, newest first — a correlation by object id and time, not a hard link. "Who" is the caller the host recorded on its own row; a row it logged with nobody stays blank.',
++      businessLogHint: 'Writes the host logged for this object, newest first — a correlation by object id and time, not a hard link: nothing writes a shared id. The object is named the way the audit answers it (business word · key), and both times use the same local clock with its offset, so one operation lines up here and in the six answers.',
++      businessLogObject: 'Object: {object}',
++      relatedLabel: 'related',
++      whoUnrecorded: 'no operator recorded',
 +      businessLogEmpty: 'The host logged no write for this object.',
 +      businessLogUnmapped: 'This result type maps to no host-side module here.',
 +      businessLogColWhen: 'When',
@@ -805,10 +808,10 @@ index 9d14564..3382e27 100644
      inputText: 'Please input',
      selectText: 'Please select',
 diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
-index 13065de..f476283 100644
+index 13065de..29e5499 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,793 @@
+@@ -1,4 +1,796 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1003,12 +1006,15 @@ index 13065de..f476283 100644
 +      maskedNote: '（记录名已掩码）',
 +      maskedNoteHostLog: '（记录名已掩码；下方宿主业务日志按宿主的读权限显示）',
 +      writesHint:
-+        '读这张表：「谁」是那一行自己记下的调用方 —— 一个破折号表示这一行没有记下谁，不是名字没取到，控制台也不会从别的轨上借一个名字。下方宿主日志里单独一个数字是宿主自己的用户编号（与审计链的「账号 #n」是同一个人）。目标名称只留首字符、其余换成星号 —— 一条记录自己的文字属于个人数据。',
++        '读这张表：「谁」是那一行自己记下的调用方 —— 一个破折号表示这一行没有记下谁，不是名字没取到，控制台也不会从别的轨上借一个名字。下方宿主日志里的「谁」是那一行自己记下的人，后面跟着审计链同一个账号编号；没有记下人的行会明说。目标名称只留首字符、其余换成星号 —— 一条记录自己的文字属于个人数据。',
 +      targetUnnamed: '未登记名称',
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
 +      stateGone: '已不在',
-+      businessLogHint: '宿主为这个对象记下的写，最新在前 —— 按对象 id 与时间的相关，不是硬链接。「谁」是宿主那一行自己记下的调用方；它没记的行如实留空。',
++      businessLogHint: '宿主为这个对象记下的写，最新在前 —— 按对象 id 与时间的相关，不是硬链接：没有任何东西写下一个共享 id。对象用与审计链六问同一组词（业务名 · 主键），两处时间都用同一个本机钟面并写出偏移，故同一次操作在这里和六问里对得齐。',
++      businessLogObject: '对象：{object}',
++      relatedLabel: '相关',
++      whoUnrecorded: '未记操作人',
 +      businessLogEmpty: '宿主没有为这个对象记下任何写。',
 +      businessLogUnmapped: '这个结果类型在本部署里没有对应的宿主模块。',
 +      businessLogColWhen: '何时',
