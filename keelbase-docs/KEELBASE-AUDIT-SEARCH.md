@@ -154,6 +154,13 @@ and the console's own narrowing still decides, so the answer is the same under e
 number of rows scanned differs. The console's ledger and confirmation windows are still bounded:
 they supply the object **label** and the evidence of blocked or refused rows, not the row selection.
 
+The host deployment carries a **parameter guard** of its own: `yudao-server` refuses any query
+parameter the read face does not declare on `/audit/logs` (`tenantId`, `page`, and so on) with a
+**400 that names it**. That is the other half of this section's rule — a filter accepted and not
+applied answers a list that looks filtered and is not. The guard exists only in the host deployment;
+an application produced by the generator has no such layer and still drops such a parameter silently
+until the generator declares its filters (§9).
+
 ## 8. What the slice is verified by
 
 `scripts/audit-query.test.mjs` pins the three evidence roads (including "an `executionId` with no

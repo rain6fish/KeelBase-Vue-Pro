@@ -7,27 +7,32 @@ import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * 把审计读者的执行入口守卫挂到运行时的那几条路径上。
- *
- * <p>清单与校验器同源：`YudaoAuditReaderExecutionGuard` 用这里的常量裁决，故「挂上了哪些路径」与「挡了哪些
- * 路径」不会各说各话。`scripts/check-audit-reader-execution-guard.mjs` 对这三处（规则源、守卫、本注册）
- * 做静态对账，防止清单漂走。
- *
- * <p>英文：
- *
- * <p>Hangs the audit reader's execution-entry guard on the runtime's paths.
+ * Hangs the audit reader's execution-entry guard on the runtime's paths.
  *
  * <p>The list is the same source the guard decides from — the guard reads these constants — so "which
  * paths are registered" and "which paths are refused" cannot drift apart.
  * `scripts/check-audit-reader-execution-guard.mjs` reconciles the three places (rule source, guard,
  * this registration) statically so the list cannot quietly change.
  *
- * <p>本类还注册了已弃用 AI 模块 HTTP 应用面的 404 守卫（`YudaoAiModuleSurfaceGuard`）。它的注册排在审计读者
- * 守卫**之后**：审计读者先拿到自己的 403，其余调用方才听到「这个面不存在」。
+ * <p>It also registers the audit read face's parameter guard (`YudaoAuditReadParamsGuard`) on
+ * `/audit/logs`: a query parameter the read face does not declare is refused with a 400 that names it,
+ * instead of being silently dropped by Spring and answering a wider list.
  *
  * <p>This class also registers the 404 guard for the deprecated AI module's HTTP surface
  * (`YudaoAiModuleSurfaceGuard`). It is registered **after** the audit-reader guard, so an audit reader
  * gets its own 403 first and only the remaining callers hear that the surface does not exist.
+ *
+ * <p>把审计读者的执行入口守卫挂到运行时的那几条路径上。
+ *
+ * <p>清单与校验器同源：`YudaoAuditReaderExecutionGuard` 用这里的常量裁决，故「挂上了哪些路径」与「挡了哪些
+ * 路径」不会各说各话。`scripts/check-audit-reader-execution-guard.mjs` 对这三处（规则源、守卫、本注册）
+ * 做静态对账，防止清单漂走。
+ *
+ * <p>它还注册了审计读面的参数守卫（`YudaoAuditReadParamsGuard`）到 `/audit/logs`：读面没有声明的查询参数
+ * 一律 400 并点名，而不是被 Spring 静默丢弃、答回一份更宽的列表。
+ *
+ * <p>本类还注册了已弃用 AI 模块 HTTP 应用面的 404 守卫（`YudaoAiModuleSurfaceGuard`）。它的注册排在审计读者
+ * 守卫**之后**：审计读者先拿到自己的 403，其余调用方才听到「这个面不存在」。
  */
 @Configuration
 public class YudaoAuditReaderWebConfig implements WebMvcConfigurer {
@@ -88,11 +93,14 @@ public class YudaoAuditReaderWebConfig implements WebMvcConfigurer {
             "/ai/tool-effects");
 
     private final YudaoAuditReaderExecutionGuard guard;
+    private final YudaoAuditReadParamsGuard readParams;
     private final YudaoAiModuleSurfaceGuard aiModuleSurface;
 
     public YudaoAuditReaderWebConfig(YudaoAuditReaderExecutionGuard guard,
+                                     YudaoAuditReadParamsGuard readParams,
                                      YudaoAiModuleSurfaceGuard aiModuleSurface) {
         this.guard = guard;
+        this.readParams = readParams;
         this.aiModuleSurface = aiModuleSurface;
     }
 
@@ -106,6 +114,11 @@ public class YudaoAuditReaderWebConfig implements WebMvcConfigurer {
                         "/admin-api/ai1/session/message/send-stream",
                         "/ai/confirmations/**", "/ai/my/confirmations/**",
                         "/ai/tool-effects", "/ai/tool-effects/**");
+        // Registers after the guard above so the static reconciliation script still reads that one's
+        // path list first; this guard answers a different question on a different path.
+        // 注册排在上面的守卫之后，静态对账脚本仍先读到那份路径清单；本守卫在另一条路径上答另一件事。
+        registry.addInterceptor(readParams)
+                .addPathPatterns("/audit/logs");
         // 顺序有意义：审计读者先在上述注册里拿到自己的 403，其余调用方才在这里听到「这个面不存在」。
         // Order matters: an audit reader gets its own 403 from the registration above, and only the
         // remaining callers hear here that the surface does not exist.
