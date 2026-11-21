@@ -130,7 +130,7 @@ test('the built-in self-test runs all its checks and is green', async () => {
   const result = await run(['--self-test'], { out: (line) => lines.push(line) })
   assert.equal(result.exitCode, 0, `自检没有全绿：\n${lines.join('\n')}`)
   const tail = lines.join('\n')
-  assert.match(tail, /自检：34\/34 通过/)
+  assert.match(tail, /自检：38\/38 通过/)
   // 反向可证：自批那一条必须真的判红过，否则“全绿”只是没测到。
   assert.match(tail, /PASS\s+自批：R1b FAIL 且点名同一人/)
   assert.match(tail, /PASS\s+断链：R3 FAIL/)
@@ -201,6 +201,31 @@ test('the report composes the six cells in the console’s words', async () => {
     assert.match(text, /改成什么（改前 → 改后）\s+改前: 客户名称 n\*\*\*\* · 客户等级 — · 客户来源 — · 已成交 ✗ · 已跟进 ✗; 改后: 客户名称 n\*\*\*\* → 修\*\*\*\* — 宿主现在的记录，不是写入那一刻的快照; 运行时没有记下的值，这里不替它补/)
     assert.match(text, /谁确认\s+张三 批准了这次写（第二人，不是操作者本人）/)
     assert.match(text, /结果\s+已执行 · 真的执行了，写已经在系统里/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('path B reports the known wording instead of failing the row', async () => {
+  const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const dir = mkdtempSync(join(tmpdir(), 'n5-test-'))
+  try {
+    const payload = fixture({ approverId: '2', creds: { 1: 'KeelBase', 2: '张三' } })
+    for (const row of payload.rows) {
+      if (row.authorization) {
+        row.authorization = row.authorization.replaceAll('"riskStrategy":"human_approval"', '"riskStrategy":"confirmation"')
+      }
+    }
+    const file = join(dir, 'pathb.json')
+    writeFileSync(file, JSON.stringify(payload))
+    const lines = []
+    const result = await run(['--execution', 'e-n5', '--snapshot', file], { out: (line) => lines.push(line) })
+    const text = lines.join('\n')
+    assert.equal(result.exitCode, 0, text)
+    assert.match(text, /方案 B 的已知口径/)
+    assert.match(text, /KeelBase 确认了这次写（本人确认；客户端未记）/)
+    assert.match(text, /张三 批准了这次写（这一行本身就是这次裁决/)
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

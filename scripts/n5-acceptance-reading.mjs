@@ -64,6 +64,7 @@ import {
   BLANK,
   approverOf,
   composeSix,
+  gateFromRow,
   leaksIn,
   recordedObjectIn,
   recordedTypedObject,
@@ -786,6 +787,29 @@ function evaluate(state, ctx, opts) {
           PASS,
           `${name}（账号 #${approverId}）≠ ${state.callerNames.value[initiatorId] || '发起人'}（账号 #${initiatorId}）`,
         ),
+      )
+    }
+  }
+
+  // N5 已定走**方案 B**（宿主写 + 策略 `approval`）。执行行的 `authorization` 仍按工具的**声明级别**
+  // 记 `confirmation`，所以第五格会写「本人确认」；同一次执行的批准行点名了第二人。这不是一条会红的
+  // 判据 —— 它是**已知口径**，由本脚本产成一句告诫，场次记录直接抄。
+  //
+  // N5 chose **path B** (a host write with the policy set to `approval`). The executed row's
+  // `authorization` still records `confirmation`, taken from the tool's **declared** level, so its fifth
+  // cell reads "self-confirmed" while the approval row of the same execution names the second person.
+  // That is not a criterion to turn red — it is a **known wording**, emitted here as one warning the
+  // session record can copy verbatim.
+  if (executedRow && approvedRow && state.callerNames.status === 'ok') {
+    const gate = gateFromRow(executedRow)
+    const approverId = String(approvedRow.userId ?? '')
+    const approverName = approverId ? state.callerNames.value[approverId] ?? '' : ''
+    const initiatorId = String(executedRow.userId ?? '')
+    if (gate === 'confirm' && approverName && approverId && approverId !== initiatorId) {
+      warnings.push(
+        `执行行 #${executedRow.id} 的 authorization 记的是 confirmation，第五格写「本人确认」；`
+          + `同 executionId 的批准行 #${approvedRow.id} 点名了第二人 ${approverName}（账号 #${approverId}）`
+          + ` —— 方案 B 的已知口径，场次记录须照抄`,
       )
     }
   }
@@ -1524,6 +1548,22 @@ async function selfTest(out) {
       check('第二人批准：对象是「客户 · #1 · 修**** · 还在」', text.includes('客户 · #1 · 修**** · 还在'))
       check('第二人批准：第五格是第二人批准', text.includes('张三 批准了这次写（第二人，不是操作者本人）'))
       check('第二人批准：哈希来自 verify 链', text.includes('hash=h31'))
+    }
+
+    // 1c · path B: the executed row records `confirmation` while the approval row names the second
+    // person. The criteria stay green; the report carries the wording the session record must copy.
+    {
+      const payload = fixture({ approverId: '2', creds: { 1: 'KeelBase', 2: '张三' } })
+      for (const row of payload.rows) {
+        if (row.authorization) {
+          row.authorization = row.authorization.replaceAll('"riskStrategy":"human_approval"', '"riskStrategy":"confirmation"')
+        }
+      }
+      const { result, text } = await runFixture('pathB', payload, ['--execution', 'e-n5'])
+      check('方案 B：exit 0', result.exitCode === 0, `exit=${result.exitCode}`)
+      check('方案 B：告诫写明执行行第五格是已知口径', text.includes('方案 B 的已知口径'))
+      check('方案 B：执行行第五格写「本人确认」', text.includes('KeelBase 确认了这次写（本人确认；客户端未记）'))
+      check('方案 B：批准行仍点名张三', text.includes('张三 批准了这次写（这一行本身就是这次裁决'))
     }
 
     // 1b · an older runtime: the approval row carries no executionId, so it is paired by tool + five
