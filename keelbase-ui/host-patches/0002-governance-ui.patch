@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,801 @@
+@@ -1,4 +1,803 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -84,6 +84,8 @@ index 9d14564..3382e27 100644
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
 +      keyOnlyHint:
 +        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
++      readFaceUnfiltered:
++        'The runtime’s audit read face did not apply this search’s object or end — an application produced by the generator ignores parameters it does not know. The rows above are this page’s own narrowing, and both exports carry the same set; query /audit/logs directly for the read face’s own answer.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -808,7 +810,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,793 @@
+@@ -1,4 +1,795 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -890,6 +892,8 @@ index 13065de..f476283 100644
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
 +      keyOnlyHint:
 +        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
++      readFaceUnfiltered:
++        '运行时的审计读面没有施加这次检索的对象或终点筛选（生成器产出的应用会忽略它不认识的参数）。上面的行由本页自己挑出，两份导出沿用同一份命中；要以读面自己的答复为准，请直接查询 /audit/logs。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',

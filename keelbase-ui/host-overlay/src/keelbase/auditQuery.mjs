@@ -198,6 +198,45 @@ export function selectRows(rows, { object = null, since, until, effects = [], pr
 }
 
 /**
+ * 这份答复是不是**比发出去的筛选更宽** —— 读面没有施加它们的**正面证据**。
+ *
+ * 只有它**返回**的那些行能证明：一条落在区间外、或本页能解析出对象却不是所查对象的行，不可能出自一个
+ * 施加过筛选的面。本页解析不出对象的行**不算证据**（台账窗口有界，读面没有），恰好都匹配的答复也什么都
+ * 证明不了 —— 那两种情形下命中集一样，不需要告诫。
+ *
+ * 由此可证的只有「读面忽略了筛选」，不能反推「读面施加了筛选」：生成器产出的应用会静默忽略它不认识的
+ * 查询参数（运行时仓 `JavaGenerator` 生成的 `/audit/logs` 只收 `userId/since/isError`），故没有证据时
+ * 页面不多说一个字。
+ *
+ * Whether this answer is **wider than the filters that were sent** — positive evidence that the read
+ * face did not apply them.
+ *
+ * Only rows it **returned** can prove it: a row outside the range, or one this page can place on an
+ * object other than the one asked for, could not have come back from a face that applied the filters.
+ * A row this page cannot place is **not** evidence (its ledger window is bounded, the face's is not),
+ * and an answer whose rows all happen to match proves nothing — the matched set is the same either way,
+ * so neither earns a warning.
+ *
+ * What this can prove is "the face ignored the filters", never the converse: an application produced by
+ * the generator silently ignores query parameters it does not know (the generated `/audit/logs` in the
+ * runtime repository takes `userId/since/isError` only), so with no evidence the page says nothing.
+ */
+export function readFaceIgnoredFilters(
+  rows,
+  { object = null, since, until, effects = [], proposals = [], resultTypeOf = () => '' } = {},
+) {
+  const ranged = Boolean(since) || Boolean(until)
+  for (const row of rows || []) {
+    if (ranged && !inWindow(row, { since, until })) return true
+    if (object && (object.resultType || object.resultId)) {
+      const ref = objectRefOf(row, { effects, proposals, resultTypeOf })
+      if (ref && !matchesObject(ref, object)) return true
+    }
+  }
+  return false
+}
+
+/**
  * 表格该渲染哪一份行：检索跑过之后是那份命中，检索清空（`queryRan=false`）之后回到普通列表。
  *
  * 单独成一个纯函数，是为了让「命中 3 行时表格就是 3 行、清空后回到 20 行」可以当测试直接跑，

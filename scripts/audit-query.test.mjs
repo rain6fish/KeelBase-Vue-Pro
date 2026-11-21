@@ -259,6 +259,80 @@ test('selection: kind + key, kind alone, key alone', () => {
   )
 })
 
+test('the same search picks the same rows whether the read face applied the filters or ignored them', () => {
+  // F10：生成器产出的应用另有一条 `/audit/logs`，它只收 `userId/since/isError` —— 对象与终点被静默
+  // 忽略，同一查询回一份更宽的列表。控制台不靠读面施加筛选：回来的无论是收窄过的还是更宽的，本地按同一
+  // 组条件再挑一遍，命中必须相同。这条钉的就是「两条读面同一个答案」。
+  //
+  // F10: an application produced by the generator has its own `/audit/logs` that takes `userId/since/isError`
+  // only — the object and the end are silently ignored and the same query answers a wider list. The console
+  // does not lean on the face applying them: whether the answer came back narrowed or wider, it picks again
+  // under the same conditions and the matched set has to be the same. That is "one answer on both faces".
+  const rows = [
+    operation({ id: 1, createdAt: '2026-10-28T05:37:06.000Z' }),
+    operation({ id: 2, executionId: 'x', createdAt: '2026-10-28T06:00:00.000Z' }),
+    operation({
+      id: 3,
+      tool: 'delete_project',
+      executionId: null,
+      createdAt: '2026-10-28T06:30:00.000Z',
+      detail: 'delete_project -> blocked (R5) · intended object #12',
+    }),
+  ]
+  const effects = [effect(), effect({ executionId: 'x', resultId: 9006, createdAt: '2026-10-28T06:00:00.000Z' })]
+  const conditions = {
+    object: { resultType: 'crm_customer', resultId: '9005' },
+    since: '2026-10-28T05:00:00.000Z',
+    until: '2026-10-28T06:05:00.000Z',
+    effects,
+    resultTypeOf,
+  }
+  // A face that applied the filters could only answer the row that matches all three.
+  const applied = rows.filter((row) => row.id === 1)
+  const appliedIds = q.selectRows(applied, conditions).map((entry) => entry.row.id)
+  const ignoredIds = q.selectRows(rows, conditions).map((entry) => entry.row.id)
+  assert.deepEqual(appliedIds, [1])
+  assert.deepEqual(ignoredIds, appliedIds, 'a read face that ignored the filters changed the matched set')
+  // The wider answer is also what the page must be able to *say* it received (see the page's line).
+  assert.equal(q.readFaceIgnoredFilters(rows, conditions), true, 'a wider answer is not recognised as wider')
+  assert.equal(q.readFaceIgnoredFilters(applied, conditions), false, 'a narrowed answer is misread as wider')
+})
+
+test('reading the wider answer: only a row the page can place proves the filters were ignored', () => {
+  // 证据只来自读面**返回**的行：落在区间外、或本页解析出对象却不是所查对象的，不可能是施加过筛选的面
+  // 回出来的。本页解析不出对象的行不算证据 —— 台账窗口有界，读面没有，那只会是一次误报。
+  //
+  // Evidence comes only from rows the face **returned**: one outside the range, or one this page places on
+  // another object, could not have come from a face that applied the filters. A row this page cannot place
+  // is not evidence — its ledger window is bounded and the face's is not, so that would be a false alarm.
+  const withObject = { object: { resultType: 'crm_customer', resultId: '9005' }, effects: [effect()], resultTypeOf }
+  assert.equal(q.readFaceIgnoredFilters([operation()], withObject), false, 'the matching row is not evidence')
+  assert.equal(
+    q.readFaceIgnoredFilters([operation({ executionId: 'x' })], {
+      ...withObject,
+      effects: [effect({ executionId: 'x', resultId: 9006 })],
+    }),
+    true,
+    'a row the page places on another object is the face returning a non-match',
+  )
+  const unplaceable = operation({ executionId: null, detail: 'something else' })
+  assert.equal(q.readFaceIgnoredFilters([unplaceable], withObject), false,
+    'a row this page cannot place was taken as proof, and a bounded ledger makes that a false alarm')
+  assert.equal(
+    q.readFaceIgnoredFilters([operation({ createdAt: '2026-10-28T07:00:00.000Z' })], {
+      since: '2026-10-28T05:00:00.000Z',
+      until: '2026-10-28T06:00:00.000Z',
+    }),
+    true,
+    'a row past the end the page asked for is not recognised as the face ignoring the end',
+  )
+  assert.equal(
+    q.readFaceIgnoredFilters([{ ...operation(), createdAt: null }], {}),
+    false,
+    'with no range sent, a row the page cannot place is not evidence of anything',
+  )
+})
+
 const answersOf = (texts) =>
   SIX_QUESTIONS.map((key, i) => ({ key, label: key, text: texts[i], answered: Boolean(texts[i]) }))
 

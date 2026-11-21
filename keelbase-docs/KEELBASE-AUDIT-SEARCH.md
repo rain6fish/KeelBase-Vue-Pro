@@ -157,3 +157,25 @@ exactly six columns in order, RFC 4180 escaping, the missing-answer marker, and 
 a cell leaking `crm_customer` or a UUID refuses the export with an error that names the question and
 not the name. `scripts/audit-chain-page.test.mjs` still pins the page's rendering path, and
 `scripts/i18n-key-coverage.test.mjs` pins the new labels in both language bundles.
+
+## 9. The second read face — the generator's application
+
+An application produced by the runtime's generator has a read face of its own: `JavaGenerator.java:4474`
+generates `/audit/logs` with `userId`, `since`, `isError`, `limit` and `offset` — and it *refuses*
+`agentId`, `orgId` and `denied` rather than ignoring them. It says nothing about `until`, `objectType`
+and `objectId`, and Spring drops query parameters a handler does not declare without an error: the same
+query answers a **wider** list on that face, silently (the review's F10).
+
+The console is unaffected in what it shows. It sends all three parameters and then **picks the rows
+itself** again (`selectRows` in `auditQuery.mjs`), so a face that applies the filters and one that
+ignores them answer the same matched set — `scripts/audit-query.test.mjs` runs both and compares. What
+the console cannot do is make a **direct caller** of the generated face get the narrower list. So when
+an answer comes back recognisably wider — a returned row outside the range, or one the page can place on
+an object other than the one asked for — the page says so, and points the reader at `/audit/logs` for
+the read face's own answer. Both exports carry the same matched set; the six-column CSV stays exactly
+six columns, so the statement lives on the page rather than in the file.
+
+The parity fix itself belongs to the generator: declare the three parameters and resolve the object
+through the generated application's own side-effect ledger, the way the runtime does. That adds no
+contract field and changes no row schema — the endpoint's parameters are not part of the frozen row
+shape (§7).
