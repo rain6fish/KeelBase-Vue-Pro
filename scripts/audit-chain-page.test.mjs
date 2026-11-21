@@ -387,7 +387,9 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
   assert.match(script, /async function exportCheck\(\)/)
-  assert.match(script, /checkCsvText\(entryRows, labels\)/, 'the second export does not go through checkCsvText')
+  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走。
+  // The line before the header is the second entry's limit (`N6`), so it rides along with this call.
+  assert.match(script, /checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\)/, 'the second export does not go through checkCsvText with its correlation note')
   assert.match(script, /checksTextOf\(row\)/, 'the second export does not carry the checks')
   assert.match(script, /CHECK_COLUMN_KEYS\.map\(/, 'the second export hardcodes its columns')
   assert.match(script, /checkCsvFilename\(\)/)

@@ -292,12 +292,18 @@
               :image-size="48"
             />
             <el-table v-else :data="bizRows[row.id]" size="small" border>
-              <el-table-column :label="t('keelbase.effects.businessLogColWhen')" width="180">
+              <el-table-column :label="t('keelbase.effects.businessLogColWhen')" width="200">
                 <template #default="{ row: r }">{{ timeText(r.createTime) }}</template>
               </el-table-column>
               <el-table-column :label="t('keelbase.effects.businessLogColWhat')" prop="subType" width="140" />
-              <el-table-column :label="t('keelbase.effects.businessLogColWho')" width="110">
-                <template #default="{ row: r }">{{ whoText(r) }}</template>
+              <!-- 「谁」与审计链同一格写法：名字在上、编号在下 —— 两页并排时读者能直接确认是同一个人。 -->
+              <!-- “Who” in the chain's own shape: the name over the id — a reader comparing the two pages
+                   can see at once that it is the same person. -->
+              <el-table-column :label="t('keelbase.effects.businessLogColWho')" width="130">
+                <template #default="{ row: r }">
+                  <div>{{ whoText(r) }}</div>
+                  <div v-if="r.userId" class="muted">#{{ r.userId }}</div>
+                </template>
               </el-table-column>
               <el-table-column :label="t('keelbase.effects.businessLogColAction')" prop="action" show-overflow-tooltip />
             </el-table>
@@ -333,7 +339,7 @@
           <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="t('keelbase.effects.colTime')" width="190">
+      <el-table-column :label="t('keelbase.effects.colTime')" width="200">
         <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colActions')" width="110" align="center">
@@ -418,15 +424,26 @@ function toolText(name: string | null | undefined): string {
 }
 
 /**
- * 宿主那一行记下的调用方：先取它**自己配好的名字**，其次它记下的 id，都没有则**如实留空**。
+ * 宿主那一行记下的调用方：先取它**自己配好的名字**；它只记了 id 时，用**审计链同一条**窄读面把 id 翻成名字
+ * （`resolveCallerNames`，与上面那张台账同一份名录、同一个缓存）；连 id 都没有才**如实留空**。
  *
- * 不说得比宿主多：这一列是「宿主为这次写记下了谁」，故名字由**它**给（它的操作日志页本就拿自己的用户表
- * 译过一遍），控制台不另发一次查询去凑一个更好看的名字。宿主没记的那些行 —— 本次改动之前写下的、以及它确实
- * 说不出调用方的那些 —— 留一个破折号，而不是拿别的轨上的 id 去补。
+ * 2026-11-21（`N6`）改的正是中间那一档：原先宿主没给名字就把裸 id 印出来，于是一次操作在审计链上叫
+ * 「KeelBase」、在宿主操作日志里叫「1」—— 同一个人的两种写法，独立读者对不上账。这一列现在与链上同一份
+ * 口径；宿主自己给的名字仍然优先，控制台只补它没说的那一层，不覆盖它说的。
+ *
+ * The caller the host's own row recorded: its **own name** first; when it kept only an id, that id is
+ * named through **the same narrow directory the audit chain reads** (`resolveCallerNames` — same names,
+ * same cache); only a row with neither stays blank.
+ *
+ * 2026-11-21 (`N6`) changed that middle case: a row the host left unnamed used to print the bare id, so
+ * one operation was 「KeelBase」 on the audit chain and 「1」 in the host's operation log — the same person
+ * written two ways, which an independent reader cannot line up. This column now follows the chain's rule;
+ * the host's own name still wins, and the console only fills in what the host did not say.
  */
 function whoText(row: BusinessLogRow): string {
   if (row.userName) return row.userName
-  return row.userId === null || row.userId === undefined ? '—' : String(row.userId)
+  if (row.userId === null || row.userId === undefined) return '—'
+  return callerName(String(row.userId))
 }
 
 /**
@@ -900,7 +917,15 @@ async function onExpand(row: EffectRow, expandedRows: EffectRow[]) {
   bizLoading.value = { ...bizLoading.value, [row.id]: true }
   try {
     const res = await businessLogApi.byObject(businessType, row.resultId)
-    bizRows.value = { ...bizRows.value, [row.id]: res.list ?? [] }
+    const list = res.list ?? []
+    bizRows.value = { ...bizRows.value, [row.id]: list }
+    // 名字按审计链同一条窄读面补 —— 宿主这一行常常只记 id（`userName` 为空），裸编号正是读者对不上账的
+    // 那一种写法。取不到时 `callerName` 回落到 id 本身，与链上一致。
+    // Names come from the same narrow directory the chain reads — the host's rows often keep only an id
+    // (`userName` blank), and the bare number is exactly what the reader could not line up. When the
+    // directory cannot answer, `callerName` falls back to the id, as it does on the chain.
+    const resolved = await resolveCallerNames(list.map((r) => r.userId))
+    names.value = { ...names.value, ...resolved }
   } catch (e) {
     bizError.value = { ...bizError.value, [row.id]: runtimeErrorMessage(e, t('keelbase.common.loadFailed')) }
   } finally {

@@ -144,6 +144,16 @@
       is not there. Both exports carry the same matched set, so this one line covers them too.
     -->
     <div v-if="keyOnlySearch" class="query-status muted">{{ t('keelbase.audit.keyOnlyHint') }}</div>
+    <!--
+      第二入口的限度写在读者开始核对的地方：同一业务对象在宿主的操作日志（行动中心里那张小表）里另有一行，
+      两边只能按业务主键与时间对上 —— 两条轨之间没有共享编号，动作的叫法也各按自己的词。先在这里说清楚，
+      读者走到第二入口时就不会把另一页当成同一条记录。
+      The second entry's limit is stated where the cross-check starts: the same business object has another
+      row in the host's operation log (the small table inside the action centre), and the two can only be
+      lined up by business key and time — the trails share no id, and each words the act its own way.
+      Said here, the reader who walks to that page does not take it for the same record.
+    -->
+    <div class="query-status muted">{{ t('keelbase.audit.secondEntryHint') }}</div>
     <div v-if="exportError" class="text-[var(--el-color-danger)] mb-10px">{{ exportError }}</div>
 
     <!-- 覆盖声明（`D57`）：这一页读到哪、到不了哪些路径 —— 只写事实。 -->
@@ -1331,7 +1341,7 @@ async function exportCheck() {
       effects.value = prior.effects
       proposals.value = prior.proposals
     }
-    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels))
+    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')))
   } catch (e) {
     exportError.value =
       e instanceof CsvLeak
@@ -1555,7 +1565,7 @@ onMounted(() => {
 }
 .chain-time {
   color: var(--el-text-color-secondary);
-  min-width: 150px;
+  min-width: 200px;
 }
 .chain-action {
   flex: 1;

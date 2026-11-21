@@ -311,7 +311,7 @@
             {{ t('keelbase.boundary.bypassEmpty') }}
           </div>
           <el-table v-else :data="bypass?.items ?? []" stripe size="small" class="boundary-trail">
-            <el-table-column :label="t('keelbase.boundary.colTime')" width="150">
+            <el-table-column :label="t('keelbase.boundary.colTime')" width="200">
               <template #default="{ row }">{{ timeText(row.occurredAt) }}</template>
             </el-table-column>
             <el-table-column :label="t('keelbase.boundary.colRequest')" min-width="210">
@@ -352,7 +352,7 @@
             {{ t('keelbase.boundary.governedEmpty') }}
           </div>
           <el-table v-else :data="governed ?? []" stripe size="small" class="boundary-trail">
-            <el-table-column :label="t('keelbase.boundary.colTime')" width="150">
+            <el-table-column :label="t('keelbase.boundary.colTime')" width="200">
               <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
             </el-table-column>
             <el-table-column :label="t('keelbase.boundary.colAction')" min-width="180">
