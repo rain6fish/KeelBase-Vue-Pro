@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static cn.iocoder.yudao.framework.test.core.util.AssertUtils.assertServiceException;
@@ -308,6 +309,36 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
 
     // ========== 审计 ==========
 
+    /**
+     * `audit-payload` v4's closed `action` enum, copied from the contract snapshot in KeelBase4J
+     * (`conformance/vectors/schemas/v4/audit-payload.schema.json`). Pinned here so that a word this
+     * host invents turns the test red instead of reaching a runtime that will refuse the row.
+     *
+     * `audit-payload` v4 的 `action` 闭枚举，逐字取自 KeelBase4J 的契约快照
+     * （`conformance/vectors/schemas/v4/audit-payload.schema.json`）。钉在这里：宿主一旦自造一个词，
+     * 测试就红，而不是等运行时的 fail-closed 把它挡在链外。
+     */
+    private static final Set<String> CONTRACT_ACTIONS = Set.of(
+            "chat", "tool_call", "navigate", "error", "login", "plan", "analyze", "knowledge",
+            "delegate", "tool_confirmation", "flow_node", "content_blocked", "effect_revoke",
+            "audit_review", "claim_release");
+
+    @Test
+    public void testTestMcpConnect_actionIsInTheContractsClosedVocabulary() {
+        Long id = mcpService.createMcp(buildMcpSaveReqVO(Ai1McpTransportEnum.HTTP.getTransport())
+                .setUrl("http://127.0.0.1:8081/mcp"));
+        when(mcpClientTool.testConnect(any())).thenReturn(new Ai1McpConnectRespVO()
+                .setConnectable(true).setToolCount(1).setElapsedMs(9L).setMessage("连接成功，发现 1 个工具"));
+        AuditLogRepository logRepository = installRealAuditService();
+
+        mcpService.testMcpConnect(id);
+
+        AuditLog row = captureSavedRow(logRepository);
+        assertTrue(CONTRACT_ACTIONS.contains(row.getAction()),
+                () -> "action '" + row.getAction() + "' is outside the contract's closed enum");
+        assertEquals("analyze", row.getAction());
+    }
+
     @Test
     public void testTestMcpConnect_successWritesReadableAuditRow() {
         // mock 数据
@@ -327,8 +358,13 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
         // 断言：端点照常作答，链上多出一行可读的审计
         assertTrue(result.getConnectable());
         AuditLog row = captureSavedRow(logRepository);
-        assertEquals("mcp_connect_test", row.getAction());
+        assertEquals("analyze", row.getAction());
         assertEquals("1024", row.getUserId());
+        // The action word is the contract's nearest existing one; the sentence itself says what the
+        // probe was, so a reader never has to read `analyze` as the assistant analysing something.
+        // 动作词是契约里语义最近的既有词；句子本身说明了这是一次什么探测，于是读者不必把 `analyze`
+        // 读成助手在做分析。
+        assertTrue(row.getDetail().startsWith("mcp connectivity test "));
         assertFalse(row.isError());
         assertNull(row.getOutcome());
         assertNull(row.getTool());
@@ -362,7 +398,7 @@ public class Ai1McpServiceImplTest extends BaseDbUnitTest {
 
         // 断言
         AuditLog row = captureSavedRow(logRepository);
-        assertEquals("mcp_connect_test", row.getAction());
+        assertEquals("analyze", row.getAction());
         assertEquals("0", row.getUserId());
         assertTrue(row.isError());
         assertNull(row.getOutcome());

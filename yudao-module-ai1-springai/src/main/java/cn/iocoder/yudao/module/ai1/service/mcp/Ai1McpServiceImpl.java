@@ -37,14 +37,20 @@ import static cn.iocoder.yudao.module.ai1.enums.Ai1ErrorCodeConstants.*;
 public class Ai1McpServiceImpl implements Ai1McpService {
 
     /**
-     * The audit chain's action word for a connect test. Kept apart from `tool_call`: a test dials the
-     * MCP endpoint, it does not run one of its tools, and the contract's `tool_call` outcomes must not
-     * be made to describe something that never was one. Everything else travels in `detail`.
+     * The audit chain's action word for a connect test. `audit-payload` v4's `action` is a closed
+     * enum of fifteen values and has no word for a connect test; the nearest existing one is
+     * `analyze`, a diagnostic act that is neither a tool call nor a write. What the row is really
+     * about is said at the start of `detail`, which calls it a connectivity test, so a reader can
+     * tell it apart from the assistant's own analyses without borrowing a word from outside the
+     * contract. The word is provisional: it changes only if the vocabulary gains one of its own for
+     * a probe.
      *
-     * 连通测试在审计链上的动作词。与 `tool_call` 分开：测试拨的是 MCP 端点、不是它下面某个工具，而契约给
-     * `tool_call` 冻结的结局词表不该被拿来描述一件从来不是工具调用的事。其余信息都写在 `detail` 里。
+     * 连通测试在审计链上的动作词。`audit-payload` v4 的 `action` 是**十五个取值的闭枚举**，没有连通
+     * 测试的词；其中语义最近的是 `analyze` —— 一次诊断，既不是工具调用、也不是一次写。这一行真正说的是
+     * 什么，写在 `detail` 开头：它自称一次连通测试，于是读者能把它与助手自己的分析分开，而不必往契约
+     * 之外借一个词。这个词是**过渡**安排：只有词表将来为探测添了自己的词，才换。
      */
-    private static final String AUDIT_ACTION = "mcp_connect_test";
+    private static final String AUDIT_ACTION = "analyze";
 
     /** The same "no identity" sentinel the runtime's own rows use. / 与运行时自己的行同一个「没有身份」哨兵。 */
     private static final String NO_IDENTITY = "0";
@@ -137,11 +143,13 @@ public class Ai1McpServiceImpl implements Ai1McpService {
      * audit that cannot be written is reported on the log rather than turned into a 500 — the trail is a
      * side channel, not the result.
      *
-     * <p>The action is {@value #AUDIT_ACTION} with no `outcome`, which the contract allows for an action
-     * outside the tool vocabulary. What the row must answer is in `detail`: which MCP, which host it was
-     * dialled at, whether it worked, how long it took, and — when it did not — the error's category. The
-     * sentence ends with a typed key (` · object MCP connection #12`) so the row can be found by object
-     * even though a test produces no ledger row: the ledger is the read face's first road, this is the
+     * <p>The action is {@value #AUDIT_ACTION}, one word from the contract's closed vocabulary rather
+     * than one this host made up, and the row carries no `outcome`, which is what the contract
+     * requires of every action that is not a tool call. What the row must answer is in `detail`: its
+     * first words say this was a connectivity test, then which MCP, which host it was dialled at,
+     * whether it worked, how long it took, and — when it did not — the error's category. The sentence
+     * ends with a typed key (` · object MCP connection #12`) so the row can be found by object even
+     * though a test produces no ledger row: the ledger is the read face's first road, this is the
      * second.
      *
      * 测试一个 MCP 端点，每一次尝试都在宿主的审计链上留一行。
@@ -149,9 +157,10 @@ public class Ai1McpServiceImpl implements Ai1McpService {
      * <p>行写在这里、不写在 controller，于是经由 service 的任何调用方都留下同一条痕迹。失败的行不等于
      * 失败的请求：端点照原样作答，写不进审计只记在日志上、不变 500 —— 痕迹是旁路，不是结果。
      *
-     * <p>动作是 {@value #AUDIT_ACTION}、不带 `outcome`，契约对工具词表之外的动作正是这么允许的。这一行要回答
-     * 的东西都在 `detail` 里：哪一个 MCP、拨向哪个 host、通没通、花了多久，以及没通时的错误类别。句子末尾带一个
-     * 带类型的键（` · object MCP connection #12`），于是即便测试不产生台账行，这一行也能按对象找到：台账是读面的
+     * <p>动作是 {@value #AUDIT_ACTION}，取自契约的闭词表、不是宿主自造的词；不带 `outcome`，这正是契约
+     * 对一切非工具调用动作的要求。这一行要回答的东西都在 `detail` 里：开头先说这是一次连通测试，然后是哪
+     * 一个 MCP、拨向哪个 host、通没通、花了多久，以及没通时的错误类别。句子末尾带一个带类型的键
+     * （` · object MCP connection #12`），于是即便测试不产生台账行，这一行也能按对象找到：台账是读面的
      * 第一条路，这是第二条。
      */
     @Override
@@ -183,7 +192,11 @@ public class Ai1McpServiceImpl implements Ai1McpService {
         // must not turn into the endpoint's answer.
         // 以下全是旁路：存坏的配置或连不上的审计表，都不能变成端点给出的答案。
         try {
-            String detail = "mcp test id=" + mcp.getId()
+            // The first words carry what the action word cannot: `analyze` is the contract's nearest
+            // existing word, so the row says here, in so many words, that this was a connectivity test.
+            // 开头这几个词负责动作词说不出来的东西：`analyze` 是契约里语义最近的既有词，于是这一行
+            // 在这里明说它是一次连通测试。
+            String detail = "mcp connectivity test id=" + mcp.getId()
                     + " name=" + mcp.getName()
                     + " transport=" + mcp.getTransport()
                     + " target=" + targetOf(mcp)
