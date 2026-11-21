@@ -81,3 +81,43 @@ SELECT 20903, u.id, r.id, 'keelbase', now(), 'keelbase', now(), 0, 1
    AND r.code = 'common' AND r.tenant_id = 1 AND r.deleted = 0
    AND NOT EXISTS (SELECT 1 FROM system_user_role ur
                     WHERE ur.user_id = u.id AND ur.role_id = r.id AND ur.deleted = 0);
+
+-- The second approver a walk has to name is a second person, so it is a second account. The N5 checklist
+-- used to create `auditapprover` by hand before each session (§3.2) with the placeholder `Audit Approver`;
+-- a demo deployment now seeds it, already carrying a person's name. It shares `admin`'s password hash and
+-- holds `super_admin`, so the decision row it writes is the one the six answers read back — and the cell
+-- names a person rather than a fixture label.
+--
+-- 走查要「具名第二批准人」——那是第二个人，所以是第二个账号。N5 预跑单原先每场手工建 `auditapprover`
+-- （§3.2），昵称是占位符 `Audit Approver`；演示部署现在直接种下，已带人名。它与 `admin` 共用口令哈希、同持
+-- `super_admin`，故它写下的那行裁决正是六问读回来的那一行 —— 那一格写的是人，不是夹具标签。
+INSERT INTO system_users (id, username, password, nickname, remark, dept_id, post_ids, email, mobile, sex,
+                          avatar, status, login_ip, login_date, creator, create_time, updater, update_time,
+                          deleted, tenant_id)
+SELECT 9901, 'auditapprover', password, '李静', '演示用第二批准人（N5 夹具）',
+       dept_id, post_ids, email, mobile, sex, avatar, status, login_ip, login_date,
+       'keelbase', now(), 'keelbase', now(), 0, tenant_id
+  FROM system_users
+ WHERE id = 1 AND deleted = 0
+   AND NOT EXISTS (SELECT 1 FROM system_users
+                    WHERE username = 'auditapprover' AND tenant_id = 1 AND deleted = 0);
+
+INSERT INTO system_user_role (id, user_id, role_id, creator, create_time, updater, update_time, deleted, tenant_id)
+SELECT 99901, u.id, r.id, 'keelbase', now(), 'keelbase', now(), 0, 1
+  FROM system_users u, system_role r
+ WHERE u.username = 'auditapprover' AND u.tenant_id = 1 AND u.deleted = 0
+   AND r.code = 'super_admin' AND r.tenant_id = 1 AND r.deleted = 0
+   AND NOT EXISTS (SELECT 1 FROM system_user_role ur
+                    WHERE ur.user_id = u.id AND ur.role_id = r.id AND ur.deleted = 0);
+
+-- An account the checklist created by hand already exists on some deployments under the placeholder name.
+-- Renaming it keeps those deployments on the same footing as a fresh seed.
+-- 有些部署上，预跑单手工建的这个账号已带着占位名存在。把它改过来，让这些部署与新种子站在同一条线上。
+UPDATE system_users
+   SET nickname = '李静',
+       updater = 'keelbase',
+       update_time = now()
+ WHERE username = 'auditapprover'
+   AND tenant_id = 1
+   AND deleted = 0
+   AND nickname = 'Audit Approver';
