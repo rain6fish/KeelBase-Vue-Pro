@@ -55,6 +55,8 @@ const MESSAGES = {
   'keelbase.sixQ.result': 'What came of it',
   'keelbase.sixQ.account': 'account',
   'keelbase.sixQ.someone': 'Someone',
+  'keelbase.sixQ.whoUnrecorded': 'not recorded — this row names no caller',
+  'keelbase.sixQ.whoUnnamed': 'name not recorded',
   'keelbase.sixQ.confirmNotNeeded': 'No confirmation needed — this tool is set to run on its own',
   'keelbase.sixQ.confirmSelf': 'confirmed it themselves (in-band; client not recorded)',
   'keelbase.sixQ.confirmWaiting': 'has not answered yet — the write is still waiting',
@@ -199,6 +201,40 @@ test('the eighteen cells come to at least fifteen', () => {
   const cells = OPERATIONS.map((op) => six.scoreSix(answersFor(op)).cells)
   const total = cells.reduce((a, b) => a + b, 0)
   assert.ok(total >= 15, `total ${total} of 18 (${cells.join(' + ')})`)
+})
+
+test('the who cell names a person and keeps the account, and never prints a bare id as the name', () => {
+  // N6（2026-11-21）：同一操作在对象、时间、谁三处要能直接对上。「谁」这一格答名字 + 账号；宿主配不出
+  // 名字时明写「姓名未记录」并保留账号；两样都没有时明写「未记录」—— 不拿一串数字冒充名字，也不画破折号。
+  //
+  // N6 (2026-11-21): one operation has to read the same at the object, the time and the person. This cell
+  // answers a name plus its account; when the host cannot name the id it says the name was not recorded
+  // and keeps the account; with neither it says so outright — a bare number never stands in for a name,
+  // and no dash is drawn.
+  const base = {
+    row: { ...OPERATIONS[0].row, userId: '1' },
+    effect: null,
+    hostNowName: '',
+    recordState: '',
+    mask,
+    resultWord: 'Executed',
+    resultMeaning: 'It really happened; the write is in the system',
+    t,
+    te,
+  }
+  const whoOf = (extra) => six.composeSix({ ...base, ...extra }).find((a) => a.key === 'who')
+
+  const named = whoOf({ callerName: 'KeelBase' })
+  assert.equal(named.text, 'KeelBase（account #1）')
+  assert.equal(named.answered, true)
+
+  const unnamed = whoOf({ callerName: '' })
+  assert.equal(unnamed.text, 'name not recorded（account #1）', `got "${unnamed.text}"`)
+  assert.equal(unnamed.answered, true, 'an account still answers "who", even without a name')
+
+  const noCaller = whoOf({ callerName: '', row: { ...base.row, userId: null } })
+  assert.equal(noCaller.text, MESSAGES['keelbase.sixQ.whoUnrecorded'])
+  assert.equal(noCaller.answered, false)
 })
 
 test('the auto-allowed write says 「无需确认」 out loud', () => {

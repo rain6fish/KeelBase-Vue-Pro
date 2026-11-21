@@ -287,7 +287,13 @@ test('an approval row takes its approver from the decision row, never from the i
     'the page does not import the approver matcher')
   assert.match(script, /const approver = approverOf\(row, viewRows\.value\)/,
     'the page does not pair the decision row from the audit rows it holds')
-  assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? String\(approver\.userId\) : ''/,
+  // N6（2026-11-21）：配到的裁决人若宿主给不出名字，交进去的是**空**，第六问于是说「没有记下批准人」，
+  // 而不是把一串数字当成名字。裸 id 冒充人名，正是「谁」这一处对不上账的来源之一。
+  //
+  // N6 (2026-11-21): when the host cannot name the paired decider, an **empty** answer is handed in, so
+  // the fifth question says it did not record the approver instead of passing an id off as a name. A bare
+  // id standing in for a person is one of the ways the "who" cell failed to line up.
+  assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? '' : ''/,
     'the paired approver is not resolved to a name (or the empty answer is not explicit)')
   assert.match(script, /composeSix\(\{[\s\S]*?\bapproverName:/, 'the six answers no longer receive the approver')
   assert.doesNotMatch(script, /approverOf\(row, inventory/, 'the approver is being answered from the inventory')

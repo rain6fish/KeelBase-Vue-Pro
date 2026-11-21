@@ -110,6 +110,11 @@ renders**, so the file cannot drift from the screen. A missing answer is exporte
 (`—`, `not recorded — this call wrote no record`, `a second person approved it — this row does not
 record who`) and **never as a blank** — a blank cell in an exported table reads as "nothing happened".
 
+**A moment has one shape.** On screen and in the file it is written `YYYY-MM-DD HH:mm:ss UTC+08:00`:
+local time with the zone's offset spelled out (whichever zone the machine is in). The audit chain's
+cell used to carry an offset while the other pages did not, so one instant could be read as two clock
+faces side by side; both now render through the same formatter, and the offset-less shape is gone.
+
 Escaping is RFC 4180: a field with a comma, a quote, CR or LF is quoted and its quotes doubled; line
 endings are CRLF. The download carries a UTF-8 BOM so Excel does not turn the Chinese columns into
 mojibake.

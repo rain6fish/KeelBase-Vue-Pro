@@ -442,6 +442,21 @@ export function objectLine({ effect, proposal, recorded, hostNowName, proposalNa
 }
 
 /**
+ * ① who — a readable name together with the account it belongs to. An id the host could not name is
+ * never printed as if it were the name: the cell says the name was not recorded and keeps the account,
+ * and a row with neither says so outright instead of a bare `—`.
+ *
+ * ① 谁 —— 可读的名字，以及它对应的账号。宿主配不出名字时不拿裸 id 顶名字：这一格明写「姓名未记录」
+ * 并保留账号；两样都没有的行直接说「未记录」，而不是一个裸 `—`。
+ */
+export function whoLine({ callerName, callerId, t }) {
+  const account = callerId ? `${t('keelbase.sixQ.account')} #${callerId}` : ''
+  if (callerName) return { text: account ? `${callerName}（${account}）` : callerName, answered: true }
+  if (account) return { text: `${t('keelbase.sixQ.whoUnnamed')}（${account}）`, answered: true }
+  return { text: t('keelbase.sixQ.whoUnrecorded'), answered: false }
+}
+
+/**
  * 六行，一次答全。`answered` 只标「这一格有答案」，不标「答案是好消息」—— 第六问「结果」永远有答案，
  * 哪怕那个答案是「被拒了」。
  *
@@ -457,9 +472,10 @@ export function objectLine({ effect, proposal, recorded, hostNowName, proposalNa
  * The **person** on the second-person tier may be handed in (`approverName`) — a person is not a gate, and
  * it can only come from this operation's own evidence chain (see `approverOf`).
  */
-export function composeSix({ row, callerName, effect, proposal, recorded, hostNowName, proposalName, approverName, recordState, mask, resultWord, resultMeaning, t, te }) {
+export function composeSix({ row, callerName, callerId, effect, proposal, recorded, hostNowName, proposalName, approverName, recordState, mask, resultWord, resultMeaning, t, te }) {
   const object = objectLine({ effect, proposal, recorded, hostNowName, proposalName, state: recordState, mask, t, te })
   const change = changeLine({ effect, hostNowName, mask, t, te })
+  const who = whoLine({ callerName, callerId: callerId ?? row?.userId, t })
   const confirmation = confirmationLine({
     gate: gateFromRow(row),
     action: row?.action,
@@ -469,7 +485,7 @@ export function composeSix({ row, callerName, effect, proposal, recorded, hostNo
     t,
   })
   return [
-    { key: 'who', label: 'who', text: callerName ? `${callerName}${row?.userId ? `（${t('keelbase.sixQ.account')} #${row.userId}）` : ''}` : t('keelbase.sixQ.someone'), answered: Boolean(callerName) },
+    { key: 'who', label: 'who', text: who.text, answered: who.answered },
     { key: 'when', label: 'when', text: zonedTime(row?.createdAt), answered: Boolean(row?.createdAt) },
     { key: 'object', label: 'object', text: object.text, answered: object.answered },
     { key: 'change', label: 'change', text: change.text, answered: change.answered },
