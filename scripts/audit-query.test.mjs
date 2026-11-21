@@ -139,7 +139,7 @@ test('a connect test takes its object from the typed key at the end of its row',
   // is a borrowed interim one (the contract has no word for the act yet); this reader does not look at it.
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
-    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 name=x result=ok · object MCP connection #12',
   }
   assert.deepEqual(recordedTypedObject(row), { resultType: 'ai1_mcp', resultId: 12 })
   assert.deepEqual(q.objectRefOf(row, { resultTypeOf }), { resultType: 'ai1_mcp', resultId: 12 })
@@ -170,7 +170,7 @@ test('the console reads the typed key exactly the way the runtime endpoint does'
 test('the typed key picks the row when the ledger has nothing for that object', () => {
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
-    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 name=x result=ok · object MCP connection #12',
   }
   const picked = q.selectRows([row], {
     object: { resultType: 'ai1_mcp', resultId: '12' },
@@ -184,7 +184,7 @@ test('the typed key picks the row when the ledger has nothing for that object', 
 test('the typed key does not answer a search for another kind', () => {
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
-    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 name=x result=ok · object MCP connection #12',
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 name=x result=ok · object MCP connection #12',
   }
   assert.deepEqual(
     q.selectRows([row], {
@@ -222,7 +222,7 @@ test('a key that spells the table name is not an object, and would refuse the ex
   // reach a cell, the export's guard still stands.
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null,
-    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp test id=12 result=ok · object ai1_mcp#12',
+    createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 result=ok · object ai1_mcp#12',
   }
   assert.equal(recordedTypedObject(row), null)
   assert.equal(q.objectRefOf(row, { resultTypeOf }), null)
