@@ -667,9 +667,23 @@ const LEDGER_PAGE = 100
 const LEDGER_PAGES = 3
 const PROPOSAL_LIMIT = 100
 
+/** The name the host answered for this id, or an empty string when it answered none. */
+/** 宿主为这个 id 配到的名字；没有配到时回空串。 */
+function resolvedName(id: string | null | undefined): string {
+  return id ? (names.value[String(id)] ?? '') : ''
+}
+
+/**
+ * The "who" cell: a readable name, then the account. An id the host could not name is never printed as
+ * the name — the cell says the name was not recorded and leaves the account to its own line. A row with
+ * no id at all says so, rather than drawing a dash that reads as a broken value.
+ *
+ * 「谁」这一格：可读的名字，然后是账号。宿主配不出名字时不把 id 当名字印 —— 这一格明写「姓名未记录」，
+ * 账号留给它自己那一行。连 id 都没有的行直接说出来，而不是画一个读起来像坏值的破折号。
+ */
 function callerName(id: string | null | undefined): string {
-  if (!id) return '—'
-  return names.value[String(id)] ?? String(id)
+  if (!id) return t('keelbase.audit.userUnrecorded')
+  return resolvedName(id) || t('keelbase.audit.userUnnamed')
 }
 
 /**
@@ -964,11 +978,16 @@ function sixOf(row: AuditRow) {
   const approver = approverOf(row, viewRows.value)
   return composeSix({
     row,
-    callerName: row.userId ? callerName(row.userId) : '',
+    // The **name**, not the display fallback: an unnamed id must reach the six-question cell as "name
+    // not recorded", never as a bare number standing in for a person.
+    // 交进去的是**名字**、不是展示回落：配不出名字的 id 到六问那一格时必须是「姓名未记录」，不能让
+    // 一串数字冒充一个人。
+    callerName: resolvedName(row.userId),
+    callerId: row.userId ? String(row.userId) : '',
     effect: e,
     proposal,
     recorded,
-    approverName: approver ? names.value[String(approver.userId)] ?? String(approver.userId) : '',
+    approverName: approver ? names.value[String(approver.userId)] ?? '' : '',
     hostNowName: hostNowNameOf(e),
     proposalName: proposalNameOf(proposal),
     recordState: e ? recordState(e) : '',

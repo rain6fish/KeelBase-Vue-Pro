@@ -534,9 +534,13 @@ const governedError = ref('')
 const trailsLoading = ref(false)
 const callerNames = ref<Record<string, string>>({})
 
+// Same reading as the other two trails: a name the host answered, or an explicit "name not recorded" —
+// never a bare id standing in for a person and never a dash.
+//
+// 与另外两条留痕同一个读法：宿主答出的名字，或明写「姓名未记录」—— 不拿裸 id 冒充人名，也不画破折号。
 const callerName = (id: number | string | null | undefined) => {
-  if (id === null || id === undefined || id === '') return '—'
-  return callerNames.value[String(id)] ?? String(id)
+  if (id === null || id === undefined || id === '') return t('keelbase.audit.userUnrecorded')
+  return callerNames.value[String(id)] || t('keelbase.audit.userUnnamed')
 }
 
 const subjectText = (row: BypassRow) => [row.module, row.object].filter(Boolean).join(' / ') || '—'

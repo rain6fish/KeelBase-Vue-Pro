@@ -149,24 +149,21 @@ const error = ref('')
 /** 屏幕上那些 id 的调用方姓名，在行落地之后补上。 */
 const names = ref<Record<string, string>>({})
 
-function callerName(id: number | null | undefined): string {
-  if (!id) return '—'
-  return names.value[String(id)] ?? String(id)
-}
-
 /**
- * The caller as this row states it. A numeric id goes through the host's directory exactly as before;
- * when there is none but the runtime kept the identity string in `username`, that string is the answer
- * — it is what the row actually says, so it is shown as it is, with no id invented beside it. Only a
- * row with neither falls back to the dash.
+ * The caller as this row states it. A numeric id goes through the host's directory; an id the host
+ * cannot name says the name was not recorded, with the account drawn by the template on its own line.
+ * When there is no id but the runtime kept the identity string in `username`, that string is the
+ * answer — it is what the row actually says, so it is shown as it is, with no id invented beside it.
+ * Only a row with neither says it recorded no caller, instead of a dash that reads as a broken value.
  *
- * 这一行**自己说的**调用方。数字 id 照旧经宿主名录配名；没有数字 id、而运行时把身份字符串留在了
- * `username` 里时，那个字符串就是答案——它正是这一行**实际说出来的东西**，故原样显示，不在旁边编一个
- * id。两样都没有的行才回落到破折号。
+ * 这一行**自己说的**调用方。数字 id 经宿主名录配名；配不出名字时明写「姓名未记录」，账号由模板单独
+ * 画在下一行。没有数字 id、而运行时把身份字符串留在了 `username` 里时，那个字符串就是答案——它正是这一行
+ * **实际说出来的东西**，故原样显示，不在旁边编一个 id。两样都没有的行说「没有记下调用方」，而不是画
+ * 一个读起来像坏值的破折号。
  */
 function whoText(row: OperationAuditRow): string {
-  if (row.userId) return callerName(row.userId)
-  return row.username || '—'
+  if (row.userId) return names.value[String(row.userId)] || t('keelbase.audit.userUnnamed')
+  return row.username || t('keelbase.audit.userUnrecorded')
 }
 
 function actionText(action: string | null | undefined): string {

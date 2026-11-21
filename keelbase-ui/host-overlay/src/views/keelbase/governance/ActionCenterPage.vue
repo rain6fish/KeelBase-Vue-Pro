@@ -51,12 +51,12 @@
           <div class="row-step">{{ stepLine(c) }}</div>
           <!--
             A human-readable summary is a field the runtime sends as null: it has no presentation
-            layer. The arguments are shown verbatim instead — they are what the call would carry,
-            which is the honest substitute for a sentence about them.
+            layer. The arguments are shown as one recorded line each — still exactly what the call
+            would carry, but read as business words rather than a bare JSON block at the moment a
+            person decides whether to approve it.
 
-            给人读的摘要是运行时**送 null** 的字段：它没有展示层。故改为原样显示参数——那是这次调用
-            真会带的东西，也是那句摘要的诚实替代品。上面那句话把这块是**什么**说清楚，好让一块裸 JSON
-            读起来是「这次调用会带的东西」，而不是一段没头没尾的文本。
+            给人读的摘要是运行时**送 null** 的字段：它没有展示层。故把参数按「记下一个、一行」摊开——
+            仍是这次调用真会带的东西，但在人决定批不批的这一刻，读起来是业务词，而不是一块裸 JSON。
           -->
           <div class="args-label">{{ t('keelbase.actionCenter.argsLabel') }}</div>
           <pre class="args">{{ formatArgs(c.arguments) }}</pre>
@@ -380,13 +380,14 @@ import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
+import { argsText } from '@/keelbase/argsText.mjs'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
 import { pairDecidedByApprover } from '@/keelbase/approverDecisions.mjs'
 import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
 
 defineOptions({ name: 'KeelbaseGovernanceActionCenter' })
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 /** The audit reader sees no write control (revoke, approve, decline); the server's verdict is unchanged. */
 /** 审计读者不出现写控件（撤销、批准、拒绝）；服务端裁决不变。 */
 const { canWrite } = useConsoleWriteAllowed()
@@ -560,12 +561,7 @@ const bizLoading = ref<Record<number, boolean>>({})
 const bizError = ref<Record<number, string>>({})
 
 function formatArgs(args: Record<string, unknown> | null): string {
-  if (!args || Object.keys(args).length === 0) return '—'
-  try {
-    return JSON.stringify(args, null, 2)
-  } catch {
-    return '—'
-  }
+  return argsText(args, { t, te })
 }
 
 /**

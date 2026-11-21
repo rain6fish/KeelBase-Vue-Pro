@@ -24,10 +24,19 @@
 // the left. A value dayjs cannot parse is shown as itself rather than replaced by a dash; only an empty one
 // is a dash.
 import dayjs from 'dayjs'
+import { zonedTime } from './sixQuestions.mjs'
 
+/**
+ * One shape for every moment on every page: the audit chain's own cell (`zonedTime`) and this helper
+ * used to differ — one wrote the offset, the other did not, so the same instant read as two clocks
+ * side by side. They now render through the same formatter, and the offset is always written out.
+ *
+ * 每一页、每一个时刻只剩一种形状：审计链自己那一格（`zonedTime`）与这个助手原先一处带偏移、一处不带，
+ * 同一个时刻并排读出两个钟面。现在两者走同一个格式化器，偏移量一律写出来。
+ */
 export function timeText(v: string | number | null | undefined): string {
   if (v === null || v === undefined || v === '') return '—'
   const at = dayjs(v)
-  if (at.isValid()) return at.format('YYYY-MM-DD HH:mm:ss')
+  if (at.isValid()) return zonedTime(at.toDate())
   return String(v).replace('T', ' ').slice(0, 19)
 }
