@@ -23,10 +23,10 @@
 #                        rather than a list, so a test added later is covered without editing this
 #                        workflow; the topical jobs still name their own files, because a failure
 #                        there should be read inside that job's question;
-#   commit-order         the commits a pull request adds keep the message order the house rule asks
-#                        for — English blocks ahead of Chinese ones, no `Co-Authored-By`; a body with
-#                        only one language is a warning rather than a red, so the job judges the
-#                        change instead of drowning in history;
+#   commit-order         the commits a pull request or a push adds keep the message order the house
+#                        rule asks for — English blocks ahead of Chinese ones, no `Co-Authored-By`; a
+#                        body with only one language is a warning rather than a red, so the job judges
+#                        the change instead of drowning in history;
 #   governance-boundary  no bean of ours hands a tool to Spring AI, which is the fact `D42`'s
 #                        boundary rests on and is one `@Bean` away from no longer being true;
 #   rendered-copy        every line of copy this layer's UI **renders** — locale messages through
@@ -101,9 +101,9 @@
 #   script-tests         本仓带的每个 `scripts/*.test.mjs` 都真的跑得起来 —— 用一条 glob 而不是一份清单，
 #                        故以后新加的测试不改这个 workflow 就已经在射程内；分题的 job 仍各自点名自己的
 #                        文件，因为那里的失败应当在**那道 job 的问题**里去读；
-#   commit-order         一个 pull request 新增的每一笔提交，其提交信息都保持本仓要求的顺序 —— 英文块在
-#                        中文块之前、不带 `Co-Authored-By`；只有一种语言的正文只警告、不判红，这道 job 因此
-#                        判的是这次改动，而不是淹没在历史里；
+#   commit-order         一个 pull request 或一次 push 新增的每一笔提交，其提交信息都保持本仓要求的顺序
+#                        —— 英文块在中文块之前、不带 `Co-Authored-By`；只有一种语言的正文只警告、不判红，这道
+#                        job 因此判的是这次改动，而不是淹没在历史里；
 #   governance-boundary  我们自己没有任何 bean 把工具交给 Spring AI —— `D42` 那条边界所倚的**事实**，
 #                        而它离「不再成立」只差一个 `@Bean`；
 #   rendered-copy        这一层界面**渲染出来**的每一行字——词条经 vue-i18n、模板文本经 Vue 自己的解析器、
@@ -277,27 +277,33 @@ jobs:
 
   # Commit messages are part of what this repository ships: a body that opens Chinese reads wrong in
   # every later review, and a `Co-Authored-By` trailer is banned outright. The checker judges only the
-  # commits a pull request adds, never the history behind them — read against the full history it
-  # reports 380 violations from before the rule settled, and a red nobody can clear is a red everyone
-  # ignores. A single-language body stays a warning; only `order`, `interleaved` and `co-authored-by`
-  # fail the step.
+  # commits this event adds, never the history behind them — read against the full history it reports
+  # 380 violations from before the rule settled, and a red nobody can clear is a red everyone ignores.
+  # A single-language body stays a warning; only `order`, `interleaved` and `co-authored-by` fail.
   #
-  # `origin/main` is the base it judges against, and actions/checkout does **not** create that ref on a
-  # `pull_request` — it fetches the pull request's merge ref only. The step before the gate points
-  # `origin/main` at the base the event names, so CI and `scripts/gates.mjs` run the *same* command
-  # spelling.
+  # A pull request **and** a direct push to `main` both run it, because this repository merges locally
+  # and pushes main as often as it opens a pull request. `origin/main` is the base it judges against,
+  # and actions/checkout creates no such ref on either event — it fetches that event's own ref only.
+  # One step points `origin/main` at the base each event names (the pull request's base, or the tip
+  # before the push), so CI and `scripts/gates.mjs` run the *same* command spelling.
   #
   # 提交信息也是本仓交付物的一部分：正文以中文开头，在之后的每一次评审里都读着不对；`Co-Authored-By`
-  # trailer 一律不许有。检查器只判一个 pull request 新增的提交，绝不判它背后的历史 —— 拿全史去跑，会报出
-  # 规则定稿前的 380 笔违规，而一道没人清得掉的红只会被所有人无视。单语正文仍是警告；判红的只有
-  # `order`、`interleaved` 与 `co-authored-by`。
+  # trailer 一律不许有。检查器只判这次事件新增的提交，绝不判它背后的历史 —— 拿全史去跑，会报出规则定稿前的
+  # 380 笔违规，而一道没人清得掉的红只会被所有人无视。单语正文仍是警告；判红的只有 `order`、
+  # `interleaved` 与 `co-authored-by`。
   #
-  # `origin/main` 是它判的基线，而 actions/checkout 在 `pull_request` 上**不会**创建这个引用 —— 它只拉
-  # 那个 PR 的合并引用。门禁前一步把 `origin/main` 指到事件给出的基线，于是 CI 与 `scripts/gates.mjs`
-  # 跑的是**同一个**命令写法。
+  # **pull request 与直推 main 都跑它**，因为本仓本地合并后直推 main 的次数不比开 PR 少。`origin/main`
+  # 是它判的基线，而 actions/checkout 在这两种事件上**都不会**创建这个引用 —— 它只拉那一次事件自己的引用。
+  # 一个 step 把 `origin/main` 指到事件给出的基线（PR 的基线，或 push 之前的那个尖端），于是 CI 与
+  # `scripts/gates.mjs` 跑的是**同一个**命令写法。
   commit-order:
     name: Commit messages keep the bilingual order
-    if: github.event_name == 'pull_request'
+    # A brand-new main has no "commits this push added" — the rule is not retroactive.
+    # 刚创建的 main 没有「这次 push 新增的提交」—— 规矩不追溯。
+    if: >-
+      github.event_name == 'pull_request'
+      || (github.event_name == 'push'
+      && github.event.before != '0000000000000000000000000000000000000000')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -309,7 +315,11 @@ jobs:
         with:
           node-version: '22'
       - name: Point origin/main at the pull request's base
+        if: github.event_name == 'pull_request'
         run: git update-ref refs/remotes/origin/main ${{ github.event.pull_request.base.sha }}
+      - name: Point origin/main at the push's previous tip
+        if: github.event_name == 'push'
+        run: git update-ref refs/remotes/origin/main ${{ github.event.before }}
       - name: Commit messages keep the bilingual order
         run: node scripts/check-commit-order.mjs --base origin/main
 
