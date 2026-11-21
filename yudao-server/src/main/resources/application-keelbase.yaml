@@ -29,11 +29,11 @@
 # 它是**我们自己的文件**、不是上游 `application.yaml` 里的一行，理由是本线赖以运行的那一条：上游的文件保持
 # 一字未动，部署自己的设置住在部署自己的文件里。`scripts/run-server.sh` 激活该 profile，别的什么都不必知道。
 #
-# 运行时 pin：`keelbase4j-core` 与 `keelbase4j-springai` 为 0.1.19。本宿主**消费** execution ↔ trace
+# 运行时 pin：`keelbase4j-core` 与 `keelbase4j-springai` 为 0.1.20。本宿主**消费** execution ↔ trace
 # 关联：`YudaoExecutionTraceFilter` 为每个请求起或复用 span 并设置运行时的 trace holder，ai1 跨 worker
 # 边界把 trace id 带过去。该关联由 `plan/yd-trace-link` 落地（并入 main 的提交 `0e76496651`）。
 #
-# Runtime pins: `keelbase4j-core` and `keelbase4j-springai` are 0.1.19. This host **consumes** the
+# Runtime pins: `keelbase4j-core` and `keelbase4j-springai` are 0.1.20. This host **consumes** the
 # execution ↔ trace link: `YudaoExecutionTraceFilter` starts or reuses a span per request and sets the
 # runtime's trace holder, and ai1 carries the trace id across the worker boundary. The link landed with
 # `plan/yd-trace-link` (merged into `main` as `0e76496651`).
