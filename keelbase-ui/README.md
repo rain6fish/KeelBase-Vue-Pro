@@ -275,7 +275,9 @@ Two other names are **not** labels and cannot be changed here. The **tenant name
 looks the tenant up by, and the seeded administrator's **nickname** is what the top bar and the
 greeting show. Both live in the database, and the login pre-fill has to agree with the tenant record
 or sign-in stops working. They move together, through `sql/keelbase-brand-names.sql` — run it against
-an existing database after upstream's seed; a fresh install runs upstream's seed and then it.
+an existing database after upstream's seed; a fresh install runs upstream's seed and then it. A demo
+deployment then gives that administrator a person's name (`sql/keelbase-demo-accounts.sql`): the six
+answers quote the approver back, and a brand name in that cell names nobody.
 
 Upstream's seed file is left untouched: it is upstream's, it is several thousand lines, and it is
 duplicated across dialects, so a rename belongs in a file that says what it changes rather than as

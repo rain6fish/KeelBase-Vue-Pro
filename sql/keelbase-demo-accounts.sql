@@ -46,6 +46,26 @@ UPDATE system_users
    AND deleted = 0
    AND password = '$2a$04$.vd8nPeLwxt6hnSzmAoAyul8BOLX7Cib6QhcxRe30rfvrIPQHH1OG';
 
+-- The approval the six answers quote has to name a person, and in the demo the one who approves another
+-- person's write is the administrator. `keelbase-brand-names.sql` sets that account's display name to the
+-- deployment's brand, so the top bar shows a product name and the decision cell reads it back as
+-- `KeelBase (account #1)` — a cell that names nobody. A demo deployment uses a person's name instead.
+-- Both old values are matched, so a fresh install (upstream's name) and an existing one (the brand) stay
+-- idempotent. A deployment that does not run this file keeps the brand name.
+--
+-- 六问里「谁确认」那一格抄的批准人必须是个人；演示里批准别人的那次写的就是管理员。`keelbase-brand-names.sql`
+-- 把这个账号的显示名换成了本部署的品牌名，于是顶栏显示的是产品名、那一格读回来是「KeelBase（账号 #1）」——
+-- 等于没答出是谁。演示库改用一个人名。两个旧值都匹配，故新装（上游名）与已有库（品牌名）都幂等；不跑本文件的
+-- 部署保留品牌名。
+UPDATE system_users
+   SET nickname = '周敏',
+       updater = 'keelbase',
+       update_time = now()
+ WHERE username = 'admin'
+   AND tenant_id = 1
+   AND deleted = 0
+   AND nickname IN ('芋道源码', 'KeelBase');
+
 INSERT INTO system_users (id, username, password, nickname, remark, dept_id, post_ids, email, mobile, sex,
                           avatar, status, login_ip, login_date, creator, create_time, updater, update_time,
                           deleted, tenant_id)
