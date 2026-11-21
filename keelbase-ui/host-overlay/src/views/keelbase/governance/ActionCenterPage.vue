@@ -313,14 +313,18 @@
       <el-table-column :label="t('keelbase.effects.colTool')" width="220">
         <template #default="{ row }">{{ toolText(row.toolName) }}</template>
       </el-table-column>
-      <!-- 谁发起的这次写：运行时答 `userId`；宿主名录认得出时把它译成名字（口径见 `callerNames.ts`），
-           认不出就原样显示 id。 -->
-      <!-- Who caused the write: the runtime answers `userId`; the host's directory turns it into a name
-           when it knows one (the rule `callerNames.ts` states), and otherwise the id stands as it is. -->
+      <!-- Who caused the write: the row's own `userId` when it carries one; a read-only reader's rows do
+           not (`JV-63 B5 ②`), so the initiator comes from the `tool_call` audit row of the same
+           `executionId` (see `effectCallers.mjs`). With neither, the cell says "not recorded" rather than
+           drawing a dash or a bare id. Names are still resolved by the host's directory
+           (`callerNames.ts`). -->
+      <!-- 谁发起的这次写：行上带 `userId` 时用它自己记的；只读读者的行不带（`JV-63 B5 ②`），故按同一
+           `executionId` 的 `tool_call` 审计行取发起人（见 `effectCallers.mjs`）。两处都没有时这一格写
+           「未记录」，不拿破折号或裸编号冒充。名字仍由宿主名录译（口径见 `callerNames.ts`）。 -->
       <el-table-column :label="t('keelbase.effects.colWho')" width="170">
         <template #default="{ row }">
-          <div>{{ callerName(row.userId) }}</div>
-          <div v-if="row.userId" class="muted">#{{ row.userId }}</div>
+          <div>{{ callerName(callerOf(row)) }}</div>
+          <div v-if="callerOf(row)" class="muted">#{{ callerOf(row) }}</div>
         </template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colTarget')" width="240">
@@ -387,6 +391,13 @@ import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
 import { argsText } from '@/keelbase/argsText.mjs'
+import {
+  EFFECT_AUDIT_LIMIT,
+  EFFECT_AUDIT_MAX_PAGES,
+  auditWindowForEffects,
+  joinEffectCallers,
+  needsCallerJoin,
+} from '@/keelbase/effectCallers.mjs'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
 import { pairDecidedByApprover } from '@/keelbase/approverDecisions.mjs'
 import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
@@ -487,6 +498,22 @@ function callerName(id: string | null | undefined): string {
   return names.value[String(id)] || t('keelbase.audit.userUnnamed')
 }
 
+/**
+ * The initiator id of one row: its own `userId` when it carries one (a manager's or a caller's own view);
+ * a read-only reader's rows do not, so it comes from the `tool_call` audit row of the same `executionId`
+ * (`effectCallers.mjs`). A failed audit read, a window that hit its scan bound before reaching the row, or
+ * an execution naming more than one person leaves the row **unmapped** — the cell says "not recorded",
+ * the same reading as before, instead of guessing.
+ *
+ * 这一行的发起人 id：行上带着 `userId` 的（管理员、本人视图）用它自己记的；只读读者的行不带，故取审计里
+ * 同一个 `executionId` 的 `tool_call` 行（`effectCallers.mjs`）。审计读失败、扫到上界仍没覆盖到，或同一执行
+ * 报出不止一个人时，这一行**没有**映射 —— 格子写「未记录」，保持原先的读法而不猜。
+ */
+function callerOf(row: EffectRow): string | null {
+  if (row.userId) return String(row.userId)
+  return effectCallers.value[String(row.id)] ?? null
+}
+
 /** Whether the record this write landed on is still there — read off the row, never re-derived. */
 /** 这次写落在的那条记录**还在不在** —— 按行读，绝不自己重算。 */
 function stateText(row: EffectRow): string {
@@ -560,6 +587,15 @@ const effects = ref<EffectRow[]>([])
 /** 名录给发起人配好的名字，按 id 索引；取不到时列回落成 id 本身。 */
 /** Names the directory holds for the callers, keyed by id; the column falls back to the id. */
 const names = ref<Record<string, string>>({})
+/**
+ * Ledger row id → the initiator id paired from the audit. A read-only reader's rows carry no `userId`, and
+ * this is where the "who" cell gets one (the rule is `callerOf`'s). Rows whose audit row could not be read
+ * are absent.
+ *
+ * 台账行 id → 从审计里配出来的发起人 id。只读读者的行不带 `userId`，这一份就是「谁」那一格的来源
+ * （口径见 `callerOf`）。取不到审计行的行不在这里。
+ */
+const effectCallers = ref<Record<string, string>>({})
 /**
  * 宿主给这一行**落在哪条记录**配好的名字（已掩码），按 `类型#主键` 索引。口径与写入台账页同一份：
  * 运行时的 `targetTitle` 对客户这类记录是 **null**（2026-11-04 真栈实测）。
@@ -880,6 +916,37 @@ async function loadPending() {
   void loadApprovals()
 }
 
+/**
+ * Read the audit rows that cover this page of the ledger and pair each row's initiator by `executionId`.
+ * A read-only reader's half has to take this road (see `effectCallers.mjs`). A failed read does not take
+ * the ledger down: the page still draws, and an unpaired row says "not recorded"; hitting the scan bound
+ * degrades the same way, as `callerOf`'s comment states.
+ *
+ * 读审计里这一页台账行对应的那些行，按 `executionId` 配上发起人。只读读者那一半必须走这条路（见
+ * `effectCallers.mjs`）。读失败不拖垮台账：这一页照画，配不上的行「谁」写「未记录」；读满上界也照这个
+ * 口径降级，并在 `callerOf` 的注释里说明。
+ */
+async function loadEffectCallers(rows: EffectRow[]): Promise<Record<string, string>> {
+  if (!rows.some(needsCallerJoin)) return {}
+  const window = auditWindowForEffects(rows)
+  if (!window) return {}
+  const auditRows: AuditRow[] = []
+  try {
+    for (let page = 0; page < EFFECT_AUDIT_MAX_PAGES; page += 1) {
+      const chunk = await auditApi.logs({
+        ...window,
+        limit: EFFECT_AUDIT_LIMIT,
+        offset: page * EFFECT_AUDIT_LIMIT,
+      })
+      auditRows.push(...chunk)
+      if (chunk.length < EFFECT_AUDIT_LIMIT) break
+    }
+  } catch {
+    return {}
+  }
+  return joinEffectCallers(rows, auditRows)
+}
+
 async function loadEffects() {
   effectsLoading.value = true
   effectsError.value = ''
@@ -887,7 +954,16 @@ async function loadEffects() {
     const res = await effectApi.list(page.value, limit.value)
     effects.value = res.items
     total.value = res.total
-    names.value = { ...names.value, ...(await resolveCallerNames(res.items.map((r) => r.userId))) }
+    // A read-only reader's rows carry no `userId`, so the directory is asked for the paired ids too.
+    // 只读读者的行不带 `userId`，故名字要连同审计里配出来的那些 id 一起问名录。
+    effectCallers.value = await loadEffectCallers(res.items)
+    names.value = {
+      ...names.value,
+      ...(await resolveCallerNames([
+        ...res.items.map((r) => r.userId),
+        ...Object.values(effectCallers.value),
+      ])),
+    }
     targetNames.value = {
       ...targetNames.value,
       ...Object.fromEntries(await resolveRecordNames(res.items.map((r) => ({ type: r.resultType, id: r.resultId })))),

@@ -209,7 +209,7 @@ index 9d14564..eff8173 100644
 +      maskedNote: '(record name masked)',
 +      maskedNoteHostLog: '(record name masked; the host log below is shown under the host\'s read permission)',
 +      writesHint:
-+        'Reading this table: “Who” is the caller recorded on that row itself — a dash means the row records nobody, not that a name failed to load, and the console does not borrow one from another trail. In the host log below, a caller is named through the same narrow directory the audit chain reads, so the same person reads the same on both pages; the id under the name is that host’s own user id. A target is masked after its first character: a record’s own text is personal data.',
++        'Reading this table: “Who” is the caller of that write — the row’s own record when it carries one; for a read-only view whose rows withhold the caller id, the caller is read from the audit row of the same execution (the two share its id). “Not recorded” means neither record names one, and the console never borrows a name from a different operation. In the host log below, a caller is named through the same narrow directory the audit chain reads, so the same person reads the same on both pages; the id under the name is that host’s own user id. A target is masked after its first character: a record’s own text is personal data.',
 +      targetUnnamed: 'name not registered',
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
@@ -1029,7 +1029,7 @@ index 13065de..23b6e1f 100644
 +      maskedNote: '（记录名已掩码）',
 +      maskedNoteHostLog: '（记录名已掩码；下方宿主业务日志按宿主的读权限显示）',
 +      writesHint:
-+        '读这张表：「谁」是那一行自己记下的调用方 —— 一个破折号表示这一行没有记下谁，不是名字没取到，控制台也不会从别的轨上借一个名字。下方宿主日志里的调用方，与审计链走同一条窄读面配名，故同一个人在两页上写法一致；名字下面那个编号是宿主自己的用户编号。目标名称只留首字符、其余换成星号 —— 一条记录自己的文字属于个人数据。',
++        '读这张表：「谁」是这次写的发起人 —— 行上记着时用它自己记的；只读视图的行不带调用方编号时，取同一次执行（两处共有的执行编号）的审计行。「未记录」表示两处都没有记，控制台不会从另一次操作上借一个名字。下方宿主日志里的调用方，与审计链走同一条窄读面配名，故同一个人在两页上写法一致；名字下面那个编号是宿主自己的用户编号。目标名称只留首字符、其余换成星号 —— 一条记录自己的文字属于个人数据。',
 +      targetUnnamed: '未登记名称',
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
