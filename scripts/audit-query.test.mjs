@@ -579,3 +579,25 @@ test('the page exports the same six answers it renders, through the query module
   assert.match(page, /objectRefOf\(row,/, 'the page does not export with the same object resolution as the query')
   assert.doesNotMatch(page, /csvText\([^)]*resultType/, 'a raw result type reached the CSV')
 })
+
+test('the verification note is metadata: one line before the header, and it never counts as a row', () => {
+  // 表头之前那行 `#` 说明是**元数据、不是数据行**（RFC 4180 没有注释行，故下游按纯数据解析时看到的是一条
+  // 只有一个格子的行 —— 它不会被误读成某次操作）。核对 CSV 用它承载「这一行不按租户归属」（丙）。
+  //
+  // The `#` line before the header is **metadata, not a data row** (RFC 4180 has no comment lines, so a
+  // strict data parser sees a one-cell row — it cannot be mistaken for an operation). The verification
+  // CSV uses it to carry "this row is not attributed to a tenant" (丙).
+  const answers = answersOf(['KeelBase', '2026-11-11 12:11:46 UTC+08:00', 'Customer · #2', '—', '—', 'Executed'])
+  const rows = [{ id: 31, answers, checks: 'passed Risk level' }]
+  const note =
+    'Related, not linked. Tenant is not attributed: no row in this file carries a tenant, and the six questions do not ask for one.'
+  const lines = q.checkCsvText(rows, CHECK_LABELS, note).trimEnd().split('\r\n')
+  assert.equal(lines.length, 3, 'one note line, one header and one data row')
+  assert.ok(lines[0].startsWith('# '), 'the note is not marked as metadata')
+  assert.ok(lines[0].includes('Tenant is not attributed'), 'the note lost the tenant statement')
+  assert.deepEqual(lines[1].split(','), CHECK_LABELS, 'the header no longer follows the note')
+  assert.equal(lines[2].split(',')[0], '#31', 'the data row no longer follows the header')
+  // 不给说明时仍是「表头 + 数据行」：说明只在被给的时候出现，从不自己长出来。
+  // With no note it is still header + data rows: the line appears only when one is given.
+  assert.equal(q.checkCsvText(rows, CHECK_LABELS).trimEnd().split('\r\n').length, 2)
+})

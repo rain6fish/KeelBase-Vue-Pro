@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,812 @@
+@@ -1,4 +1,816 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -91,6 +91,10 @@ index 9d14564..3382e27 100644
 +      exportNote: 'Related, not linked: each row\'s business key plus its time pairs this line with the same operation in the host\'s own operation log; the two trails share no id, and that log words the act differently.',
 +      readFaceUnfiltered:
 +        'The runtime’s audit read face did not apply this search’s object or end — an application produced by the generator ignores parameters it does not know. The rows above are this page’s own narrowing, and both exports carry the same set; query /audit/logs directly for the read face’s own answer.',
++      tenantHint:
++        'No row here is attributed to a tenant, and tenant is not something this page can filter: the six questions do not ask for it and an audit row carries no tenant field. A connectivity test names its MCP connection at the end of its sentence but does not say which tenant that connection belongs to. The audit read face takes no tenant filter either — a query that adds one is ignored or refused, never narrowed.',
++      exportTenantNote:
++        'Tenant is not attributed: no row in this file carries a tenant, and the six questions do not ask for one.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -819,7 +823,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,804 @@
+@@ -1,4 +1,808 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -908,6 +912,10 @@ index 13065de..f476283 100644
 +      exportNote: '相关、非硬链接：每一行的业务主键与时间，可把它与宿主自己的操作日志里的同一次操作对上；两条轨之间没有共享编号，那张日志对动作的叫法也不同。',
 +      readFaceUnfiltered:
 +        '运行时的审计读面没有施加这次检索的对象或终点筛选（生成器产出的应用会忽略它不认识的参数）。上面的行由本页自己挑出，两份导出沿用同一份命中；要以读面自己的答复为准，请直接查询 /audit/logs。',
++      tenantHint:
++        '这一页的行不按租户归属，租户也不是本页能筛的东西：六问不问租户，审计行上也没有租户字段。一次连通测试会在句末点名它的 MCP 连接，但没有说那条连接属于哪个租户。审计读面同样不收租户筛选 —— 带上它，要么被忽略、要么被拒绝，都不会收窄。',
++      exportTenantNote:
++        '不按租户归属：这份文件里的行没有一行带租户，六问也不问租户。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',

@@ -239,6 +239,20 @@
     <div v-if="displayRows.length" class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
       {{ t('keelbase.audit.rowsHint') }}
     </div>
+    <!--
+      Tenant is not a dimension of these rows: the six questions do not ask for it, an audit row carries
+      no tenant field, and an MCP connectivity test names its connection at the end of its sentence
+      without saying which tenant that connection belongs to. The read face takes no tenant filter
+      either, so a direct query that adds one narrows nothing — said here so a reader does not take the
+      chain for one tenant's trail.
+
+      租户不是这些行的维度：六问不问租户，审计行上也没有租户字段，而一次 MCP 连通测试在句末点了名自己的
+      连接、却没说那条连接属于哪个租户。读面同样不收租户筛选，故直接带租户去查不会收窄 —— 这句话摆在这里，
+      读者才不会把这条链当成某个租户的轨迹。
+    -->
+    <div v-if="displayRows.length" class="mb-10px text-12px text-[var(--el-text-color-secondary)]">
+      {{ t('keelbase.audit.tenantHint') }}
+    </div>
     <el-table
       v-loading="rowsLoading"
       :data="displayRows"
@@ -1418,7 +1432,14 @@ async function exportCheck() {
       effects.value = prior.effects
       proposals.value = prior.proposals
     }
-    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')))
+    // The note before the header gains one more sentence: the six columns both exports share ask
+    // nothing about a tenant, and no row in the file carries one. It is metadata, not a data row — the
+    // file is still one line per operation.
+    //
+    // 表头前那行说明再加一句：两份导出共用的六列都不问租户，文件里也没有哪一行带着租户。它是**元数据**、
+    // 不是数据行 —— 文件仍是一行一次操作。
+    const exportNotes = [t('keelbase.audit.exportNote'), t('keelbase.audit.exportTenantNote')].join(' ')
+    downloadCsv(checkCsvFilename(), checkCsvText(entryRows, labels, exportNotes))
   } catch (e) {
     exportError.value =
       e instanceof CsvLeak
