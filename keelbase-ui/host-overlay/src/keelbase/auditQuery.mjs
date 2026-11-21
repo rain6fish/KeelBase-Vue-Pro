@@ -253,6 +253,29 @@ export function displayRowsOf({ queryRan, queryRows, rows }) {
 }
 
 /**
+ * 表格空态该说哪一句话，按这次检索的**三种结局**分开：没跑过（无空态）· 请求失败（没有完成）· 跑完了。
+ * 跑完的那一档再分两层 —— 触到扫描上限时说「上限内没有命中，命中可能在上限之外」，只有真的在上限内扫完
+ * 且一行没有时才说「没有命中任何行」。一句「没有命中」会把「没读到」读成「没有这件事」，而这正是本页在
+ * 别处反复要防的读法。
+ *
+ * 返回的是词条**键**，由页面交给 `t()`：这一层不碰 i18n，故三种结局可以当测试直接跑。
+ *
+ * Which sentence the table's empty state says, by this search's **three endings**: it never ran (no empty
+ * text), the request failed (it did not finish), and it finished. The finished one splits again — with the
+ * scan bound hit it says "nothing matched within the bound, a match may sit outside it", and only a scan
+ * that really finished inside the bound with no row says "no row matched". A bare "nothing matched" turns
+ * "not read" into "nothing happened", exactly the reading this page guards against elsewhere.
+ *
+ * It returns the message **key**, which the page hands to `t()`: this layer touches no i18n, so the three
+ * endings can be run as a test.
+ */
+export function emptyTextKey({ queryFailed, queryRan, queryScanBound }) {
+  if (!queryRan) return undefined
+  if (queryFailed) return 'keelbase.audit.queryFailed'
+  return queryScanBound ? 'keelbase.audit.queryEmptyAtBound' : 'keelbase.audit.queryEmpty'
+}
+
+/**
  * 导出的**整个文件**都不许带内部名。命中时抛出的错只说**是哪一问**，不把那串内部名回显出去 ——
  * 否则拒绝导出这件事本身，就把内部名印到了屏幕上。
  *
@@ -404,4 +427,30 @@ export function checkCsvFilename(at = new Date()) {
     `${at.getFullYear()}${pad(at.getMonth() + 1)}${pad(at.getDate())}` +
     `-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`
   return `audit-check-${stamp}.csv`
+}
+
+/**
+ * 给一份导出的正文加上「已扫到上限」的声明：给了 `note` 就在**表头之前**插一行 `# …`，与核对 CSV 自己
+ * 那条说明同一形状；`note` 为空时正文**一个字都不动**。一份没有声明的文件会被读成「全部命中」，而这
+ * 1000 行只是控制台扫到的上限内那一段 —— 声明必须跟着文件走，不能只留在发出它的那个页面上。
+ *
+ * 插入点与核对 CSV 的说明同一处：它在表头之前，故读者一打开文件就先看到；放在末尾，读的人往往已经先
+ * 信了那些数字。这一行是**元数据、不是数据行**：六列 / 八列的判据只数数据行，`#` 记号让严格的数据解析器
+ * 看见一条单格行，不会被误读成某一次操作。
+ *
+ * Adds the "the scan hit its bound" statement to an export's body: when `note` is given, one `# …` line is
+ * put **before the header**, the same shape as the verification CSV's own note; when `note` is empty the
+ * body is returned **unchanged**. A file without the statement is read as "everything that matched", while
+ * those 1000 rows are only the slice the console's scan reached — the statement has to travel with the file,
+ * not stay on the page that wrote it.
+ *
+ * It goes where the verification CSV's note already goes: before the header, so a reader sees it first —
+ * at the end, they have usually trusted the numbers already. The line is **metadata, not a data row**: the
+ * six/eight-column criterion counts data rows only, and the `#` marker lets a strict data parser see a
+ * one-cell row that cannot be mistaken for an operation.
+ */
+export function withScanBound(text, note) {
+  const body = text === null || text === undefined ? '' : String(text)
+  const line = note === null || note === undefined ? '' : String(note).trim()
+  return line ? `# ${line}\r\n${body}` : body
 }
