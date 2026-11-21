@@ -34,11 +34,11 @@
              levels stop for a human. A Spec carries a `requiresConfirmation` flag, but the risk level is the
              authority (protocol §4), so the generator reads the rule where it lives rather than restating it.
              Compile-time only: the text this emits still depends on nothing else. Kept on the same version as the
-             host's runtime dependencies (`0.1.19`), so the rule cannot change under a generator still reading the old one. -->
+             host's runtime dependencies (`0.1.20`), so the rule cannot change under a generator still reading the old one. -->
         <dependency>
             <groupId>cn.com.keelbase</groupId>
             <artifactId>keelbase4j-protocol</artifactId>
-            <version>0.1.19</version>
+            <version>0.1.20</version>
         </dependency>
     </dependencies>
 
