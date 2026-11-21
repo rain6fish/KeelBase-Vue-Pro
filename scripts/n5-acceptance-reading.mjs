@@ -589,7 +589,7 @@ async function enrichLive(opts, state, refs, ids, logTypeOf) {
 
   if (refs.size) {
     try {
-      const value = [...refs].map((ref) => `${ref.type}:${ref.id}`).join(',')
+      const value = [...refs.values()].map((ref) => `${ref.type}:${ref.id}`).join(',')
       const rows = await fetchJson(
         base,
         `/admin-api/keelbase/record-names?refs=${encodeURIComponent(value)}`,
