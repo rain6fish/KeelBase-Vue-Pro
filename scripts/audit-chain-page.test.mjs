@@ -387,13 +387,24 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
   assert.match(script, /async function exportCheck\(\)/)
-  assert.match(script, /checkCsvText\(entryRows, labels\)/, 'the second export does not go through checkCsvText')
+  // The third argument is the read-face statement (N4): the export still goes through `checkCsvText`, and it
+  // still carries exactly its own columns — the statement is a note line, not a column.
+  // 第三个参数是读面说明（N4）：导出仍走 `checkCsvText`，仍恰好是它自己那几列 —— 说明是一行注记，不是一列。
+  assert.match(
+    script,
+    /checkCsvText\(entryRows, labels, readFaceNoteLines\(\)\)/,
+    'the second export does not go through checkCsvText',
+  )
   assert.match(script, /checksTextOf\(row\)/, 'the second export does not carry the checks')
   assert.match(script, /CHECK_COLUMN_KEYS\.map\(/, 'the second export hardcodes its columns')
   assert.match(script, /checkCsvFilename\(\)/)
   assert.match(query, /export const CHECK_COLUMN_KEYS = \['id', \.\.\.SIX_QUESTIONS, 'checks'\]/)
   assert.match(query, /export function checkCsvText\(/)
-  assert.match(script, /csvText\(answerRows, labels\)/, 'the six-column export no longer uses csvText')
+  assert.match(
+    script,
+    /csvText\(answerRows, labels, readFaceNoteLines\(\)\)/,
+    'the six-column export no longer uses csvText',
+  )
   assert.match(script, /answerRows = queryRows\.value\.map\(\(row\) => \(\{ answers: sixOf\(row\) \}\)\)/,
     'the six-column export no longer composes exactly six answers')
 })

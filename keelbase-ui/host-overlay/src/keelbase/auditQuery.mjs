@@ -244,8 +244,15 @@ export class CsvLeak extends Error {
  *
  * Escaping follows RFC 4180: a field containing a comma, a double quote, a carriage return or a newline
  * is quoted, and inner quotes are doubled. Line endings are CRLF.
+ *
+ * `notes` are statements about the file as a whole, not answers: each is written after the data as its
+ * own `# `-prefixed line. That is how an export can say, when the read face itself did not narrow the
+ * search, that the console did — a fact a reader would otherwise infer as a face-level filter.
+ *
+ * `notes` 是关于整份文件的说明，不是答案：每条都写成数据行之后单独一行、以 `# ` 打头。导出因此能在
+ * 「读面自己没有收窄这次检索」时说是控制台收窄的 —— 否则读者会把这份命中当成读面那一级的筛选结果。
  */
-export function csvText(answerRows, labels) {
+export function csvText(answerRows, labels, notes = []) {
   if (!Array.isArray(labels) || labels.length !== CSV_QUESTION_KEYS.length) {
     throw new Error(`the CSV has exactly ${CSV_QUESTION_KEYS.length} columns`)
   }
@@ -268,7 +275,21 @@ export function csvText(answerRows, labels) {
     })
     lines.push(cells.map(csvField).join(','))
   }
+  lines.push(...noteLines(notes))
   return lines.join('\r\n') + '\r\n'
+}
+
+/**
+ * One note as a `# …` line, escaped by RFC 4180: notes routinely carry commas, and an unescaped one would
+ * split into several cells. An empty note writes nothing — a bare `#` says nothing and still adds a line.
+ *
+ * 一条说明写成一行 `# …`，按 RFC 4180 转义：说明里常有逗号，不转义会把一行拆成几格。
+ * 空说明不写 —— 一行只有 `#` 的注释什么也没说，却让文件多一行。
+ */
+function noteLines(notes) {
+  return (notes || [])
+    .filter((note) => note !== null && note !== undefined && String(note) !== '')
+    .map((note) => csvField(`# ${String(note)}`))
 }
 
 /** 一个字段的 RFC 4180 形状。 / One field in its RFC 4180 shape. */
@@ -309,9 +330,14 @@ export const CHECK_COLUMN_KEYS = ['id', ...SIX_QUESTIONS, 'checks']
  *
  * The verification CSV's body. The same escaping and leak rules as `csvText`: a missing answer is `—`, any
  * cell carrying an internal name refuses the whole file, and the error names **which column** only. Each
- * entry of `entryRows` is `{ id, answers, checks }`.
+ * entry of `entryRows` is `{ id, answers, checks }`. `notes` are the same whole-file statements `csvText`
+ * writes, after the data, one `# ` line each.
+ *
+ * 核对 CSV 的正文。与 `csvText` 同一条转义与泄漏规则：缺答案写 `—`，任何一格带内部名就整份拒绝，
+ * 且错误只说**是哪一列**。`entryRows` 的每一项是 `{ id, answers, checks }`。`notes` 与 `csvText` 一样，
+ * 是整份文件的说明，写在数据之后，每条一行 `# `。
  */
-export function checkCsvText(entryRows, labels) {
+export function checkCsvText(entryRows, labels, notes = []) {
   if (!Array.isArray(labels) || labels.length !== CHECK_COLUMN_KEYS.length) {
     throw new Error(`the verification CSV has exactly ${CHECK_COLUMN_KEYS.length} columns`)
   }
@@ -340,6 +366,7 @@ export function checkCsvText(entryRows, labels) {
     if (leaksIn(checks).length) throw new CsvLeak('checks')
     lines.push([idCell, ...answerCells, checks].map(csvField).join(','))
   }
+  lines.push(...noteLines(notes))
   return lines.join('\r\n') + '\r\n'
 }
 

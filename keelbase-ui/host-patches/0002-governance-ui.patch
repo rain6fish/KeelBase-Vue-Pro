@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..3382e27 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,801 @@
+@@ -1,4 +1,805 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -84,6 +84,10 @@ index 9d14564..3382e27 100644
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
 +      keyOnlyHint:
 +        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
++      readFaceNoObject:
++        'This deployment applies no object filter on its audit read face: asked for a business object that cannot exist, the read face answered with rows. The matched rows were narrowed here, by this console over its own evidence chain, not by the read face. A face-level answer needs the runtime read face (GET /audit/logs) asked with the same object and range.',
++      readFaceNoUntil:
++        'This deployment applies no window end on its audit read face: asked for a range that ended in 1970, the read face answered with rows. The window end was applied here, by this console, not by the read face. A face-level answer needs the runtime read face (GET /audit/logs) asked with the same range.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -808,7 +812,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..f476283 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,793 @@
+@@ -1,4 +1,797 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -890,6 +894,10 @@ index 13065de..f476283 100644
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
 +      keyOnlyHint:
 +        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
++      readFaceNoObject:
++        '本部署的审计读面不施加对象过滤：问一条不可能存在的业务对象，读面仍回了行。命中的行由本控制台沿自己的证据链收窄，不是读面收窄的。要读面这一级的答案，请用同一对象与区间问运行时读面（GET /audit/logs）。',
++      readFaceNoUntil:
++        '本部署的审计读面不施加区间终点：问一个 1970 年就结束的区间，读面仍回了行。终点由本控制台施加，不是读面施加的。要读面这一级的答案，请用同一区间问运行时读面（GET /audit/logs）。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',
