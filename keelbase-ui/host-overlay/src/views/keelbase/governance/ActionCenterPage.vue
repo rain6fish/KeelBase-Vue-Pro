@@ -61,8 +61,8 @@
           <div class="args-label">{{ t('keelbase.actionCenter.argsLabel') }}</div>
           <pre class="args">{{ formatArgs(c.arguments) }}</pre>
           <div class="row-meta">
-            {{ timeText(c.createdAt) }}
-            <template v-if="c.expiresAt"> · {{ t('keelbase.actionCenter.expiresAt', { at: timeText(c.expiresAt) }) }}</template>
+            {{ zonedTime(c.createdAt) }}
+            <template v-if="c.expiresAt"> · {{ t('keelbase.actionCenter.expiresAt', { at: zonedTime(c.expiresAt) }) }}</template>
           </div>
         </div>
         <!-- The audit reader gets no write control at all; the server would refuse it anyway. -->
@@ -130,8 +130,8 @@
         <div class="args-label">{{ t('keelbase.actionCenter.argsLabel') }}</div>
         <pre class="args">{{ formatArgs(c.arguments) }}</pre>
         <div class="row-meta">
-          {{ timeText(c.createdAt) }}
-          <template v-if="c.expiresAt"> · {{ t('keelbase.actionCenter.expiresAt', { at: timeText(c.expiresAt) }) }}</template>
+          {{ zonedTime(c.createdAt) }}
+          <template v-if="c.expiresAt"> · {{ t('keelbase.actionCenter.expiresAt', { at: zonedTime(c.expiresAt) }) }}</template>
         </div>
       </div>
       <!-- 自己发起的那一行不给批准：服务端对它答 403，页面在给按钮之前就说清楚。 -->
@@ -204,7 +204,7 @@
           <div v-if="historyReason(h)" class="row-reason">
             {{ t('keelbase.actionCenter.reasonLabel', { reason: historyReason(h) }) }}
           </div>
-          <div class="row-meta">{{ t('keelbase.actionCenter.decidedLabel', { at: timeText(h.decidedAt) }) }}</div>
+          <div class="row-meta">{{ t('keelbase.actionCenter.decidedLabel', { at: zonedTime(h.decidedAt) }) }}</div>
         </div>
       </div>
     </div>
@@ -277,10 +277,29 @@
               </span>
             </div>
             <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colState') }}</span><span>{{ stateText(row) }}</span></div>
-            <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colTime') }}</span><span>{{ timeText(row.createdAt) }}</span></div>
+            <div class="d-row"><span class="d-key">{{ t('keelbase.effects.colTime') }}</span><span>{{ zonedTime(row.createdAt) }}</span></div>
           </div>
           <div class="biz">
             <div class="biz-hint">{{ t('keelbase.effects.businessLogHint') }}</div>
+            <!--
+              第二入口与六问对齐的三样，各用六问自己的写法：对象取与第三问同一组词（`keelbase.record.*`）
+              和同一个主键；时间由 `zonedTime` 出，与六问答案及其导出是同一个钟面；「谁」在下面那一列按
+              第一问的形状「名字（账号 #n）」写。它仍被标成**相关**、不是硬链接 —— 宿主那张日志里没有
+              一个共享 id 可指（`traceId` 全空、AI 引起的那行不带用户），要硬链就得往宿主日志里写一个
+              id，那是宿主业务侧的事，本任务只到展示与文案。
+
+              The three alignments with the six answers, each in the six answers' own notation: the object
+              takes the third answer's words (`keelbase.record.*`) and key, the time comes from `zonedTime`
+              — the one clock the six answers and their export use — and "Who" in the column below takes
+              the first answer's shape, name (account #n). It stays labelled **related**, not a hard link:
+              the host log carries no shared id to point at (every `traceId` is empty, and the AI-caused
+              row carries no user), so a hard link would mean writing one into the host log — the host's
+              own business side. This task stops at display and copy.
+            -->
+            <div class="biz-head">
+              <el-tag size="small" type="info" effect="plain">{{ t('keelbase.effects.relatedLabel') }}</el-tag>
+              <span class="muted">{{ t('keelbase.effects.businessLogObject', { object: objectHead(row) }) }}</span>
+            </div>
             <div v-if="!businessLogApi.mappedType(row.resultType)" class="biz-note">
               {{ t('keelbase.effects.businessLogUnmapped') }}
             </div>
@@ -292,18 +311,15 @@
               :image-size="48"
             />
             <el-table v-else :data="bizRows[row.id]" size="small" border>
-              <el-table-column :label="t('keelbase.effects.businessLogColWhen')" width="200">
-                <template #default="{ row: r }">{{ timeText(r.createTime) }}</template>
+              <el-table-column :label="t('keelbase.effects.businessLogColWhen')" width="210">
+                <template #default="{ row: r }">{{ zonedTime(r.createTime) }}</template>
               </el-table-column>
               <el-table-column :label="t('keelbase.effects.businessLogColWhat')" prop="subType" width="140" />
-              <!-- 「谁」与审计链同一格写法：名字在上、编号在下 —— 两页并排时读者能直接确认是同一个人。 -->
-              <!-- “Who” in the chain's own shape: the name over the id — a reader comparing the two pages
-                   can see at once that it is the same person. -->
-              <el-table-column :label="t('keelbase.effects.businessLogColWho')" width="130">
-                <template #default="{ row: r }">
-                  <div>{{ whoText(r) }}</div>
-                  <div v-if="r.userId" class="muted">#{{ r.userId }}</div>
-                </template>
+              <!-- 「谁」按六问第一问的形状一格写完「名字（账号 #n）」—— 两页并排时读者能直接确认是同一个人。 -->
+              <!-- "Who" in the first answer's shape, name (account #n) in one cell — a reader comparing the
+                   two pages can see at once that it is the same person. -->
+              <el-table-column :label="t('keelbase.effects.businessLogColWho')" width="150">
+                <template #default="{ row: r }">{{ whoText(r) }}</template>
               </el-table-column>
               <el-table-column :label="t('keelbase.effects.businessLogColAction')" prop="action" show-overflow-tooltip />
             </el-table>
@@ -343,8 +359,11 @@
           <el-tag :type="statusTag(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="t('keelbase.effects.colTime')" width="200">
-        <template #default="{ row }">{{ timeText(row.createdAt) }}</template>
+      <!-- 与六问答案及其导出同一个钟面（带偏移）：同一操作的「何时」两处必须逐字可比。 -->
+      <!-- The same clock the six answers and their export use (with the offset): one operation's
+           "when" has to read identically in both entries. -->
+      <el-table-column :label="t('keelbase.effects.colTime')" width="210">
+        <template #default="{ row }">{{ zonedTime(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column :label="t('keelbase.effects.colActions')" width="110" align="center">
         <template #default="{ row }">
@@ -389,7 +408,6 @@ import { resolveRecordNames } from '@/keelbase/recordNames'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
 import { resultTypeWordKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
-import { timeText } from '@/keelbase/time'
 import { argsText } from '@/keelbase/argsText.mjs'
 import {
   EFFECT_AUDIT_LIMIT,
@@ -398,6 +416,7 @@ import {
   joinEffectCallers,
   needsCallerJoin,
 } from '@/keelbase/effectCallers.mjs'
+import { zonedTime } from '@/keelbase/sixQuestions.mjs'
 import { PENDING_INITIATOR_WINDOW_MS, initiatorOf } from '@/keelbase/pendingJoin.mjs'
 import { pairDecidedByApprover } from '@/keelbase/approverDecisions.mjs'
 import { useConsoleAdministrator, useConsoleWriteAllowed } from '@/keelbase/consoleRole'
@@ -447,27 +466,43 @@ function toolText(name: string | null | undefined): string {
 }
 
 /**
- * 宿主那一行记下的调用方：先取它**自己配好的名字**；它只记了 id 时，用**审计链同一条**窄读面把 id 翻成名字
- * （`resolveCallerNames`，与上面那张台账同一份名录、同一个缓存）；连 id 都没有才写**「未记录」**。
+ * 宿主那一行记下的调用方，按**第一问的形状**写：「名字（账号 #n）」。名字先取宿主**自己配好的**那个
+ * （它的操作日志页本就拿自己的用户表译过一遍）；它没给时走**审计链同一条**窄读面（`callerName`，同一份
+ * 名录、同一个缓存），名录也认不出时写「姓名未记录」—— 与六问那一格的回落一致，于是同一个人两处逐字
+ * 可比。宿主**没记**调用方（连 id 都没有）的行写「未记录」：破折号会被读成「没取到」，而这一行是**确实
+ * 没有人可记** —— AI 引起的那一行本就没人。同一条留痕上「未记录」「姓名未记录」各只有一个词，全控制台
+ * 共用，不在这里另造说法。
  *
- * 2026-11-21（`N6`）改的正是中间那一档：原先宿主没给名字就把裸 id 印出来，于是一次操作在审计链上叫
- * 「KeelBase」、在宿主操作日志里叫「1」—— 同一个人的两种写法，独立读者对不上账。这一列现在与链上同一份
- * 口径；宿主自己给的名字仍然优先，控制台只补它没说的那一层，不覆盖它说的。
- *
- * The caller the host's own row recorded: its **own name** first; when it kept only an id, that id is
- * named through **the same narrow directory the audit chain reads** (`resolveCallerNames` — same names,
- * same cache); a row with neither says "not recorded". The chain's rule applies in full here, so
- * an unnamed id is never printed as the name and a missing caller is never drawn as a dash.
- *
- * 2026-11-21 (`N6`) changed that middle case: a row the host left unnamed used to print the bare id, so
- * one operation was 「KeelBase」 on the audit chain and 「1」 in the host's operation log — the same person
- * written two ways, which an independent reader cannot line up. This column now follows the chain's rule
- * in full: the host's own name still wins; an unnamed id says the name was not recorded; no caller says so.
+ * The caller the host's own row recorded, in the **first answer's shape**: name (account #n). The host's
+ * own name wins; when it kept only an id, that id is named through **the same narrow directory the audit
+ * chain reads** (`callerName` — same names, same cache), and an id the directory cannot name says the name
+ * was not recorded — the same fallback the first answer takes, so the same person reads identically in both
+ * entries. A row that recorded **nobody** (not even an id) says "not recorded": a dash reads as "we could
+ * not get it", while this row genuinely has nobody to record — the AI-caused row has no user. The console
+ * keeps one word each for "not recorded" and "name not recorded" and does not mint a third here.
  */
 function whoText(row: BusinessLogRow): string {
-  if (row.userName) return row.userName
-  if (row.userId === null || row.userId === undefined) return t('keelbase.audit.userUnrecorded')
-  return callerName(String(row.userId))
+  const id = row.userId
+  if (id === null || id === undefined) return t('keelbase.audit.userUnrecorded')
+  const name = row.userName || callerName(String(id))
+  return `${name}（${t('keelbase.sixQ.account')} #${id}）`
+}
+
+/**
+ * 这一腿的对象，按**第三问的写法**：业务词（`keelbase.record.*`，与六问同一组词）· 主键。两处用的是同
+ * 一个 `(resultType, resultId)`，故读者不必从面板的取数方式里猜「这是哪个对象」。控制台没有词的类型
+ * 说「本控制台没有给它名字的业务对象」，不印运行时的类型名 —— 与第三问同一条规则。
+ *
+ * The leg's object, in the **third answer's notation**: business word (`keelbase.record.*`, the six answers'
+ * own words) · key. Both entries use the same `(resultType, resultId)`, so the reader does not have to
+ * guess the object from how the panel was fetched. A type this console has no word for says so, rather than
+ * printing the runtime's type name — the same rule the third answer follows.
+ */
+function objectHead(row: EffectRow): string {
+  const key = `keelbase.record.${row.resultType ?? ''}`
+  const word = row.resultType ? (te(key) ? t(key) : t('keelbase.sixQ.objectUnnamed')) : ''
+  const id = row.resultId === null || row.resultId === undefined ? '' : `#${row.resultId}`
+  return [word, id].filter(Boolean).join(' · ') || t('keelbase.sixQ.objectUnrecorded')
 }
 
 /**
@@ -1005,11 +1040,12 @@ async function onExpand(row: EffectRow, expandedRows: EffectRow[]) {
     const res = await businessLogApi.byObject(businessType, row.resultId)
     const list = res.list ?? []
     bizRows.value = { ...bizRows.value, [row.id]: list }
-    // 名字按审计链同一条窄读面补 —— 宿主这一行常常只记 id（`userName` 为空），裸编号正是读者对不上账的
-    // 那一种写法。取不到时 `callerName` 回落到 id 本身，与链上一致。
-    // Names come from the same narrow directory the chain reads — the host's rows often keep only an id
-    // (`userName` blank), and the bare number is exactly what the reader could not line up. When the
-    // directory cannot answer, `callerName` falls back to the id, as it does on the chain.
+    // 这些行上的「谁」按第一问同一个来源补名：宿主自己给了名字的行原样用，没给的行经调用方名录 ——
+    // 名录认不出时 `callerName` 说「姓名未记录」，与六问那一格的回落一致。补名从不 reject。
+    //
+    // The "who" on these rows is named from the first answer's source: rows the host named keep that name,
+    // and rows it did not go through the caller directory — when the directory cannot name one, `callerName`
+    // says the name was not recorded, the same fallback the first answer takes. The lookup never rejects.
     const resolved = await resolveCallerNames(list.map((r) => r.userId))
     names.value = { ...names.value, ...resolved }
   } catch (e) {
@@ -1178,6 +1214,13 @@ onMounted(() => {
   font-size: 12px;
   color: var(--el-text-color-secondary);
   margin-bottom: 8px;
+}
+.biz-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
 }
 .biz-note {
   font-size: 12px;

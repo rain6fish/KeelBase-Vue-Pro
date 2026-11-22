@@ -209,7 +209,7 @@ test('the business-leg hint promises the word the cell writes, not a blank cell'
   // so the copy and the code can no longer drift apart.
   assert.match(
     actionCenter,
-    /if \(row\.userId === null \|\| row\.userId === undefined\) return t\('keelbase\.audit\.userUnrecorded'\)/,
+    /if \((?:row\.userId|id) === null \|\| (?:row\.userId|id) === undefined\) return t\('keelbase\.audit\.userUnrecorded'\)/,
     'a business-log row with no caller no longer says so',
   )
   assert.doesNotMatch(patch, /a row it logged with nobody stays blank/, 'the English hint still promises a blank cell')

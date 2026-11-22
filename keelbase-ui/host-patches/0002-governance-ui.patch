@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..eff8173 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,819 @@
+@@ -1,4 +1,821 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -218,7 +218,9 @@ index 9d14564..eff8173 100644
 +      statePresent: 'still there',
 +      stateDeleted: 'deleted (recoverable from the recycle bin)',
 +      stateGone: 'no longer there',
-+      businessLogHint: 'Writes the host logged for this object, newest first — a correlation by object id and time, not a hard link. "Who" is the caller the host recorded on its own row; a row it logged with no caller says "not recorded", and one that kept only an id says "name not recorded" — never a dash or a bare id.',
++      businessLogHint: 'Writes the host logged for this object, newest first — a correlation by object id and time, not a hard link: nothing writes a shared id. The object is named the way the audit answers it (business word · key), and both times use the same local clock with its offset, so one operation lines up here and in the six answers. "Who" is the caller the host recorded on its own row, followed by the same account number the audit chain prints; a row it logged with no caller says "not recorded", and one that kept only an id says "name not recorded" — never a dash or a bare id.',
++      businessLogObject: 'Object: {object}',
++      relatedLabel: 'related',
 +      businessLogEmpty: 'The host logged no write for this object.',
 +      businessLogUnmapped: 'This result type maps to no host-side module here.',
 +      businessLogColWhen: 'When',
@@ -826,7 +828,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..23b6e1f 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,811 @@
+@@ -1,4 +1,813 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -1042,7 +1044,9 @@ index 13065de..23b6e1f 100644
 +      statePresent: '还在',
 +      stateDeleted: '已删除（回收站可恢复）',
 +      stateGone: '已不在',
-+      businessLogHint: '宿主为这个对象记下的写，最新在前 —— 按对象 id 与时间的相关，不是硬链接。「谁」是宿主那一行自己记下的调用方；它没记人时写「未记录」，只记了编号时写「姓名未记录」—— 不拿破折号或裸编号冒充。',
++      businessLogHint: '宿主为这个对象记下的写，最新在前 —— 按对象 id 与时间的相关，不是硬链接：没有任何东西写下一个共享 id。对象用与审计链六问同一组词（业务名 · 主键），两处时间都用同一个本机钟面并写出偏移，故同一次操作在这里和六问里对得齐。「谁」是宿主那一行自己记下的调用方，后面跟着审计链同一个账号编号；它没记人时写「未记录」，只记了编号时写「姓名未记录」—— 不拿破折号或裸编号冒充。',
++      businessLogObject: '对象：{object}',
++      relatedLabel: '相关',
 +      businessLogEmpty: '宿主没有为这个对象记下任何写。',
 +      businessLogUnmapped: '这个结果类型在本部署里没有对应的宿主模块。',
 +      businessLogColWhen: '何时',
