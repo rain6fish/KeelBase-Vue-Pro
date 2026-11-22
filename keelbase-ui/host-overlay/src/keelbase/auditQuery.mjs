@@ -468,27 +468,31 @@ export function splitCsvNotes(rows) {
 }
 
 /**
- * 给一份导出的正文加上「已扫到上限」的声明：给了 `note` 就在**表头之前**插一行 `# …`，与核对 CSV 自己
- * 那条说明同一形状；`note` 为空时正文**一个字都不动**。一份没有声明的文件会被读成「全部命中」，而这
- * 1000 行只是控制台扫到的上限内那一段 —— 声明必须跟着文件走，不能只留在发出它的那个页面上。
+ * Adds an export's note lines: each non-blank note is written as one `# …` line **before the header**, in
+ * the order given, and with no notes the body is returned **unchanged**. Every note explains a limit of the
+ * file — the scan bound, or a read face that did not apply the filters — and a file without it is read as
+ * "everything that matched". The statement has to travel with the file, not stay on the page that wrote it.
  *
- * 插入点与核对 CSV 的说明同一处：它在表头之前，故读者一打开文件就先看到；放在末尾，读的人往往已经先
- * 信了那些数字。这一行是**元数据、不是数据行**：六列 / 八列的判据只数数据行，`#` 记号让严格的数据解析器
- * 看见一条单格行，不会被误读成某一次操作。
- *
- * Adds the "the scan hit its bound" statement to an export's body: when `note` is given, one `# …` line is
- * put **before the header**, the same shape as the verification CSV's own note; when `note` is empty the
- * body is returned **unchanged**. A file without the statement is read as "everything that matched", while
- * those 1000 rows are only the slice the console's scan reached — the statement has to travel with the file,
- * not stay on the page that wrote it.
- *
- * It goes where the verification CSV's note already goes: before the header, so a reader sees it first —
- * at the end, they have usually trusted the numbers already. The line is **metadata, not a data row**: the
+ * The caller fixes the order because the two notes read as one paragraph: the read face's note says why the
+ * rows are the console's own narrowing, and the scan bound says how far that narrowing could read. So the
+ * read-face note comes first; a test pins that order. Notes go where the verification CSV's own note already
+ * goes — before the header, so a reader sees them first. Each line is **metadata, not a data row**: the
  * six/eight-column criterion counts data rows only, and the `#` marker lets a strict data parser see a
  * one-cell row that cannot be mistaken for an operation.
+ *
+ * 给一份导出的正文加上说明行：每条非空的说明写成一行 `# …`，按给定次序放在**表头之前**，没有说明时正文
+ * **一个字都不动**。每条说明都陈述这份文件的一处限度 —— 扫描上限，或读面没有施加筛选；没有声明的文件会
+ * 被读成「全部命中」。声明必须跟着文件走，不能只留在发出它的那个页面上。
+ *
+ * 次序由调用方给定，因为两条说明读起来是一段话：读面那条说这些行为什么是控制台自己挑的，扫描上限那条说
+ * 这份挑拣只读到多远 —— 故读面那条在前，测试钉住这个次序。说明行放在核对 CSV 那条说明同一处（表头之前），
+ * 读者一打开文件就先看到。每行是**元数据、不是数据行**：六列 / 八列的判据只数数据行，`#` 记号让严格的
+ * 数据解析器看见一条单格行，不会被误读成某一次操作。
  */
-export function withScanBound(text, note) {
+export function withCsvNotes(text, notes) {
   const body = text === null || text === undefined ? '' : String(text)
-  const line = note === null || note === undefined ? '' : String(note).trim()
-  return line ? `# ${line}\r\n${body}` : body
+  const lines = (Array.isArray(notes) ? notes : [notes])
+    .filter((note) => note !== null && note !== undefined && String(note).trim() !== '')
+    .map((note) => `${CSV_NOTE_MARKER}${String(note).trim()}`)
+  return lines.length ? `${lines.join('\r\n')}\r\n${body}` : body
 }

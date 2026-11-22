@@ -372,25 +372,25 @@ test('an unfinished search does not read as one that matched nothing', () => {
 test('R-2: a scan that hit its bound says so in both exports, and an unfinished one gains nothing', () => {
   // 2026-11-21 的真栈读数：3000 行的区间里，同区间重扫只读到最新 1000 行（5 页 × 200）。页面说出了上限，
   // 两份 CSV 却把这 1000 行以「全部命中」的样子带走 —— 文件一旦离开页面，声明就不在读者眼前了。这一条
-  // 钉住接线：两份导出都经 `withScanBound`，声明只从 `scanBoundNote()` 来，而它的真假来自审计扫描自己
+  // 钉住接线：两份导出都经 `withCsvNotes`，声明只从 `scanBoundNote()` 来，而它的真假来自审计扫描自己
   // 的 `complete`（不是把台账与确认记录的窗口也算进去的 `queryTruncated`）。
   //
   // The 2026-11-21 real-stack reading: in a 3000-row range the by-range rescan read only the newest 1000
   // rows (5 pages × 200). The page said so; the two CSVs carried those 1000 rows away as "everything that
   // matched". Once the file leaves the page the statement is no longer in front of the reader. This pins
-  // the wiring: both exports go through `withScanBound`, the statement comes only from `scanBoundNote()`,
+  // the wiring: both exports go through `withCsvNotes`, the statement comes only from `scanBoundNote()`,
   // and its truth is the audit scan's own `complete` — not `queryTruncated`, which also counts the ledger's
   // and the confirmation queue's windows.
   const exportSix = script.slice(script.indexOf('async function exportSix'), script.indexOf('async function exportCheck'))
   const exportCheck = script.slice(script.indexOf('async function exportCheck'), script.indexOf('function downloadCsv'))
   assert.match(
     exportSix,
-    /downloadCsv\(csvFilename\(\), withScanBound\(csvText\(answerRows, labels\), scanBoundNote\(\)\)\)/,
-    'the six-column export does not carry the bound statement',
+    /downloadCsv\(csvFilename\(\), withCsvNotes\(csvText\(answerRows, labels\), \[readFaceNote\(\), scanBoundNote\(\)\]\)\)/,
+    'the six-column export does not carry the bound statement (read-face note first, then the bound)',
   )
   assert.match(
     exportCheck,
-    /withScanBound\(checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\), scanBoundNote\(\)\)/,
+    /withCsvNotes\(checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/,
     'the verification export does not carry the bound statement beside its correlation note',
   )
   assert.match(
@@ -415,6 +415,58 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
     const hits = patch.split(`+      ${key}`).length - 1
     assert.equal(hits, 2, `${key} is not in both language bundles`)
   }
+})
+
+test('both exports name the read face only when the answer proved it ignored the filters', () => {
+  // N4 的第二支：读面忽略对象/终点这件事，页面说了，文件却不说 —— 导出件一离开页面就只剩一份看着像
+  // 「就是这些」的列表。现在两份导出各带一行 `#` 注记，**与页面警告同一句话、同一个词条**（不新造第二种
+  // 说法）；它的真假只来自 `readFaceIgnored`，而那个值只由第一次答复的行决定（`readFaceIgnoredFilters`）：
+  // 空链、探针式空答复、请求失败、没跑过检索都是 false，文件不多一个字。
+  //
+  // 次序固定：读面注记在**前**，扫描上限注记在**后** —— 先说这些行为什么是控制台自己挑的，再说这次挑拣
+  // 只读到多远。`withCsvNotes` 按给定次序写行（纯函数侧逐字钉在 `audit-query.test.mjs`）。
+  //
+  // N4's second branch: the page said the read face ignored the object/end, the file did not — once the
+  // export left the page it was a list that looked like "this is all there is". Both exports now carry a
+  // `#` note with **the page warning's own sentence and key** (no second wording); its truth comes only
+  // from `readFaceIgnored`, which `readFaceIgnoredFilters` sets from the first answer's rows: an empty
+  // chain, an empty probe-style answer, a failed request or a search that never ran all leave it false, so
+  // the file gains nothing.
+  //
+  // The order is fixed: the read-face note **first**, the bound note **after** — why these rows are the
+  // console's own narrowing, then how far that narrowing could read. `withCsvNotes` writes the lines in
+  // the order given (pinned verbatim in `audit-query.test.mjs`).
+  assert.match(
+    script,
+    /import \{[^}]*\bwithCsvNotes\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/s,
+    'the page does not take the note writer from the query module',
+  )
+  assert.match(
+    script,
+    /function readFaceNote\(\): string \{\s*return readFaceIgnored\.value \? t\('keelbase\.audit\.readFaceUnfiltered'\) : ''\s*\}/,
+    'the export note is not the page warning’s own sentence, gated on the evidence',
+  )
+  const exportSix = script.slice(script.indexOf('async function exportSix'), script.indexOf('async function exportCheck'))
+  const exportCheck = script.slice(script.indexOf('async function exportCheck'), script.indexOf('function downloadCsv'))
+  for (const [name, body] of [['six-column', exportSix], ['verification', exportCheck]]) {
+    assert.ok(
+      body.indexOf('readFaceNote()') !== -1 && body.indexOf('readFaceNote()') < body.indexOf('scanBoundNote()'),
+      `the ${name} export does not put the read-face note before the bound note`,
+    )
+  }
+  // 无证据的三种路：初始 false、清空检索时复位、请求失败时复位。
+  // The three no-evidence roads: false by default, reset when the search is cleared, reset when it fails.
+  assert.match(script, /const readFaceIgnored = ref\(false\)/, 'the read-face evidence does not start false')
+  assert.match(
+    script,
+    /function clearQueryResults\(\) \{[\s\S]{0,400}?readFaceIgnored\.value = false/,
+    'clearing the search leaves the read-face note behind',
+  )
+  assert.match(
+    script,
+    /catch \(e\) \{[\s\S]{0,400}?readFaceIgnored\.value = false/,
+    'a failed search still leaves the read-face note behind',
+  )
 })
 
 test('D-6: a decision row answers ⑤ as the decision itself', () => {
