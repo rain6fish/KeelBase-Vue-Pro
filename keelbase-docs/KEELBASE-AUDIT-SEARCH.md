@@ -196,3 +196,32 @@ The parity fix itself belongs to the generator: declare the three parameters and
 through the generated application's own side-effect ledger, the way the runtime does. That adds no
 contract field and changes no row schema — the endpoint's parameters are not part of the frozen row
 shape (§7).
+
+## 10. Tenant is not a dimension of this chain
+
+An audit row records who acted, when, what it came to and where it landed. It does not record a
+tenant: the frozen row shape (`ai-audit-log-row`, v7) has no such field, and the runtime that writes
+the row has no tenant concept at all. The six questions do not ask for one either — they were fixed
+before multi-tenancy entered the picture, and a tenant is not among them.
+
+So on this page **no row is attributed to a tenant**, and that is a statement about a missing
+dimension, not about a missing value. A connectivity test makes the gap concrete: its sentence ends
+with a typed object key (` · object MCP connection #12`), which names the object and says nothing
+about the tenant the object belongs to. The read face does not close the gap either — `GET
+/audit/logs` takes no tenant filter, so a query that adds one is ignored by a face that does not
+declare the parameter or refused by one that does; it never narrows. That is why the page says it
+outright beside the rows, and why the verification export repeats it in its note line: a reader must
+not take the chain for one tenant's trail. The six-column business CSV stays at six columns (U1's
+acceptance reading), so the statement lives on the page and in the verification file's note, not in
+a seventh column.
+
+Tenant attribution and tenant filtering are a later change and a separate decision, because they are
+not only about this page: the chain is one global chain, `/audit/verify` walks all of it, and today an
+audit reader of one tenant can read every tenant's rows. What today's deployment can do without a
+runtime change is bounded — attributing a row from the object it names needs a face that answers a
+tenant, and no existing face is sound for a reader: the faces that reach `ai1_mcp`
+(`/ai1/mcp/get`, `/ai1/mcp/simple-list`) answer "visible to me", and an object deleted since the test
+reads exactly like another tenant's, while the faces that name records do not cover this kind of
+object at all and answer nothing for it. Narrowing this chain by tenant therefore waits for the
+runtime-side decision; `handoff/tenantvis-1121.md` records the two roads and the readings that ruled
+the shortcut out.

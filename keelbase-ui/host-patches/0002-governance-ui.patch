@@ -2,7 +2,7 @@ diff --git a/src/locales/en.ts b/src/locales/en.ts
 index 9d14564..eff8173 100644
 --- a/src/locales/en.ts
 +++ b/src/locales/en.ts
-@@ -1,4 +1,821 @@
+@@ -1,4 +1,825 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -98,6 +98,10 @@ index 9d14564..eff8173 100644
 +        'This deployment applies no object filter on its audit read face: asked for a business object that cannot exist, the read face answered with rows. The matched rows were narrowed here, by this console over its own evidence chain, not by the read face. A face-level answer needs the runtime read face (GET /audit/logs) asked with the same object and range.',
 +      readFaceNoUntil:
 +        'This deployment applies no window end on its audit read face: asked for a range that ended in 1970, the read face answered with rows. The window end was applied here, by this console, not by the read face. A face-level answer needs the runtime read face (GET /audit/logs) asked with the same range.',
++      tenantHint:
++        'No row here is attributed to a tenant, and tenant is not something this page can filter: the six questions do not ask for it and an audit row carries no tenant field. A connectivity test names its MCP connection at the end of its sentence but does not say which tenant that connection belongs to. The audit read face takes no tenant filter either — a query that adds one is refused with a 400, never narrowed.',
++      exportTenantNote:
++        'Tenant is not attributed: no row in this file carries a tenant, and the six questions do not ask for one.',
 +    },
 +    actionCenter: {
 +      pendingTitle: 'Waiting on me',
@@ -828,7 +832,7 @@ diff --git a/src/locales/zh-CN.ts b/src/locales/zh-CN.ts
 index 13065de..23b6e1f 100644
 --- a/src/locales/zh-CN.ts
 +++ b/src/locales/zh-CN.ts
-@@ -1,4 +1,813 @@
+@@ -1,4 +1,817 @@
  export default {
 +  keelbase: {
 +    common: {
@@ -924,6 +928,10 @@ index 13065de..23b6e1f 100644
 +        '本部署的审计读面不施加对象过滤：问一条不可能存在的业务对象，读面仍回了行。命中的行由本控制台沿自己的证据链收窄，不是读面收窄的。要读面这一级的答案，请用同一对象与区间问运行时读面（GET /audit/logs）。',
 +      readFaceNoUntil:
 +        '本部署的审计读面不施加区间终点：问一个 1970 年就结束的区间，读面仍回了行。终点由本控制台施加，不是读面施加的。要读面这一级的答案，请用同一区间问运行时读面（GET /audit/logs）。',
++      tenantHint:
++        '这一页的行不按租户归属，租户也不是本页能筛的东西：六问不问租户，审计行上也没有租户字段。一次连通测试会在句末点名它的 MCP 连接，但没有说那条连接属于哪个租户。审计读面同样不收租户筛选 —— 带上它会被 400 拒绝，不会收窄。',
++      exportTenantNote:
++        '不按租户归属：这份文件里的行没有一行带租户，六问也不问租户。',
 +    },
 +    actionCenter: {
 +      pendingTitle: '待我确认',

@@ -390,7 +390,7 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
   )
   assert.match(
     exportCheck,
-    /withCsvNotes\(checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/,
+    /withCsvNotes\(checkCsvText\(entryRows, labels, exportNotes\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/,
     'the verification export does not carry the bound statement beside its correlation note',
   )
   assert.match(
@@ -493,12 +493,21 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
   assert.match(script, /async function exportCheck\(\)/)
-  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走。读面那两句（N4）由
-  // `readFaceNote()` 并进同一条 `#` 注记，仍是表头前的一行、不是一列。
-  // The line before the header is the second entry's limit (`N6`), so it rides along with this call. The
-  // read face's two statements (N4) join the same `#` note through `readFaceNote()` — still one line before
-  // the header, never a column.
-  assert.match(script, /checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\)/, 'the second export does not go through checkCsvText with its correlation note')
+  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走；租户那一句（丙）也并进这
+  // 一行。读面那两句（N4）由 `readFaceNote()` 并进同一条 `#` 注记，仍是表头前的一行、不是一列。
+  // The line before the header is the second entry's limit (`N6`), so it rides along with this call; the
+  // tenant sentence (丙) joins the same line. The read face's two statements (N4) join the same `#` note
+  // through `readFaceNote()` — still one line before the header, never a column.
+  assert.match(
+    script,
+    /const exportNotes = \[t\('keelbase\.audit\.exportNote'\), t\('keelbase\.audit\.exportTenantNote'\)\]\.join\(' '\)/,
+    'the second export no longer composes its correlation note',
+  )
+  assert.match(
+    script,
+    /checkCsvText\(entryRows, labels, exportNotes\)/,
+    'the second export does not go through checkCsvText with its notes',
+  )
   assert.match(script, /function readFaceNote\(\): string \{[\s\S]*?readFaceNoteLines\(\)/, 'the read-face note no longer carries the probe statements')
   assert.match(script, /checksTextOf\(row\)/, 'the second export does not carry the checks')
   assert.match(script, /CHECK_COLUMN_KEYS\.map\(/, 'the second export hardcodes its columns')
@@ -705,4 +714,58 @@ test('the two follow-up kinds read differently, and a key-only search says why i
   assert.ok(statusAt >= 0, 'the result status block is gone')
   assert.ok(hintAt > statusAt, 'the key-only rule is not drawn beside the hits')
   assert.ok(template.lastIndexOf('v-if="keyOnlySearch"', hintAt) > 0, 'the key-only rule is drawn for every search')
+})
+
+// ── 租户不是这条链的维度（丙，2026-11-21）────────────────────────────────────────────────────────────
+// 一行 MCP 连通测试在句末点名了它的连接，却没说那条连接属于哪个租户；六问里也没有租户这一问。冻结期不加列、
+// 不升 wire，故页面与核对导出把这件事**明写**出来。乙b（按 `ai1_mcp.tenant_id` 反查收窄）要一条宿主侧
+// 能回答租户的面，而今天那几条面没有一条对读者成立 —— 见 `handoff/tenantvis-1121.md`。
+//
+// Tenant is not a dimension of this chain (丙, 2026-11-21): an MCP connectivity test row names its
+// connection at the end of its sentence and does not say which tenant it belongs to, and the six
+// questions do not ask for one. This freeze adds no column and raises no wire version, so the page and
+// the verification export **say** it outright. 乙b (narrowing by `ai1_mcp.tenant_id`) needs a host face
+// that answers a tenant, and none of the faces that exist today is sound for a reader — see
+// `handoff/tenantvis-1121.md`.
+test('a row is not attributed to a tenant, and the page says so beside the rows', () => {
+  const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
+  assert.match(
+    template,
+    /v-if="displayRows\.length"[^>]*>\s*\{\{ t\('keelbase\.audit\.tenantHint'\) \}\}/s,
+    'the page no longer says a row is not attributed to a tenant',
+  )
+  // 六问仍是恰好六格：租户那句话画在行旁，不进 `sixOf`，也不进导出那六列。
+  // The six answers stay exactly six: the tenant sentence is drawn beside the rows, never inside
+  // `sixOf` and never in the six exported columns.
+  assert.doesNotMatch(script, /tenantHint[\s\S]{0,200}composeSix/, 'the tenant sentence slipped into the six answers')
+  assert.doesNotMatch(expandBlock(page), /tenantHint/, 'the tenant sentence is drawn inside the six-answer expansion')
+})
+
+test('the tenant sentence is in both bundles, says what it must, and names no table', () => {
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  const messages = [...patch.matchAll(/^\+\s*tenantHint:\s*\n\+\s*'([^']*)'/gm)].map((m) => m[1])
+  assert.equal(messages.length, 2, 'expected one tenantHint per language in the host patch')
+  const [en, zh] = messages
+  assert.match(en, /attributed to a tenant/, 'the English sentence no longer says the row is not attributed')
+  assert.match(en, /MCP connection/, 'the English sentence no longer names the connectivity test case')
+  assert.match(en, /never narrowed/, 'the English sentence no longer says the read face cannot narrow')
+  assert.match(zh, /不按租户归属/, 'the Chinese sentence no longer says the row is not attributed')
+  assert.match(zh, /MCP 连接/, 'the Chinese sentence no longer names the connectivity test case')
+  assert.match(zh, /不会收窄/, 'the Chinese sentence no longer says the read face cannot narrow')
+  for (const message of messages) {
+    assert.doesNotMatch(message, /ai1_mcp/, 'the sentence leaks the table name')
+    assert.doesNotMatch(message, /[`*]/, 'the sentence carries a markdown marker')
+  }
+})
+
+test('the verification export repeats the tenant statement in its note line', () => {
+  // 六列业务 CSV 一个字符都不动（U1 的验收口径）：那句话由页面那一行与核对 CSV 的说明行承担。
+  // The six-column business CSV is untouched (U1's acceptance reading): the page line and the
+  // verification CSV's note line carry the statement.
+  const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
+  const notes = [...patch.matchAll(/^\+\s*exportTenantNote:\s*\n\+\s*'([^']*)'/gm)].map((m) => m[1])
+  assert.equal(notes.length, 2, 'expected one exportTenantNote per language in the host patch')
+  assert.ok(notes.some((n) => /no row in this file carries a tenant/.test(n)), 'the English note lost the tenant statement')
+  assert.ok(notes.some((n) => /没有一行带租户/.test(n)), 'the Chinese note lost the tenant statement')
+  for (const note of notes) assert.doesNotMatch(note, /ai1_mcp/, 'the note leaks the table name')
 })

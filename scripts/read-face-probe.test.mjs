@@ -104,7 +104,7 @@ test('both exports carry the statements, and neither changes when nothing was pr
   // carry; note lines live only before the header, so `splitCsvNotes` need not look past the data.
   assert.match(script, /function readFaceNote\(\): string \{[\s\S]*?readFaceNoteLines\(\)/)
   assert.match(script, /withCsvNotes\(csvText\(answerRows, labels\), \[readFaceNote\(\), scanBoundNote\(\)\]\)/)
-  assert.match(script, /withCsvNotes\(checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/)
+  assert.match(script, /withCsvNotes\(checkCsvText\(entryRows, labels, exportNotes\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/)
 
   const six = q.csvText([{ answers: answers() }], LABELS)
   assert.equal(six.trimEnd().split('\r\n').length, 2, 'the export changed on a face that applies the filter')
