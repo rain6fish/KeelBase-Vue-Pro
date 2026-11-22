@@ -5,7 +5,7 @@
 //
 //   node scripts/check-audit-reader-execution-guard.mjs
 //
-// 为什么需要这道检查：运行时的 `/ai/chat`、`/ai/chat/stream`、`/ai/task` **没有** `@PreAuthorize`，
+// 为什么需要这道检查：运行时的 `/ai/chat`、`/ai/chat/stream`、`/admin/ai/chat/stream`、`/ai/task` **没有** `@PreAuthorize`，
 // 引擎的闸门只按风险级与治理策略裁决、**不查权限规则源**。一个只有六个治理读面 `read` 的账户因此能让
 // R1 工具真实执行，并让 R3 写生成一条**自己就能裁**的 `immediate` 确认。宿主侧的守卫
 // （`YudaoAuditReaderExecutionGuard`）就是那道补墙；本检查读源码，确认：
@@ -23,8 +23,9 @@
 // The audit reader must be outside the runtime's AI execution entries and write entries — the guard,
 // the list it reads, and its registration have to agree.
 //
-// Why this check exists: the runtime's `/ai/chat`, `/ai/chat/stream` and `/ai/task` carry **no**
-// `@PreAuthorize`, and the engine's gate decides on risk level and governance policy only — it never
+// Why this check exists: the runtime's `/ai/chat`, `/ai/chat/stream`, `/admin/ai/chat/stream` and
+// `/ai/task` carry **no** `@PreAuthorize`, and the engine's gate decides on risk level and governance
+// policy only — it never
 // consults the permission rule source. An account with `read` on six governance faces could therefore
 // make an R1 tool run and raise an R3 write as an `immediate` confirmation it can decide itself. The
 // host-side guard is the patch; this check reads the sources and confirms that (1) the rule source
@@ -85,7 +86,12 @@ const writePrefixes = list(config, 'WRITE_PREFIXES')
 for (const path of [
   '/ai/chat',
   '/ai/chat/stream',
+  '/admin/ai/chat/stream',
   '/ai/task',
+  // 对抗展示的运行入口会执行引擎动作；控制器有管理员闸，账本仍按同一清单登记。
+  // The showcase's run entry executes engine actions; the controller carries an administrator gate,
+  // and the ledger still records it from the same list.
+  '/ai/security-showcase/run/*',
   // 宿主自己的 AI 执行形状（2026-10-19 全扫）：AI 模块的发送口径没有 @PreAuthorize，
   // AI1 的会话流会装配工具。 / The host's own AI execution shapes (2026-10-19 sweep): the AI
   // module's send has no @PreAuthorize, and AI1's session stream assembles tools.

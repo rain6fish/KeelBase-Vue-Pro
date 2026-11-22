@@ -33,27 +33,34 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class YudaoAuditReaderWebConfig implements WebMvcConfigurer {
 
     /**
-     * 放行工具执行的入口：运行时那三条，以及宿主 AI 模块的两条与 AI1 会话流。
+     * 放行工具执行的入口：运行时的四条（含管理员通道 `/admin/ai/chat/stream`）、宿主 AI 模块的两条、
+     * AI1 会话流，以及对抗展示的单条运行入口。
      *
      * <p>宿主 AI 模块的 `/admin-api/ai/chat/message/send`（及其流式兄弟）**没有** {@code @PreAuthorize}，
      * 却把角色的工具回调交给模型；AI1 的 `/admin-api/ai1/session/message/send-stream` 会装配 MCP、SKILL 与
      * 受治理的本地工具。前者今天靠表缺失才没执行，后者靠 `ai1:session:my` 才没执行——两者都仍然是对审计读者
-     * **可达的形状**，故一并挡在这里，而不是依赖一张可能被误授的权限串。
+     * **可达的形状**，故一并挡在这里，而不是依赖一张可能被误授的权限串。对抗展示的
+     * `/ai/security-showcase/run/*` 会真正执行引擎动作；控制器本身有管理员闸，这里仍按同一清单再挡一次。
      *
      * <p>英文：
      *
-     * <p>The entries where a tool may execute: the runtime's three, plus the host AI module's two and
-     * the AI1 session stream. The host AI module's `/admin-api/ai/chat/message/send` (and its streaming
+     * <p>The entries where a tool may execute: the runtime's four (including the administrator channel
+     * `/admin/ai/chat/stream`), the host AI module's two, the AI1 session stream, and the anti-adversary
+     * showcase's run entry. The host AI module's `/admin-api/ai/chat/message/send` (and its streaming
      * sibling) carries **no** {@code @PreAuthorize} yet hands a role's tool callbacks to the model; AI1's
      * `/admin-api/ai1/session/message/send-stream` assembles MCP, SKILL and governed local tools. The
      * former only avoids execution today because its tables are absent, the latter only because of
      * `ai1:session:my` — both remain **reachable shapes** for an audit reader, so they are refused here
-     * rather than left to a permission string that could be granted by mistake.
+     * rather than left to a permission string that could be granted by mistake. The showcase's
+     * `/ai/security-showcase/run/*` executes engine actions; its controller carries an administrator
+     * gate, and it is refused here once more from the same list.
      */
     static final List<String> EXECUTION_PATHS = List.of(
             "/ai/chat",
             "/ai/chat/stream",
+            "/admin/ai/chat/stream",
             "/ai/task",
+            "/ai/security-showcase/run/*",
             "/admin-api/ai/chat/message/send",
             "/admin-api/ai/chat/message/send-stream",
             "/admin-api/ai1/session/message/send-stream");
@@ -100,7 +107,8 @@ public class YudaoAuditReaderWebConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(guard)
                 .addPathPatterns(
-                        "/ai/chat", "/ai/chat/stream", "/ai/task",
+                        "/ai/chat", "/ai/chat/stream", "/admin/ai/chat/stream", "/ai/task",
+                        "/ai/security-showcase/run/*",
                         "/admin-api/ai/chat/message/send",
                         "/admin-api/ai/chat/message/send-stream",
                         "/admin-api/ai1/session/message/send-stream",

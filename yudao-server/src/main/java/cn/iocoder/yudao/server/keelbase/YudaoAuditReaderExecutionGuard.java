@@ -11,10 +11,11 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 把审计读者挡在运行时那条**会执行工具**的入口之外。
+ * 把审计读者挡在运行时那几条**会执行工具**的入口之外。
  *
- * <p>为什么宿主得自己挡：运行时的 `/ai/chat`（及其流式兄弟 `/ai/chat/stream`、多步 `/ai/task`）**没有**
- * {@code @PreAuthorize}，而引擎的闸门只按风险级与治理策略裁决，**不查权限规则源**。于是一个只被授予六个治理读面
+ * <p>为什么宿主得自己挡：运行时的 `/ai/chat`、流式兄弟 `/ai/chat/stream`、管理员通道
+ * `/admin/ai/chat/stream` 与多步 `/ai/task` **没有** {@code @PreAuthorize}，而引擎的闸门只按风险级与
+ * 治理策略裁决，**不查权限规则源**。于是一个只被授予六个治理读面
  * {@code read} 的账户，仍能在这里让 R1 工具真实执行；R3 写则生成一条 `immediate` 确认，而该账户**自己**就能裁它
  * （`/ai/confirmations/{token}` 只拒绝别人的行）——「不能写、不能审批、不能执行」于是在运行时入口上被绕开。
  *
@@ -27,8 +28,9 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *
  * <p>清单里还有宿主自己的 AI 执行形状：AI 模块的 `/admin-api/ai/chat/message/send`（及其流式兄弟）
  * **没有** {@code @PreAuthorize}，却把角色的工具回调交给模型；AI1 的
- * `/admin-api/ai1/session/message/send-stream` 会装配 MCP、SKILL 与受治理的本地工具。它们出于同一个理由、
- * 由同一个开关拒绝。
+ * `/admin-api/ai1/session/message/send-stream` 会装配 MCP、SKILL 与受治理的本地工具；对抗展示的
+ * `/ai/security-showcase/run/*` 会执行引擎动作，控制器虽有管理员闸，仍按同一清单再挡一次。它们出于同一个
+ * 理由、由同一个开关拒绝。
  *
  * <p>英文：
  *
@@ -36,12 +38,15 @@ import org.springframework.web.servlet.HandlerInterceptor;
  *
  * <p>The list also carries the host's own AI execution shapes: the AI module's
  * `/admin-api/ai/chat/message/send` (and its stream) hands a role's tool callbacks to the model with no
- * `@PreAuthorize`, and AI1's `/admin-api/ai1/session/message/send-stream` assembles MCP, SKILL and
- * governed local tools. They are refused for the same reason and by the same switch.
+ * `@PreAuthorize`, AI1's `/admin-api/ai1/session/message/send-stream` assembles MCP, SKILL and governed
+ * local tools, and the showcase's `/ai/security-showcase/run/*` executes engine actions — its controller
+ * carries an administrator gate, and it is refused here once more from the same list. They are refused
+ * for the same reason and by the same switch.
  *
- * <p>Why the host must do it: the runtime's `/ai/chat` (and its streaming sibling `/ai/chat/stream` and
- * the multi-step `/ai/task`) carry **no** {@code @PreAuthorize}, and the engine's gate decides on risk
- * level and governance policy only — it **never consults the permission rule source**. An account
+ * <p>Why the host must do it: the runtime's `/ai/chat`, its streaming sibling `/ai/chat/stream`, the
+ * administrator channel `/admin/ai/chat/stream` and the multi-step `/ai/task` carry **no**
+ * {@code @PreAuthorize}, and the engine's gate decides on risk level and governance policy only — it
+ * **never consults the permission rule source**. An account
  * granted nothing but `read` on six governance faces could therefore still make an R1 tool run here;
  * an R3 write raises an `immediate` confirmation that the same account can decide itself
  * (`/ai/confirmations/{token}` refuses only somebody else's row). "Cannot write, cannot approve,
@@ -98,7 +103,7 @@ public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
             return true;
         }
         String path = pathOf(request);
-        boolean executionEntry = YudaoAuditReaderWebConfig.EXECUTION_PATHS.contains(path);
+        boolean executionEntry = isExecutionEntry(path);
         // 确认与台账的**写**入口：GET 是读面（队列、台账列表）、仍属该角色；非 GET 是裁决 / 再执行 / 撤销。
         // The **write** entries of confirmations and the ledger: GET is a read face (the queue, the
         // ledger list) and stays in the role; a non-GET decides, re-executes or revokes.
@@ -110,14 +115,14 @@ public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
         }
         // 写侧的拒绝**带真 HTTP 403**，与这条删改入口本来答的拒绝同形（运行时对别人的台账行答的就是真 403）。
         // 一个改状态的 DELETE 被拒时若答 HTTP 200，只看状态码的客户端会读成「撤销成功」——而这一条要挡的正是
-        // 一次已经发生的状态迁移。执行入口那三条保持原有的 `AccessDeniedException` 形态（拦截器的拒绝在那里
+        // 一次已经发生的状态迁移。执行入口保持原有的 `AccessDeniedException` 形态（拦截器的拒绝在那里
         // 到达时是 HTTP 200 + 正文 `code:403`，2026-10-25 已记为 F2，本轮只核不改）；等 F2 收口时两处会合成一种。
         //
         // The write-side refusal carries a **real HTTP 403**, the shape this delete already answered
         // with (the runtime answers a real 403 for somebody else's ledger row). A refused
         // state-changing DELETE that answered HTTP 200 would be read as "revoked" by a status-only
         // client — and what this entry has to stop is a state transition that actually happened. The
-        // three execution entries keep their `AccessDeniedException` shape (an interceptor refusal
+        // execution entries keep their `AccessDeniedException` shape (an interceptor refusal
         // arrives there as HTTP 200 with `code:403` in the body — recorded as F2 on 2026-10-25 and
         // only examined this round); the two shapes merge when F2 is closed.
         if (writeEntry) {
@@ -125,6 +130,15 @@ public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
                     "the audit reader is a reader: it cannot write");
         }
         return true;
+    }
+
+    // `/*`-suffixed entries match by prefix: the request carries the concrete id, the ledger the pattern.
+    // 以 `/*` 结尾的条目按前缀匹配：请求带具体 id，账本记的是模式。
+    private static boolean isExecutionEntry(String path) {
+        return YudaoAuditReaderWebConfig.EXECUTION_PATHS.stream().anyMatch(entry ->
+                entry.endsWith("/*")
+                        ? path.startsWith(entry.substring(0, entry.length() - 1))
+                        : entry.equals(path));
     }
 
     /** 去掉上下文路径的请求路径，好让登记的模式与拦截器的匹配对上。 / The request path without its context path, so it matches the registered patterns. */

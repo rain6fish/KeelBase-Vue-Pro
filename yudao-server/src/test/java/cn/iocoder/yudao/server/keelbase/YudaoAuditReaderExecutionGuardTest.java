@@ -21,7 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
  * <p>为什么这条测试存在：运行时的 `EffectController#revoke` 只判归属、不查规则源，于是读者能撤销自己名下的
  * 台账行（2026-10-25 隔离栈实测）。宿主侧那道守卫是唯一会问规则源的地方，而「撤销也在它的射程里」此前只是
  * 一句没被钉住的意图 —— 这道测试把意图变成可跑的读数：读者 DELETE 被拒（自己的行、不存在的 id 都一样，因为
- * 拒绝发生在查行之前），读者 GET 台账仍放行，普通用户与管理员照旧。它也钉住守卫本来的三条入口，免得这次
+ * 拒绝发生在查行之前），读者 GET 台账仍放行，普通用户与管理员照旧。它也钉住守卫原有的入口，免得这次
  * 扩面把原来那道墙碰倒。
  *
  * <p>English:
@@ -92,6 +92,31 @@ class YudaoAuditReaderExecutionGuardTest {
         beAnAuditReader("9201");
 
         assertThrows(AccessDeniedException.class, () -> handle("POST", "/ai/chat"));
+    }
+
+    @Test
+    void theReaderCannotReachTheAdministratorStream() {
+        beAnAuditReader("9201");
+
+        assertThrows(AccessDeniedException.class, () -> handle("POST", "/admin/ai/chat/stream"),
+                "the administrator channel runs the same turn and the same tools");
+    }
+
+    @Test
+    void theReaderCannotRunAShowcaseScenario() {
+        beAnAuditReader("9201");
+
+        assertThrows(AccessDeniedException.class,
+                () -> handle("POST", "/ai/security-showcase/run/scenario-1"),
+                "the path variable must not let the entry slip past the ledger");
+    }
+
+    @Test
+    void theShowcaseListStaysOutsideTheExecutionEntries() {
+        beAnAuditReader("9201");
+
+        assertDoesNotThrow(() -> handle("GET", "/ai/security-showcase/scenarios"),
+                "listing scenarios runs no tool and stays a read");
     }
 
     @Test
