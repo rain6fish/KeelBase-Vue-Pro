@@ -60,7 +60,10 @@ const READER_EFFECT_B = {
   userId: null,
   resultType: 'follow_up',
   resultId: 1,
-  createdAt: '2026-11-21T12:47:07.252760',
+  // The ledger row came from a +08 deployment; pin the zone so the fixture means the same instant
+  // under any machine TZ (audit rows above are 04:47:07Z).
+  // 台账行来自 +08 部署；写明时区，夹具在任何机器时区下都指同一时刻（上面的审计行是 04:47:07Z）。
+  createdAt: '2026-11-21T12:47:07.252760+08:00',
   executionId: EXECUTION_B,
   status: 'executed',
 }
