@@ -196,7 +196,7 @@ const te = (key) => has(key)
 
 // ── 镜像自控制台的两张小表 ────────────────────────────────────────────────────
 //
-// 与 `recordNames.ts` 的 `TOOL_RESULT_TYPES`、`governanceApi.ts` 的 `BUSINESS_LOG_TYPE` 同值；
+// 与 `recordNames.ts` 的 `TOOL_RESULT_TYPES`、`businessLogTypes.mjs` 的 `BUSINESS_LOG_TYPE` 同值；
 // 测试对读两份源码。表外一律回落到空串 / null —— 不猜一个类型，也不猜一个宿主模块。
 const TOOL_RESULT_TYPES = {
   create_crm_customer: 'crm_customer',
@@ -224,7 +224,16 @@ const TOOL_RESULT_TYPES = {
 }
 
 /** The host-side module name for a result type, or null when the two vocabularies do not meet. */
-const BUSINESS_LOG_TYPE = { crm_customer: 'CRM 客户' }
+const BUSINESS_LOG_TYPE = {
+  crm_customer: 'CRM 客户',
+  crm_clue: 'CRM 线索',
+  crm_contact: 'CRM 联系人',
+  crm_business: 'CRM 商机',
+  crm_contract: 'CRM 合同',
+  crm_product: 'CRM 产品',
+  crm_receivable: 'CRM 回款',
+  crm_receivable_plan: 'CRM 回款计划',
+}
 
 const OUTCOMES = [
   'attempted', 'executed', 'pending', 'blocked', 'refused', 'declined', 'failed',

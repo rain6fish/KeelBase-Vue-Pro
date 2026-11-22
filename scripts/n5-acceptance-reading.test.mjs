@@ -119,9 +119,9 @@ test('the two mirror tables match their console sources', () => {
       `recordNames.ts 里没有 ${tool}: '${type}' —— 脚本的表与它漂开了`,
     )
   }
-  const api = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/governanceApi.ts'), 'utf8')
+  const table = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/businessLogTypes.mjs'), 'utf8')
   for (const [type, hostName] of Object.entries(BUSINESS_LOG_TYPE)) {
-    assert.match(api, new RegExp(`\\b${type}: '${hostName}'`), `governanceApi.ts 里没有 ${type}: '${hostName}'`)
+    assert.match(table, new RegExp(`\\b${type}: '${hostName}'`), `businessLogTypes.mjs 里没有 ${type}: '${hostName}'`)
   }
 })
 
