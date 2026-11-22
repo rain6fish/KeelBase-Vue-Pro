@@ -362,7 +362,15 @@ function checksTextOf(row) {
  */
 function sixOf(row, ctx) {
   const effect = effectForRow(row, ctx.effects)
-  const proposal = effect ? null : matchProposal(row, ctx.proposals)
+  // `composeSix` wants the proposal's **object** (type + key), the pair the page's
+  // `proposalArgumentOf` hands over. A raw confirmation record carries neither `resultType` nor
+  // `resultId`, so handing it over made a held call's third cell read 「未记录」 although the
+  // proposal names the record — and the object search had just used that same pair to pick the row.
+  //
+  // `composeSix` 要的是提议**指向的对象**（类型 + 主键），与控制台 `proposalArgumentOf` 交出的那一对相同。
+  // 原始确认记录既没有 `resultType` 也没有 `resultId`，直接交过去会让被扣下那次调用的第三格读成「未记录」——
+  // 而对象检索刚刚正是用同一对把它挑出来的。
+  const proposal = effect ? null : proposalArgumentOf(row, ctx.proposals)
   const recorded = recordedObjectOf(row, effect, proposal)
   const approver = approverOf(row, ctx.rows)
   const answers = composeSix({
