@@ -161,12 +161,13 @@
     <!--
       读面比发出去的筛选更宽 —— 它没有施加对象/终点（生成器产出的应用会静默忽略不认识的参数）。这句只在
       **有证据**时出现（见 `readFaceIgnoredFilters`），并把读者指向运行时读面自己的答复；两份导出沿用
-      同一份命中，故它同时说明导出。
+      同一份命中，并把这句话作为一行 `#` 注记写进文件里（见 `readFaceNote`）。
 
       The read face came back wider than the filters sent — it did not apply the object or the end (an
       application produced by the generator silently ignores parameters it does not know). This line is
       shown only with **evidence** (see `readFaceIgnoredFilters`) and points the reader at the read face's
-      own answer; both exports carry the same matched set, so it covers them too.
+      own answer; both exports carry the same matched set **and** write this same sentence into the file
+      as a `#` note (see `readFaceNote`).
     -->
     <div v-if="queryRan && !queryFailed && readFaceIgnored" class="query-status muted">
       {{ t('keelbase.audit.readFaceUnfiltered') }}
@@ -434,7 +435,7 @@ import {
   objectRefOf,
   readFaceIgnoredFilters,
   selectRows,
-  withScanBound,
+  withCsvNotes,
 } from '@/keelbase/auditQuery.mjs'
 import { absorbChunk, resolveScanCap, scanPageRequests } from '@/keelbase/scanCap.mjs'
 import { maskTitle } from '@/keelbase/mask'
@@ -1347,6 +1348,21 @@ function scanBoundNote(): string {
 }
 
 /**
+ * The export's read-face note — the same sentence the page shows, from the same key, and only with evidence.
+ * `readFaceIgnored` is set solely from the first answer's rows (`readFaceIgnoredFilters`); an empty chain, a
+ * failed request or a search that never ran leaves it false, so the file gains no line it did not earn.
+ * It comes **before** the bound note: it says why these rows are the console's own narrowing, which is the
+ * premise the bound note then limits.
+ *
+ * 导出里的读面注记 —— 与页面同一句话、同一个词条，且只在有证据时写。`readFaceIgnored` 只由第一次答复
+ * 的行决定（`readFaceIgnoredFilters`）；空链、请求失败、没跑过检索都保持 false，文件不会多出赚不来的行。
+ * 它排在扫描上限注记**之前**：先说明这些行为什么是控制台自己挑的，上限注记再限定这次挑拣读到多远。
+ */
+function readFaceNote(): string {
+  return readFaceIgnored.value ? t('keelbase.audit.readFaceUnfiltered') : ''
+}
+
+/**
  * 导出六问 CSV。六列就是本页渲染的那六格 —— 用的是**同一个** `sixOf`，故文件不会与屏幕漂开。
  * 任何一格带内部名时整份拒绝（`csvText` 抛 `CsvLeak`），错误里只说**是哪一问**，不回显那串名字。
  *
@@ -1391,7 +1407,7 @@ async function exportSix() {
       effects.value = prior.effects
       proposals.value = prior.proposals
     }
-    downloadCsv(csvFilename(), withScanBound(csvText(answerRows, labels), scanBoundNote()))
+    downloadCsv(csvFilename(), withCsvNotes(csvText(answerRows, labels), [readFaceNote(), scanBoundNote()]))
   } catch (e) {
     exportError.value =
       e instanceof CsvLeak
@@ -1459,7 +1475,10 @@ async function exportCheck() {
     }
     downloadCsv(
       checkCsvFilename(),
-      withScanBound(checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')), scanBoundNote()),
+      withCsvNotes(checkCsvText(entryRows, labels, t('keelbase.audit.exportNote')), [
+        readFaceNote(),
+        scanBoundNote(),
+      ]),
     )
   } catch (e) {
     exportError.value =

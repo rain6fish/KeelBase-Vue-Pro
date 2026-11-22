@@ -382,11 +382,13 @@ test('a finished scan that hit the bound does not answer "nothing matched"', () 
     'a search that never ran draws an empty state')
 })
 
-test('the bound statement rides in an export only when given, and never becomes a data row', () => {
-  // 两份导出的声明只在触到上限时出现；它是一行元数据（`#` 开头），六列与八列的判据只数数据行。
+test('a note line rides in an export only when given, and never becomes a data row', () => {
+  // 两份导出的说明只在有真事要说时出现；它是一行元数据（`#` 开头），六列与八列的判据只数数据行。
+  // 没有说明时正文逐字不变 —— 一个赚不来的声明比不说更糟。
   //
-  // The statement rides in both exports only when given; it is a metadata line (`#`), and the six/eight
-  // column criterion counts data rows only.
+  // A statement rides in both exports only when given; it is a metadata line (`#`), and the six/eight
+  // column criterion counts data rows only. With no note the body is unchanged character for character —
+  // a statement the export did not earn is worse than none.
   const answers = answersOf([
     'KeelBase',
     '2026-11-11 12:11:46 UTC+08:00',
@@ -396,11 +398,12 @@ test('the bound statement rides in an export only when given, and never becomes 
     'Executed',
   ])
   const plainSix = q.csvText([{ answers }], LABELS)
-  assert.equal(q.withScanBound(plainSix, ''), plainSix, 'a scan inside its bound gained a statement it did not earn')
-  assert.equal(q.withScanBound(plainSix, '   '), plainSix, 'a blank statement still wrote a metadata line')
+  assert.equal(q.withCsvNotes(plainSix, ['']), plainSix, 'a scan inside its bound gained a statement it did not earn')
+  assert.equal(q.withCsvNotes(plainSix, ['   ']), plainSix, 'a blank statement still wrote a metadata line')
+  assert.equal(q.withCsvNotes(plainSix, []), plainSix, 'an empty note list wrote a metadata line')
   assert.doesNotMatch(plainSix, /^#/m, 'the six-column export carries a statement before the bound was hit')
 
-  const boundSix = q.withScanBound(plainSix, 'this file holds only what the scan read within its bound')
+  const boundSix = q.withCsvNotes(plainSix, ['this file holds only what the scan read within its bound'])
   assert.ok(boundSix.startsWith('# this file holds only what the scan read within its bound\r\n'),
     'the statement is not the first line of the six-column export')
   const sixData = boundSix.trimEnd().split('\r\n').filter((line) => !line.startsWith('# '))
@@ -412,8 +415,8 @@ test('the bound statement rides in an export only when given, and never becomes 
     CHECK_LABELS,
     'related, not linked',
   )
-  assert.equal(q.withScanBound(plainCheck, ''), plainCheck, 'the verification export gained a statement it did not earn')
-  const boundCheck = q.withScanBound(plainCheck, 'this file holds only what the scan read within its bound')
+  assert.equal(q.withCsvNotes(plainCheck, ['']), plainCheck, 'the verification export gained a statement it did not earn')
+  const boundCheck = q.withCsvNotes(plainCheck, ['this file holds only what the scan read within its bound'])
   assert.ok(boundCheck.startsWith('# this file holds only what the scan read within its bound\r\n'),
     'the statement is not the first line of the verification export')
   assert.ok(
@@ -423,6 +426,71 @@ test('the bound statement rides in an export only when given, and never becomes 
   const checkData = boundCheck.trimEnd().split('\r\n').filter((line) => !line.startsWith('# '))
   assert.equal(checkData.length, 2, 'the statement changed the data rows of the verification export')
   assert.equal(checkData[1].split(',').length, 8, 'the verification export stopped being eight columns')
+})
+
+test('the read-face note and the bound note keep their order, and either can stand alone', () => {
+  // 两条说明都为真时，次序固定：读面那条在前（它说这些行为什么是控制台自己挑的），扫描上限那条在后
+  // （它说这次挑拣只读到多远）。测试逐字钉住两行与次序，并确认正文一字未动；两条各自的真假互不影响 ——
+  // 只有读面忽略筛选而没有触顶时，上限那行不得出现，反之亦然。
+  //
+  // When both are true the order is fixed: the read-face note first (why these rows are the console's own
+  // narrowing), the bound note second (how far that narrowing could read). The test pins both lines and
+  // their order verbatim, and that the body is untouched. Each note stands alone: a read face that ignored
+  // the filters without the scan hitting its bound gets only its own line, and vice versa.
+  const answers = answersOf([
+    'KeelBase',
+    '2026-11-11 12:11:46 UTC+08:00',
+    'Customer · #2',
+    'a new record: it has no before',
+    'KeelBase approved this write',
+    'Executed',
+  ])
+  const face = 'the read face did not apply this search’s filters — the rows are this page’s own narrowing'
+  const bound = 'this file holds only what the scan read within its bound'
+  const plainSix = q.csvText([{ answers }], LABELS)
+
+  const bothSix = q.withCsvNotes(plainSix, [face, bound])
+  assert.ok(
+    bothSix.startsWith(`# ${face}\r\n# ${bound}\r\n`),
+    'the two notes are not the first two lines, in read-face-then-bound order',
+  )
+  assert.equal(bothSix.replace(`# ${face}\r\n# ${bound}\r\n`, ''), plainSix, 'the notes changed the six-column body')
+
+  assert.equal(
+    q.withCsvNotes(plainSix, [face, '']),
+    `# ${face}\r\n${plainSix}`,
+    'the read-face note alone did not stand on its own',
+  )
+  assert.equal(
+    q.withCsvNotes(plainSix, ['', bound]),
+    `# ${bound}\r\n${plainSix}`,
+    'the bound note alone did not stand on its own',
+  )
+  assert.doesNotMatch(q.withCsvNotes(plainSix, [face, '']), /scan read within its bound/,
+    'the read-face note brought the bound statement with it')
+
+  const plainCheck = q.checkCsvText(
+    [{ id: 31, answers, checks: 'passed Risk level' }],
+    CHECK_LABELS,
+    'related, not linked',
+  )
+  const bothCheck = q.withCsvNotes(plainCheck, [face, bound])
+  assert.ok(bothCheck.startsWith(`# ${face}\r\n# ${bound}\r\n`), 'the verification export did not take both notes')
+  assert.equal(
+    bothCheck.indexOf(`# ${bound}`) < bothCheck.indexOf('ID,'),
+    true,
+    'a note sits below the verification header',
+  )
+  assert.equal(bothCheck.replace(`# ${face}\r\n# ${bound}\r\n`, ''), plainCheck, 'the notes changed the check body')
+  // 解析侧仍把这段前导当说明行跳过，表头与数据行不受影响。
+  // The parsing side still skips this preamble as notes; the header and data rows are untouched.
+  const { notes, rows } = q.splitCsvNotes(bothCheck.trimEnd().split('\r\n').map((line) => [line]))
+  assert.deepEqual(
+    notes,
+    [[`# ${face}`], [`# ${bound}`], ['# related, not linked']],
+    'the two notes and the verification CSV’s own note were not recognised as a preamble',
+  )
+  assert.equal(rows.length, 2, 'splitting the notes changed the header/data row count')
 })
 
 test('a note line is one cell starting with "# "; a data row is never one', () => {
