@@ -83,6 +83,7 @@ import {
   matchProposal,
   objectRefOf,
   selectRows,
+  splitCsvNotes,
 } from '../keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'
 
 // ── 词表 ──────────────────────────────────────────────────────────────────────
@@ -939,7 +940,7 @@ function evaluate(state, ctx, opts) {
     try {
       const file = readCsvFile(opts.csv)
       const labels = CSV_QUESTION_KEYS.map((key) => t(`keelbase.sixQ.${key}`))
-      const parsed = csvRows(file.body)
+      const { rows: parsed } = splitCsvNotes(csvRows(file.body))
       const header = parsed[0] ?? []
       const data = parsed.slice(1)
       const composed = rows.map((row) => cellsByRow.get(String(row.id)).map((a) => a.text).join('\u0001'))
@@ -979,9 +980,7 @@ function evaluate(state, ctx, opts) {
       const labels = CHECK_COLUMN_KEYS.map((key) =>
         key === 'id' ? t('keelbase.audit.colId') : key === 'checks' ? t('keelbase.audit.colChecks') : t(`keelbase.sixQ.${key}`),
       )
-      const parsed = csvRows(file.body)
-      const note = parsed[0]?.[0]?.startsWith('# ') ? parsed[0][0] : ''
-      const body = note ? parsed.slice(1) : parsed
+      const { notes, rows: body } = splitCsvNotes(csvRows(file.body))
       const header = body[0] ?? []
       const data = body.slice(1)
       const problems = []
@@ -1005,7 +1004,7 @@ function evaluate(state, ctx, opts) {
       criteria.push(
         problems.length
           ? criterion('R6', '八列核对 CSV', FAIL, problems.join('；'))
-          : criterion('R6', '八列核对 CSV', PASS, `BOM · CRLF · 8 列 · ${data.length} 行与选区逐格相同${note ? ' · 带相关说明行' : ''}`),
+          : criterion('R6', '八列核对 CSV', PASS, `BOM · CRLF · 8 列 · ${data.length} 行与选区逐格相同${notes.length ? ' · 带相关说明行' : ''}`),
       )
     } catch (e) {
       criteria.push(criterion('R6', '八列核对 CSV', UNREADABLE, `读不了 ${opts['check-csv']}：${e.message}`))

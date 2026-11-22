@@ -430,6 +430,44 @@ export function checkCsvFilename(at = new Date()) {
 }
 
 /**
+ * The marker every note line the product writes begins with: `#` and one space. A note is **one cell**,
+ * so a data row can never be mistaken for one — the verification CSV's id cell is `#31`, with no space,
+ * and always sits in a row of six or eight cells.
+ *
+ * CSV itself (RFC 4180) has no comment lines. The dialect is deliberate and narrow: notes are allowed
+ * **only before the header**, never between or after data rows. A consumer skips leading note rows and
+ * reads the header from the first row that is not one; the header is still matched cell for cell, so a
+ * note can never excuse a genuinely wrong header.
+ *
+ * 产品写出的说明行一律以 `#` 加一个空格开头，且**只有一个格子**；数据行不可能被误认成说明行 ——
+ * 核对 CSV 的编号格是 `#31`（`#` 后没有空格），而且总在一行六格或八格里。
+ *
+ * CSV（RFC 4180）没有注释行。这里的方言是有意收窄的：说明行**只允许在表头之前**，不允许夹在数据行
+ * 之间或结尾。消费者跳过前导说明行，把头一行非说明行当表头；表头仍要逐格对得上，所以说明行永远不能
+ * 为一份坏表头开脱。
+ */
+export const CSV_NOTE_MARKER = '# '
+
+/** Is this row a note line? One cell, starting with `# `. / 这一行是不是说明行？单格，以 `# ` 开头。 */
+export function isCsvNoteRow(row) {
+  return Array.isArray(row) && row.length === 1 && typeof row[0] === 'string' && row[0].startsWith(CSV_NOTE_MARKER)
+}
+
+/**
+ * Split the leading note rows from the body: `{ notes, rows }`. Only the preamble is taken; a note-shaped
+ * row among the data stays there and breaks the row comparison, which is what corruption should do.
+ *
+ * 把表头之前的前导说明行与正文分开，返回 `{ notes, rows }`。只取开头那一段；夹在数据中间的说明形状
+ * 行仍留在正文里，让逐行比对失败 —— 数据被改坏时就该这样。
+ */
+export function splitCsvNotes(rows) {
+  const list = Array.isArray(rows) ? rows : []
+  let i = 0
+  while (i < list.length && isCsvNoteRow(list[i])) i += 1
+  return { notes: list.slice(0, i), rows: list.slice(i) }
+}
+
+/**
  * 给一份导出的正文加上「已扫到上限」的声明：给了 `note` 就在**表头之前**插一行 `# …`，与核对 CSV 自己
  * 那条说明同一形状；`note` 为空时正文**一个字都不动**。一份没有声明的文件会被读成「全部命中」，而这
  * 1000 行只是控制台扫到的上限内那一段 —— 声明必须跟着文件走，不能只留在发出它的那个页面上。
