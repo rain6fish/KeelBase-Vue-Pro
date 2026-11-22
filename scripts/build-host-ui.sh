@@ -56,6 +56,7 @@
 #   KEELBASE_YUDAO_UI        检出位置（默认 <repo>/target/yudao-ui-admin-vue3）
 #   KEELBASE_YUDAO_UI_REPO   克隆地址（默认 Gitee 镜像）
 #   KEELBASE_YUDAO_UI_REF    要取的提交 / 分支 / 标签（默认钉在上游 9bd6a91 —— 八份补丁所针对的那个提交）
+#   KEELBASE_AUDIT_SCAN_ROWS 审计对象查询的行数上限（默认 1000，可配 200–1200；区间外由页面夹取）
 #
 #   默认值钉在**提交**上，不是分支上：八份补丁是在那一个上游提交上写的，上游 master 一往前动，补丁就地失效。
 #   抬这个默认值是**刻意的编辑**，必须**与补丁一起**做：八份补丁要重基到新提交，不能只改这一行。
@@ -66,6 +67,7 @@
 #   KEELBASE_YUDAO_UI_REPO   clone URL           (default the Gitee mirror)
 #   KEELBASE_YUDAO_UI_REF    commit / branch / tag to fetch
 #                            (default pinned to upstream 9bd6a91, the commit the eight patches target)
+#   KEELBASE_AUDIT_SCAN_ROWS audit object-query row cap (default 1000, band 200–1200; the page clamps out-of-band values)
 #
 #   The default is pinned to a **commit**, not a branch: the eight patches were written against that one
 #   upstream commit, and upstream master moving past it makes them stop applying. Raising the pin is a
@@ -465,6 +467,13 @@ if [[ "$SKIP_BUILD" == "0" ]]; then
   # 留空＝同源，页面就问服务它的那个主机，而 `/admin-api` 去哪由外层 nginx 决定。页面与接口不同源时，
   # 用 KEELBASE_YUDAO_UI_BASE_URL 覆盖。
   export VITE_BASE_URL="${KEELBASE_YUDAO_UI_BASE_URL:-}"
+
+  # The audit object query's row cap. Default 1000 (the old 5 pages × 200); the page folds anything
+  # outside 200–1200 into the band and marks it clamped. It is a build-time setting, like the others
+  # above, because the scan depth depends on the runtime's page face (limit ≤ 200, offset ≤ 1000).
+  # 审计对象查询的行数上限。默认 1000（原 5 页 × 200）；页面把 200–1200 之外的值夹进区间并标记。
+  # 与上面几条一样是构建期设置，因为扫描深度受运行时读面的边界约束（limit ≤ 200、offset ≤ 1000）。
+  export VITE_KEELBASE_AUDIT_SCAN_ROWS="${KEELBASE_AUDIT_SCAN_ROWS:-1000}"
 
   echo "installing the app's dependencies (this is upstream's own toolchain)…"
   ( cd "$UI_DIR" && "${PM[@]}" --registry="$REGISTRY" install )

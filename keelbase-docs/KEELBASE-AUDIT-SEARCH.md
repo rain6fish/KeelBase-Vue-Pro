@@ -130,12 +130,17 @@ internal name on the screen.
 
 | Window | Cap | Why |
 |---|---|---|
-| audit rows | 1000 (`200 × 5`) | `offset` on `/audit/logs` is capped at 1000; that is as deep as the face goes |
+| audit rows | 1000 by default (`200 × 5`), configurable 200–1200 | `offset` on `/audit/logs` is capped at 1000 and `limit` at 200, so 1200 is the deepest reach without a repeated page |
 | ledger rows | 300 (`100 × 3`) | it is the object index, walked back from the newest page |
 | confirmation records | 100 | the newest window, for held / refused calls |
 
 The page reports "matched N rows in what was scanned" and, when a cap was hit, says so. A range older
 than the audit scan can reach answers **"not covered"**, not an empty result.
+
+The audit row cap is a build-time setting (`KEELBASE_AUDIT_SCAN_ROWS`); a value outside 200–1200 is
+clamped into the band. The cap lives in `keelbase-ui/host-overlay/src/keelbase/scanCap.mjs`, and
+`scripts/scan-cap.test.mjs` proves a query cannot exceed it — including a read face that ignores
+`limit`.
 
 ## 7. The change that removes the bound — landed on the read face
 
