@@ -363,7 +363,9 @@ if (!executedRow.id || !decisionRow.id) {
 
 // ── 六问：以审计读者的身份拼 / the six questions, composed as the audit reader ───────────────────
 console.log('\n== 六问（读者） ==');
-const auditRead = await api('/audit/logs?page=1&limit=200', { token: readerToken, base: '' });
+// `/audit/logs` takes `limit`/`offset`, not `page`; the host refuses an undeclared parameter.
+// `/audit/logs` 收 `limit`/`offset`、不收 `page`；宿主会拒绝未声明的参数。
+const auditRead = await api('/audit/logs?limit=200', { token: readerToken, base: '' });
 const effectsRead = await api('/ai/tool-effects?page=1&limit=200', { token: readerToken, base: '' });
 const confirmationsRead = await api('/ai/confirmations?page=1&limit=200', { token: readerToken, base: '' });
 check('/audit/logs answers the reader', 200, auditRead.json?.code);
