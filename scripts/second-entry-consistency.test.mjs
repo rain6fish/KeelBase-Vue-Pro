@@ -33,6 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = process.env.KEELBASE_REPO_ROOT || join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (rel) => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
+const localePatch = read('keelbase-ui/host-patches/0002-governance-ui.patch')
 
 const six = await import(pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/sixQuestions.mjs')).href)
 const args = await import(pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/argsText.mjs')).href)
@@ -116,6 +117,37 @@ test('a demo-only kind is named by its record word, not by its internal name', (
 
   const page = read('keelbase-ui/host-overlay/src/views/keelbase/governance/ActionCenterPage.vue')
   assert.match(page, /resultTypeWordKey\(value, te\)/, 'the ledger no longer takes the record-word fallback')
+})
+
+test('the five kinds that differed take the six questions’ word in both bundles', () => {
+  // 2026-11-22 user ruling: where `effects.resultType.*` and `record.*` both carry a word but the two
+  // differ, the six questions' word wins. Five kinds differed; pin all five in both languages so the
+  // two bundles cannot drift apart again.
+  // 2026-11-22 用户裁定：`effects.resultType.*` 与 `record.*` 两边都有词但不同时，以六问为准。
+  // 相差的正是这五类；中英各钉一遍，两套词表不能再分开。
+  const en = localePatch.slice(
+    localePatch.indexOf('diff --git a/src/locales/en.ts'),
+    localePatch.indexOf('diff --git a/src/locales/zh-CN.ts'),
+  )
+  const zh = localePatch.slice(localePatch.indexOf('diff --git a/src/locales/zh-CN.ts'))
+  const block = (text, header, close) => {
+    const start = text.indexOf(header)
+    assert.ok(start >= 0, `missing ${header}`)
+    const end = text.indexOf(`\n${close}`, start)
+    assert.ok(end >= 0, `missing close for ${header}`)
+    const out = {}
+    for (const m of text.slice(start, end).matchAll(/^\+\s+([a-z0-9_]+): '([^']*)',$/gm)) out[m[1]] = m[2]
+    return out
+  }
+  const kinds = ['crm_follow_up_record', 'bpm_oa_leave', 'fms_voucher', 'system_notice', 'system_notify_message']
+  for (const [lang, section] of [['en', en], ['zh', zh]]) {
+    const record = block(section, '+    record: {', '+    },')
+    const effects = block(section, '+      resultType: {', '+      },')
+    for (const kind of kinds) {
+      assert.ok(record[kind], `${lang}: record.${kind} is missing`)
+      assert.equal(effects[kind], record[kind], `${lang}: effects.resultType.${kind} no longer follows the six questions`)
+    }
+  }
 })
 
 test('the action centre renders the arguments through that reader', () => {
