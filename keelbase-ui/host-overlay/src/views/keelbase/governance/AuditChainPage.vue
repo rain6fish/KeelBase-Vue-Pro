@@ -436,6 +436,7 @@ import {
   selectRows,
   withScanBound,
 } from '@/keelbase/auditQuery.mjs'
+import { absorbChunk, resolveScanCap, scanPageRequests } from '@/keelbase/scanCap.mjs'
 import { maskTitle } from '@/keelbase/mask'
 import { RECORD_TYPES, resolveRecordName, resolveRecordNames, toolResultType } from '@/keelbase/recordNames'
 import {
@@ -612,14 +613,14 @@ const queryRan = ref(false)
 const queryFailed = ref(false)
 const queryTruncated = ref(false)
 /**
- * 这次检索的**审计扫描**触到了它自己的 1000 行上界（`SCAN_PAGES × SCAN_LIMIT`）。它与 `queryTruncated`
- * 分开：后者还把台账与确认记录各自的窗口算在内，而导出件的声明、以及「0 行」的空态，说的只是这 1000 行
+ * 这次检索的**审计扫描**触到了它自己的行数上界（默认 1000，见 `scanCap.mjs`）。它与 `queryTruncated`
+ * 分开：后者还把台账与确认记录各自的窗口算在内，而导出件的声明、以及「0 行」的空态，说的只是审计扫描
  * 这一条上界 —— 拿合并的标记去说，会把台账的窗口说成「老的行没读到」。
  *
- * This search's **audit scan** hit its own 1000-row bound (`SCAN_PAGES × SCAN_LIMIT`). It is kept apart
- * from `queryTruncated`: that one also counts the ledger's and the confirmation queue's own windows, while
- * the export's statement — and the empty state for "0 rows" — is about this 1000-row bound alone. Using the
- * merged flag would describe the ledger's window as "older rows were not read".
+ * This search's **audit scan** hit its own row bound (1000 by default — see `scanCap.mjs`). It is kept
+ * apart from `queryTruncated`: that one also counts the ledger's and the confirmation queue's own windows,
+ * while the export's statement — and the empty state for "0 rows" — is about this audit-scan bound alone.
+ * Using the merged flag would describe the ledger's window as "older rows were not read".
  */
 const queryScanBound = ref(false)
 /**
@@ -709,11 +710,17 @@ const viewProposals = computed(() => (queryRan.value ? scanProposals.value : pro
  */
 const recordTypes = [...RECORD_TYPES, ...OBJECT_KEY_TYPES].filter((kind) => te(`keelbase.record.${kind}`))
 
-/** 审计行一次取 200（运行时的上限），最多 5 页 —— 1000 行是那条面能走到的深度（`offset` 上限也是 1000）。 */
-/** Audit rows: 200 a page (the runtime's cap), 5 pages at most — 1000 rows is as deep as that face goes
- *  (`offset` is capped at 1000 too). */
-const SCAN_LIMIT = 200
-const SCAN_PAGES = 5
+/**
+ * 审计扫描的行数上限。默认 1000（原 `200 × 5`），可在构建期用 `KEELBASE_AUDIT_SCAN_ROWS` 调到 200–1200；
+ * 区间外的值被夹住并留下 `clamped` 读数（见 `scanCap.mjs`）。上限抽成纯模块，故「查询不可能超过它」有测试
+ * 可断言，而不只是页面里的一个常量。
+ *
+ * The audit scan's row cap. Default 1000 (the old `200 × 5`), overridable at build time with
+ * `KEELBASE_AUDIT_SCAN_ROWS` inside 200–1200; an out-of-band value is clamped and marked with `clamped`
+ * (see `scanCap.mjs`). The cap is a pure module, so "a query cannot exceed it" is asserted by tests
+ * rather than being one constant in a page.
+ */
+const auditScanCap = resolveScanCap(import.meta.env.VITE_KEELBASE_AUDIT_SCAN_ROWS as string | undefined)
 /** 台账与确认记录各自的窗口：100 一页，台账最多往回 3 页。 */
 /** The ledger's and confirmation queue's windows: 100 a page, the ledger back 3 pages at most. */
 const LEDGER_PAGE = 100
@@ -1121,16 +1128,19 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
 }
 
 /**
- * 从窗口起点往后读审计行，最多 `SCAN_PAGES` 页。`complete=false` 表示**到了上界**：区间里更早的行没读到，
- * 页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
+ * 从窗口起点往后读审计行，按 `scanPageRequests` 的计划取页：每页 `limit` 之和恰等于配置的上限，且每份
+ * 答复都经 `absorbChunk` 裁剪，故累计不越界 —— 读面无视 `limit` 时也一样。`complete=false` 表示**到了
+ * 上界**：区间里更早的行没读到，页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
  *
  * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，不施加的（旧运行时、
  * 生成器产出的应用）忽略这两个参数、页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在
  * 扫回来的行数。
  *
- * Reads audit rows from the window's start, at most `SCAN_PAGES` pages. `complete=false` means the
- * **bound was hit**: older rows in the range were not read, and the page has to say so — an unspoken
- * bound turns "no rows" into "nothing happened".
+ * Reads audit rows from the window's start, walking `scanPageRequests`' plan: its per-page `limit`s add
+ * up to the configured cap, and every answer is trimmed by `absorbChunk`, so the total cannot cross it
+ * even if the read face ignores `limit`. `complete=false` means the **bound was hit**: older rows in the
+ * range were not read, and the page has to say so — an unspoken bound turns "no rows" into "nothing
+ * happened".
  *
  * The range's end and the business object go to the read face too: a runtime that applies them answers
  * an already narrowed list, and one that does not (an older runtime, or an application produced by the
@@ -1142,18 +1152,18 @@ async function scanAudit(
   untilIso?: string,
   object?: { type: string; id: string },
 ) {
-  const all: AuditRow[] = []
-  for (let page = 0; page < SCAN_PAGES; page += 1) {
+  let all: AuditRow[] = []
+  for (const page of scanPageRequests(auditScanCap.rows)) {
     const chunk = await auditApi.logs({
       since: sinceIso,
       until: untilIso,
       objectType: object?.type || undefined,
       objectId: object?.id || undefined,
-      limit: SCAN_LIMIT,
-      offset: page * SCAN_LIMIT,
+      limit: page.limit,
+      offset: page.offset,
     })
-    all.push(...chunk)
-    if (chunk.length < SCAN_LIMIT) return { rows: all, complete: true }
+    all = absorbChunk(all, chunk, auditScanCap.rows)
+    if (chunk.length < page.limit) return { rows: all, complete: true }
   }
   return { rows: all, complete: false }
 }
