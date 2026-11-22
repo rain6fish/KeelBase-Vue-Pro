@@ -123,7 +123,19 @@ const { t } = useI18n()
 })
 
 test('the write record is shown only when exactly one candidate matches', () => {
-  assert.match(script, /near\.length === 1/, 'the "exactly one candidate" rule is gone')
+  // 「恰好一个候选」现在住在共用的 `matchEffect` 里（精确 `executionId` 与五秒回落各一条），页面把
+  // 这件事交给它，自己不再另写一份 —— 否则六问与对象检索会再次分成两种读法。
+  //
+  // "Exactly one candidate" now lives in the shared `matchEffect` (one rule for the exact `executionId`,
+  // one for the five-second fallback); the page hands the job to it instead of keeping a second copy —
+  // otherwise the six answers and the object search drift into two readings again.
+  const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
+  assert.match(query, /return exact\.length === 1 \? exact\[0\] : null/,
+    'the exact executionId match lost its "exactly one" rule')
+  assert.match(query, /return near\.length === 1 \? near\[0\] : null/,
+    'the tool + time fallback lost its "exactly one candidate" rule')
+  assert.match(script, /return matchEffect\(row, viewEffects\.value\)/,
+    'the page no longer takes the ledger pairing from the shared rule')
   assert.match(
     script,
     /function recordState\(e: EffectRow\): string \{\s*if \(!e\.targetExists\)/,
@@ -154,17 +166,18 @@ test('the gate is read from the row, never from the tool inventory', () => {
 
 test('a held or refused call takes its object from the confirmation record', () => {
   // 被扣下或被拒的调用不写台账，第三问此前只能答「未记录」—— 而运行时其实把这次提议记在确认记录里。
-  // 这一条钉住接线：页面真的去读那条队列，按与台账**同一条**规则（恰好一个候选）配对，再把结果交给六问。
+  // 这一条钉住接线：页面真的去读那条队列，按与导出的对象证据**同一条**规则（`matchProposal`，恰好一个
+  // 候选）配对，再把结果交给六问。
   //
   // A held or refused call writes no ledger row, so the third question could only say 「未记录」 — while
   // the runtime did record the proposal in a confirmation record. This pins the wiring: the page really
-  // reads that queue, pairs it under the **same** rule as the ledger (exactly one candidate), and hands
-  // the result to the six answers.
+  // reads that queue, pairs it under the **export's own** rule (`matchProposal`, exactly one candidate),
+  // and hands the result to the six answers.
   assert.match(script, /confirmationApi\.listAll\(1, PROPOSAL_WINDOW\)/, 'the page never reads the confirmation queue')
   assert.match(
     script,
-    /function proposalOf\(row: AuditRow\): ConfirmationItem \| null \{[\s\S]*?near\.length === 1 \? near\[0\] : null/,
-    'no proposal matcher, or it pairs without the "exactly one candidate" rule',
+    /function proposalOf\(row: AuditRow\): ConfirmationItem \| null \{\s*return matchProposal\(row, viewProposals\.value\)\s*\}/,
+    'no proposal matcher, or it does not share the export\'s "exactly one candidate" rule',
   )
   assert.match(
     script,
@@ -705,4 +718,28 @@ test('the two follow-up kinds read differently, and a key-only search says why i
   assert.ok(statusAt >= 0, 'the result status block is gone')
   assert.ok(hintAt > statusAt, 'the key-only rule is not drawn beside the hits')
   assert.ok(template.lastIndexOf('v-if="keyOnlySearch"', hintAt) > 0, 'the key-only rule is drawn for every search')
+})
+
+test('the ledger pairing and the object search share one rule: execution id first', () => {
+  // 2026-11-22：同一工具相隔几秒的两笔写（联系人 #1 与 #2）曾让六问与对象列都答「未记录」—— 页面按
+  // 「同工具 + 五秒内恰好一个候选」配，而对象检索先按 `executionId` 精确配。两条路现在共用
+  // `matchEffect`，故同一行的第三问只有一种读法。
+  //
+  // 2026-11-22: two writes of one tool seconds apart (contacts #1 and #2) made the six answers and the
+  // object column say "not recorded", while the object search paired by `executionId` exactly. Both roads
+  // now share `matchEffect`, so one row cannot answer question ③ two ways.
+  assert.match(script, /import \{[^}]*\bmatchEffect\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/,
+    'the page does not take the ledger pairing rule from the query module')
+  assert.match(
+    script,
+    /function recordOf\(row: AuditRow\): EffectRow \| null \{\s*return matchEffect\(row, viewEffects\.value\)\s*\}/,
+    'the ledger pairing is not the shared execution-id-first rule',
+  )
+  assert.doesNotMatch(
+    script,
+    /function recordOf[\s\S]{0,240}?Math\.abs\(Date\.parse\(e\.createdAt\) - at\) <= 5000/,
+    'the page still carries its own tool + five-seconds pairing',
+  )
+  assert.match(script, /import \{[^}]*\bmatchProposal\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/,
+    'the confirmation pairing is not shared with the export')
 })
