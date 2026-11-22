@@ -443,7 +443,7 @@ test('both exports name the read face only when the answer proved it ignored the
   )
   assert.match(
     script,
-    /function readFaceNote\(\): string \{\s*return readFaceIgnored\.value \? t\('keelbase\.audit\.readFaceUnfiltered'\) : ''\s*\}/,
+    /function readFaceNote\(\): string \{[\s\S]*?readFaceIgnored\.value \? t\('keelbase\.audit\.readFaceUnfiltered'\) : ''[\s\S]*?readFaceNoteLines\(\)[\s\S]*?\}/,
     'the export note is not the page warning’s own sentence, gated on the evidence',
   )
   const exportSix = script.slice(script.indexOf('async function exportSix'), script.indexOf('async function exportCheck'))
@@ -493,15 +493,23 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
   assert.match(script, /async function exportCheck\(\)/)
-  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走。
-  // The line before the header is the second entry's limit (`N6`), so it rides along with this call.
+  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走。读面那两句（N4）由
+  // `readFaceNote()` 并进同一条 `#` 注记，仍是表头前的一行、不是一列。
+  // The line before the header is the second entry's limit (`N6`), so it rides along with this call. The
+  // read face's two statements (N4) join the same `#` note through `readFaceNote()` — still one line before
+  // the header, never a column.
   assert.match(script, /checkCsvText\(entryRows, labels, t\('keelbase\.audit\.exportNote'\)\)/, 'the second export does not go through checkCsvText with its correlation note')
+  assert.match(script, /function readFaceNote\(\): string \{[\s\S]*?readFaceNoteLines\(\)/, 'the read-face note no longer carries the probe statements')
   assert.match(script, /checksTextOf\(row\)/, 'the second export does not carry the checks')
   assert.match(script, /CHECK_COLUMN_KEYS\.map\(/, 'the second export hardcodes its columns')
   assert.match(script, /checkCsvFilename\(\)/)
   assert.match(query, /export const CHECK_COLUMN_KEYS = \['id', \.\.\.SIX_QUESTIONS, 'checks'\]/)
   assert.match(query, /export function checkCsvText\(/)
-  assert.match(script, /csvText\(answerRows, labels\)/, 'the six-column export no longer uses csvText')
+  assert.match(
+    script,
+    /withCsvNotes\(csvText\(answerRows, labels\), \[readFaceNote\(\), scanBoundNote\(\)\]\)/,
+    'the six-column export no longer uses csvText',
+  )
   assert.match(script, /answerRows = queryRows\.value\.map\(\(row\) => \(\{ answers: sixOf\(row\) \}\)\)/,
     'the six-column export no longer composes exactly six answers')
 })

@@ -127,6 +127,24 @@
       </el-form-item>
     </el-form>
 
+    <!--
+      Whether the read face applies this filter — proven by the face's own answer (see
+      `keelbase/readFace.mjs`), never by a version or a deployment's name. When it does not, the face
+      returns a wider list and raises nothing, so this line has to sit beside the search and the exports:
+      the matched rows were narrowed by this console, not by the face; a face-level answer points at the
+      runtime.
+
+      读面自己施加不施加这个筛选 —— 由读面自己的答复证明（见 `keelbase/readFace.mjs`），不靠版本或部署名。
+      不施加时，读面回的是更宽的列表而不报错，故这一句必须出现在检索与导出旁边：命中的行是本控制台收窄的，
+      不是读面收窄的；要读面那一级的答案，请指向运行时。
+    -->
+    <div v-if="readFaceLimits?.objectFilterIgnored" class="query-status query-warn">
+      {{ t('keelbase.audit.readFaceNoObject') }}
+    </div>
+    <div v-if="readFaceLimits?.untilIgnored" class="query-status query-warn">
+      {{ t('keelbase.audit.readFaceNoUntil') }}
+    </div>
+
     <!-- 扫到哪儿、命中几行、有没有到上界 —— 查询的边界要说出来，不然「没有行」会被读成「没有这件事」。 -->
     <!-- Where the scan went, how many rows matched, whether it hit its bound — an unspoken bound makes
          "no rows" read as "nothing happened". -->
@@ -438,6 +456,12 @@ import {
   withCsvNotes,
 } from '@/keelbase/auditQuery.mjs'
 import { absorbChunk, resolveScanCap, scanPageRequests } from '@/keelbase/scanCap.mjs'
+import {
+  hasReadFaceLimits,
+  readFaceLimitsOf,
+  readFaceProbeKind,
+  READ_FACE_PROBE_UNTIL,
+} from '@/keelbase/readFace.mjs'
 import { maskTitle } from '@/keelbase/mask'
 import { RECORD_TYPES, resolveRecordName, resolveRecordNames, toolResultType } from '@/keelbase/recordNames'
 import {
@@ -632,6 +656,17 @@ const queryScanBound = ref(false)
  * end. True only with **evidence** (see `readFaceIgnoredFilters`); with none the page does not guess.
  */
 const readFaceIgnored = ref(false)
+/**
+ * What the read face itself proved about the two filters this page sends it, or `null` until the probe
+ * answers. It is a property of the deployment, not of one search, so it is read once when the page opens.
+ * `null` and `{ false, false }` both mean "nothing proven" — the two are kept apart only so a failed
+ * probe is a fact the page knows rather than a warning it could not decide.
+ *
+ * 读面对这个页面发给它的两个筛选各证明了什么，探针答出来之前是 `null`。它是**部署**的属性、不是某一次
+ * 检索的，故页面打开时读一次。`null` 与 `{ false, false }` 都是「什么都没证明」—— 分开留着，只为让一次
+ * 失败的探针是一个页面知道的事实，而不是一条它没法判断的警告。
+ */
+const readFaceLimits = ref<{ objectFilterIgnored: boolean; untilIgnored: boolean } | null>(null)
 const queryRunning = ref(false)
 const exportError = ref('')
 /** 这次检索实际扫到的那两窗证据 —— 导出时六问按它配，而不是按列表用的那一小窗。 */
@@ -1192,6 +1227,47 @@ async function scanLedger(from: Date | null) {
   return { items, complete: last - LEDGER_PAGES < 1 }
 }
 
+/**
+ * Asks the read face two parameters it either applies or ignores. A kind that cannot exist paired with a
+ * window that ends in 1970: any row coming back can only mean that parameter was not applied. An empty
+ * answer proves nothing (the chain may simply be empty), so it is recorded as "no evidence".
+ *
+ * A failed probe changes nothing about the page: nothing proven means nothing said — a guessed criterion
+ * is never printed as a warning.
+ *
+ * 问读面两个它要么施加、要么忽略的参数。不可能存在的种类词配 1970 年结束的区间：任何一行命中都只可能
+ * 是那个参数没有被施加。答空什么都不证明（链可能本来就是空的），故只记「没有证据」。
+ *
+ * 探针失败不改变页面的任何功能：没证明就不说，绝不用猜的判据把一句警告印上去。
+ */
+async function probeReadFace() {
+  const [objectAnswer, untilAnswer] = await Promise.allSettled([
+    auditApi.logs({ objectType: readFaceProbeKind(String(Date.now())), objectId: '0', limit: 1 }),
+    auditApi.logs({ until: READ_FACE_PROBE_UNTIL, limit: 1 }),
+  ])
+  readFaceLimits.value = readFaceLimitsOf({
+    objectRows: objectAnswer.status === 'fulfilled' ? objectAnswer.value.length : null,
+    untilRows: untilAnswer.status === 'fulfilled' ? untilAnswer.value.length : null,
+  })
+}
+
+/**
+ * The whole-file notes both exports carry: each filter the read face did not apply, said in turn. An empty
+ * array when there is nothing to say — on a face that applies the filters the export is unchanged, character
+ * for character.
+ *
+ * 两份导出都带上的整份说明：读面没有施加的筛选，逐条写出来。没有可写的时候返回空数组 —— 导出在会施加
+ * 筛选的读面上一个字符都不变。
+ */
+function readFaceNoteLines(): string[] {
+  const limits = readFaceLimits.value
+  if (!hasReadFaceLimits(limits)) return []
+  const lines: string[] = []
+  if (limits?.objectFilterIgnored) lines.push(t('keelbase.audit.readFaceNoObject'))
+  if (limits?.untilIgnored) lines.push(t('keelbase.audit.readFaceNoUntil'))
+  return lines
+}
+
 /** 这次检索的区间，两头都写出来（没给的那一头是 `—`）。 / The range this search used, both ends written
  *  out (a missing end reads `—`). */
 function rangeText(): string {
@@ -1357,9 +1433,13 @@ function scanBoundNote(): string {
  * 导出里的读面注记 —— 与页面同一句话、同一个词条，且只在有证据时写。`readFaceIgnored` 只由第一次答复
  * 的行决定（`readFaceIgnoredFilters`）；空链、请求失败、没跑过检索都保持 false，文件不会多出赚不来的行。
  * 它排在扫描上限注记**之前**：先说明这些行为什么是控制台自己挑的，上限注记再限定这次挑拣读到多远。
+ *
+ * 部署级的两句（`readFaceNoteLines`，探针证明的那两条）排在这句之前，合成同一行 `#` 注记：说明行只
+ * 放在表头之前这一处，下游（`splitCsvNotes`）不必在数据行之后另找注记。
  */
 function readFaceNote(): string {
-  return readFaceIgnored.value ? t('keelbase.audit.readFaceUnfiltered') : ''
+  const search = readFaceIgnored.value ? t('keelbase.audit.readFaceUnfiltered') : ''
+  return [...readFaceNoteLines(), search].filter(Boolean).join(' ')
 }
 
 /**
@@ -1622,6 +1702,7 @@ onMounted(() => {
   void loadVerify()
   void loadRows()
   void loadCoverage()
+  void probeReadFace()
 })
 </script>
 
