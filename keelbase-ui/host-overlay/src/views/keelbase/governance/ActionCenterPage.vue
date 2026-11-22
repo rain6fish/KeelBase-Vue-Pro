@@ -448,7 +448,7 @@ function toolText(name: string | null | undefined): string {
 
 /**
  * 宿主那一行记下的调用方：先取它**自己配好的名字**；它只记了 id 时，用**审计链同一条**窄读面把 id 翻成名字
- * （`resolveCallerNames`，与上面那张台账同一份名录、同一个缓存）；连 id 都没有才**如实留空**。
+ * （`resolveCallerNames`，与上面那张台账同一份名录、同一个缓存）；连 id 都没有才写**「未记录」**。
  *
  * 2026-11-21（`N6`）改的正是中间那一档：原先宿主没给名字就把裸 id 印出来，于是一次操作在审计链上叫
  * 「KeelBase」、在宿主操作日志里叫「1」—— 同一个人的两种写法，独立读者对不上账。这一列现在与链上同一份
@@ -456,7 +456,7 @@ function toolText(name: string | null | undefined): string {
  *
  * The caller the host's own row recorded: its **own name** first; when it kept only an id, that id is
  * named through **the same narrow directory the audit chain reads** (`resolveCallerNames` — same names,
- * same cache); a row with neither says it recorded no caller. The chain's rule applies in full here, so
+ * same cache); a row with neither says "not recorded". The chain's rule applies in full here, so
  * an unnamed id is never printed as the name and a missing caller is never drawn as a dash.
  *
  * 2026-11-21 (`N6`) changed that middle case: a row the host left unnamed used to print the bare id, so
