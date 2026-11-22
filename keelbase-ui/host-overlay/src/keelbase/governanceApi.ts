@@ -14,6 +14,7 @@
 // 概念的字段——审计行上联出来的用户名、token 计数、授权结论——在这里就是**缺席**，页面也就不渲染
 // 它们。另一条路是画一个永远只能空着的列、或者编一个值，两者都比一张更窄的表更糟。
 import { runtime } from './runtime'
+import { mappedBusinessLogType } from './businessLogTypes.mjs'
 
 /** One check the gate evaluated, in the frozen authorization shape. */
 /** 闸门评估过的一道检查，按冻结的授权形状。 */
@@ -581,13 +582,6 @@ export const effectApi = {
  * `system:operate-log:query` 守着，而该权限在本部署**不是管理员专属** —— 它授给了 `common` 角色 —— 故这一腿的
  * 范围就是**宿主自己的**。被拒就照原样显示，而不是在这里判。
  */
-const BUSINESS_LOG_TYPE: Record<string, string> = {
-  // The runtime names a module its own way; the host names it in Chinese. One side has to translate,
-  // and the host is where its own modules are known.
-  // 运行时按自己的方式给模块起名，宿主用中文起名。总得有一侧翻译，而模块是在**宿主**那儿认识的。
-  crm_customer: 'CRM 客户',
-}
-
 export interface BusinessLogRow {
   id: number
   type: string | null
@@ -604,10 +598,15 @@ export interface BusinessLogRow {
 }
 
 export const businessLogApi = {
-  /** The host-side type this result type maps to, or null when the two vocabularies do not meet. */
-  /** 这个结果类型对应的宿主侧类型；两套词表碰不上时给 null。 */
+  /**
+   * The host-side type this result type maps to, or null when the two vocabularies do not meet. The
+   * table itself lives in `businessLogTypes.mjs` so a test can read it without this file's client.
+   *
+   * 这个结果类型对应的宿主侧类型；两套词表碰不上时给 null。表本身在 `businessLogTypes.mjs`，
+   * 测试读它时不必牵连本文件那个客户端。
+   */
   mappedType: (resultType: string | null | undefined): string | null =>
-    resultType ? (BUSINESS_LOG_TYPE[resultType] ?? null) : null,
+    mappedBusinessLogType(resultType),
 
   /**
    * The rows YuDao logged for this object. No time window is passed: the server returns newest-first
