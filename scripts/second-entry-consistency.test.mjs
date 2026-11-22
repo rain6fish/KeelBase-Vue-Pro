@@ -36,6 +36,7 @@ const read = (rel) => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n
 
 const six = await import(pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/sixQuestions.mjs')).href)
 const args = await import(pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/argsText.mjs')).href)
+const labels = await import(pathToFileURL(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/labels.ts')).href)
 
 /** The English words the patch defines, verbatim; the test keeps its own copy so drift shows up. */
 /** 补丁里那份英文词条，逐字；测试各留一份，改了另一处会在这里显示为读数变化。 */
@@ -94,6 +95,27 @@ test('nested argument values stay readable and an empty set says it recorded non
     assert.equal(args.argsText(empty, { t, te }), MESSAGES['keelbase.actionCenter.argsUnrecorded'])
   }
   assert.equal(args.argsText({ note: null }, { t, te }), 'note：empty')
+})
+
+test('a demo-only kind is named by its record word, not by its internal name', () => {
+  // `follow_up` / `pm_project` live only in the six questions' record vocabulary; a ledger that consulted
+  // the effects vocabulary alone printed the internal name, so the same object read two ways.
+  // `follow_up` / `pm_project` 只在六问的 record 词表里；台账若只查 effects 词表，会把内部名印出来，
+  // 同一操作的对象在台账与审计链上就对不上。
+  const bundle = {
+    'keelbase.effects.resultType.crm_customer': 'customer',
+    'keelbase.record.follow_up': 'Sample follow-up',
+    'keelbase.record.pm_project': 'Project',
+  }
+  const te = (key) => Object.hasOwn(bundle, key)
+  assert.equal(labels.resultTypeWordKey('crm_customer', te), 'keelbase.effects.resultType.crm_customer')
+  assert.equal(labels.resultTypeWordKey('follow_up', te), 'keelbase.record.follow_up')
+  assert.equal(labels.resultTypeWordKey('pm_project', te), 'keelbase.record.pm_project')
+  assert.equal(labels.resultTypeWordKey('not_a_kind', te), null, 'an unknown kind must stay as itself')
+  assert.equal(labels.resultTypeWordKey(null, te), null)
+
+  const page = read('keelbase-ui/host-overlay/src/views/keelbase/governance/ActionCenterPage.vue')
+  assert.match(page, /resultTypeWordKey\(value, te\)/, 'the ledger no longer takes the record-word fallback')
 })
 
 test('the action centre renders the arguments through that reader', () => {

@@ -281,6 +281,28 @@ export function resultTypeLabelKey(value: string | null | undefined): string | n
   return code ? `keelbase.effects.resultType.${code}` : null
 }
 
+/**
+ * The i18n key for a result type's word: the effects vocabulary when this console knows the kind,
+ * else the six questions' record vocabulary. Two demo-only kinds (`follow_up`, `pm_project`) have a
+ * record word but no result-type word, so the ledger used to print their internal names.
+ *
+ * `hasKey` is the bundle's own `te`, so the fallback is only taken when that word really exists.
+ *
+ * 结果类型的词条：控制台认识这种类时用 effects 词表，否则用六问的 record 词表。`follow_up`、
+ * `pm_project` 这两个演示类型只有 record 词条，台账过去会印它们的内部名。
+ *
+ * `hasKey` 传的是词表自己的 `te`：只有那个词真的存在时才回退。
+ */
+export function resultTypeWordKey(
+  value: string | null | undefined,
+  hasKey: (key: string) => boolean,
+): string | null {
+  const key = resultTypeLabelKey(value)
+  if (key) return key
+  const fallback = value ? `keelbase.record.${value}` : ''
+  return fallback && hasKey(fallback) ? fallback : null
+}
+
 /** 可撤档位对应的 i18n key；控制台不认识时为 null。 */
 /** The i18n key for a revoke class, or null when this console does not know it. */
 export function revokeClassLabelKey(value: string | null | undefined): string | null {

@@ -387,7 +387,7 @@ import {
 import { resolveCallerNames } from '@/keelbase/callerNames'
 import { resolveRecordNames } from '@/keelbase/recordNames'
 import { runtimeErrorMessage } from '@/keelbase/runtime'
-import { resultTypeLabelKey, toolLabelKey } from '@/keelbase/labels'
+import { resultTypeWordKey, toolLabelKey } from '@/keelbase/labels'
 import { maskTitle } from '@/keelbase/mask'
 import { timeText } from '@/keelbase/time'
 import { argsText } from '@/keelbase/argsText.mjs'
@@ -421,9 +421,20 @@ const { isAdmin, userId: myUserId } = useConsoleAdministrator()
  * (`crm_customer` → customer), and an unknown value is shown **as itself** — never hidden, never guessed
  * from its spelling. The sixth reader (2026-11-13) named `crm_customer` as a word no business reader uses;
  * the vocabulary already existed, this page just did not use it.
+ *
+ * A demo-only kind the effects vocabulary does not carry (`follow_up`) is named by the six questions'
+ * record word instead, so the ledger and the chain say the same object word. Only when neither
+ * vocabulary has a word does the raw code stand for itself.
+ *
+ * 结果类型用读者的语言说：控制台认识的类型给业务词（`crm_customer` → 客户），不认识的取值**原样**
+ * 显示——不隐藏，也不从拼写去猜。第六位读者（2026-11-13）点名过 `crm_customer`
+ * 「不像普通业务人员会使用的名称」；词表本来就有，只是这一页没用它。
+ *
+ * effects 词表没有的演示类型（`follow_up`）改用六问的 record 词条，让台账与审计链说出同一个对象词。
+ * 两套词表都没有词时，才由原码代表它自己。
  */
 function resultTypeText(value: string | null | undefined): string {
-  const key = resultTypeLabelKey(value)
+  const key = resultTypeWordKey(value, te)
   return key ? t(key) : value || '—'
 }
 
