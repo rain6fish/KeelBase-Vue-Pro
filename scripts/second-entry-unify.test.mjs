@@ -63,13 +63,17 @@ test('the timezone is written by one formatter, and the pages share it', () => {
   assert.match(fromIso, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC[+-]\d{2}:\d{2}$/, 'the time no longer carries its offset')
   assert.equal(zonedTime(null), BLANK, 'an empty value should still be the dash')
 
-  // 参与交叉核对的三页都用这一份。 / The three cross-checking pages all use it.
+  // 参与交叉核对的三页都用这一份：经 `timeText`，或（第二入口与六问同格时）直接取 `zonedTime` ——
+  // 两条路都是同一个格式器，不存在第二份。
+  // The three cross-checking pages all use it: through `timeText`, or — where the second entry takes the
+  // six answers' own cell — `zonedTime` directly. Both are the same formatter; there is no second one.
+  const SHARED_TIME = /import \{ timeText \} from '@\/keelbase\/time'|import \{ zonedTime \} from '@\/keelbase\/sixQuestions\.mjs'/
   for (const [page, label] of [
     [AUDIT_CHAIN, 'the audit chain'],
     [ACTION_CENTER, 'the action centre'],
     [OP_AUDIT, 'the operations audit'],
   ]) {
-    assert.match(read(page), /import \{ timeText \} from '@\/keelbase\/time'/, `${label} no longer uses the shared time formatter`)
+    assert.match(read(page), SHARED_TIME, `${label} no longer uses the shared time formatter`)
   }
 })
 
@@ -80,8 +84,7 @@ test('the second entry names a caller the same way the audit chain does', () => 
   assert.match(page, /resolveCallerNames\(list\.map\(\(r\) => r\.userId\)\)/, 'the host-log leg no longer resolves caller names')
   // 「谁」这一格：宿主自己给的名字优先；只记了 id 时经名录译名，而不是印裸编号。
   // The "who" cell: the host’s own name first; an id alone goes through the directory, not out as a bare number.
-  assert.match(page, /if \(row\.userName\) return row\.userName/, 'the host’s own name is no longer preferred')
-  assert.match(page, /return callerName\(String\(row\.userId\)\)/, 'an id-only row is no longer named through the directory')
+  assert.match(page, /row\.userName \|\| callerName\(String\(id\)\)/, 'the host’s own name is no longer preferred')
   assert.doesNotMatch(page, /return row\.userId === null \|\| row\.userId === undefined \? '—' : String\(row\.userId\)/, 'an id-only row still prints the bare id')
 })
 

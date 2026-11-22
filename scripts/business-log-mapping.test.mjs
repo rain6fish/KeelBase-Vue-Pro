@@ -261,16 +261,16 @@ test('the action centre fetches the leg with that mapped word and the row’s ow
 
 test('the three axes read the same on the leg as on the six questions', () => {
   const page = read('keelbase-ui/host-overlay/src/views/keelbase/governance/ActionCenterPage.vue')
-  // 时间：业务腿那一格走与审计链同一个 `timeText`，而 `timeText` 委托 `zonedTime`。
-  // Time: the leg's cell goes through the chain's own `timeText`, which delegates to `zonedTime`.
-  assert.match(page, /\{\{ timeText\(r\.createTime\) \}\}/)
+  // 时间：业务腿那一格直接用六问那一条 `zonedTime`（带偏移）—— 同一时刻在两处逐字可比。
+  // Time: the leg's cell uses the six questions' own `zonedTime` (offset included), so one instant
+  // reads identically in both entries.
+  assert.match(page, /\{\{ zonedTime\(r\.createTime\) \}\}/)
   assert.match(read('keelbase-ui/host-overlay/src/keelbase/time.ts'), /return zonedTime\(/)
 
-  // 谁：宿主自己的名字优先，取不到走与链上同一份名录，两样都没有明写未记录；编号另起一行。
-  // Who: the host's own name first, then the chain's directory, then an explicit "not recorded";
-  // the id has its own line.
+  // 谁：按第一问的形状「名字（账号 #n）」一格写完；编号与名字同格，不再另起一行。
+  // Who: the first answer's shape, name (account #n), in one cell; the id rides with the name.
   assert.match(page, /\{\{ whoText\(r\) \}\}/)
-  assert.match(page, /<div v-if="r\.userId" class="muted">#\{\{ r\.userId \}\}<\/div>/)
+  assert.match(page, /t\('keelbase\.sixQ\.account'\)\} #\$\{id\}）`/)
 
   // 对象：业务腿本身不印对象（它属于同一个展开面板）；面板的对象行与六问用同一套 record 词。
   // Object: the leg itself names none (it sits inside the same panel); the panel's object row uses
