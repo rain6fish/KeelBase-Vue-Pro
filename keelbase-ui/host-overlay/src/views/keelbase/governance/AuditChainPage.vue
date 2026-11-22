@@ -1343,8 +1343,11 @@ async function runQuery() {
  * what the scan read within its bound"; when it was not, it is an empty string (the file gains nothing). Both
  * buttons take it from here, so the two exports cannot drift apart.
  */
+// The sentence names the cap, and the cap is a build-time setting; passing it keeps the file from
+// claiming 1000 when the scan was configured to 200 or 1200.
+// 这句话点名上限，而上限是构建期设置；把实际值传进去，文件才不会在 200 / 1200 档仍声称 1000。
 function scanBoundNote(): string {
-  return queryScanBound.value ? t('keelbase.audit.exportScanBound') : ''
+  return queryScanBound.value ? t('keelbase.audit.exportScanBound', { n: auditScanCap.rows }) : ''
 }
 
 /**

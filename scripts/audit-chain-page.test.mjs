@@ -395,8 +395,8 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
   )
   assert.match(
     script,
-    /function scanBoundNote\(\): string \{\s*return queryScanBound\.value \? t\('keelbase\.audit\.exportScanBound'\) : ''\s*\}/,
-    'the bound statement is not gated on the audit scan hitting its bound',
+    /function scanBoundNote\(\): string \{\s*return queryScanBound\.value \? t\('keelbase\.audit\.exportScanBound', \{ n: auditScanCap\.rows \}\) : ''\s*\}/,
+    'the bound statement is not gated on the audit scan hitting its bound, or does not name the configured cap',
   )
   assert.match(script, /queryScanBound\.value = !audit\.complete/, 'the audit bound is not read from the scan')
   assert.match(
@@ -414,6 +414,14 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
   for (const key of ['queryEmptyAtBound:', 'exportScanBound:']) {
     const hits = patch.split(`+      ${key}`).length - 1
     assert.equal(hits, 2, `${key} is not in both language bundles`)
+  }
+  // 上限可配之后，注记正文必须跟着上限走：两份语言包都带 {n}，且都不再写死 1000。
+  // With a configurable cap the note has to carry it: both bundles use {n} and neither keeps the literal 1000.
+  const boundEntries = [...patch.matchAll(/exportScanBound:\n\+\s*'([^']+)'/g)].map((match) => match[1])
+  assert.equal(boundEntries.length, 2, 'exportScanBound is not in both language bundles')
+  for (const text of boundEntries) {
+    assert.match(text, /\{n\}/, `the bound statement does not name the configured cap: ${text}`)
+    assert.doesNotMatch(text, /1000/, `the bound statement still writes a fixed 1000: ${text}`)
   }
 })
 

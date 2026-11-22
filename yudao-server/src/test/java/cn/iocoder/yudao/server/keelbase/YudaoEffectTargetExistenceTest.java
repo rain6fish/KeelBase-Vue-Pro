@@ -7,9 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import cn.iocoder.yudao.module.crm.dal.dataobject.contact.CrmContactDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.customer.CrmCustomerDO;
+import cn.iocoder.yudao.module.crm.dal.mysql.business.CrmBusinessMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.clue.CrmClueMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contact.CrmContactMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contract.CrmContractMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.customer.CrmCustomerMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.followup.CrmFollowUpRecordMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.product.CrmProductMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivableMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.fms.dal.mysql.voucher.FmsVoucherMapper;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
 import cn.iocoder.yudao.module.products.dal.mysql.products.ProductsMapper;
@@ -35,17 +43,26 @@ import org.junit.jupiter.api.Test;
 class YudaoEffectTargetExistenceTest {
 
     private CrmCustomerMapper customers;
+    private CrmContactMapper crmContacts;
     private YudaoEffectTargetExistence advice;
 
     @BeforeEach
     void setUp() {
         customers = mock(CrmCustomerMapper.class);
+        crmContacts = mock(CrmContactMapper.class);
         advice = new YudaoEffectTargetExistence(
                 customers,
                 mock(CrmFollowUpRecordMapper.class),
                 mock(FmsVoucherMapper.class),
                 mock(Demo01ContactMapper.class),
-                mock(ProductsMapper.class));
+                mock(ProductsMapper.class),
+                mock(CrmClueMapper.class),
+                crmContacts,
+                mock(CrmBusinessMapper.class),
+                mock(CrmContractMapper.class),
+                mock(CrmProductMapper.class),
+                mock(CrmReceivableMapper.class),
+                mock(CrmReceivablePlanMapper.class));
     }
 
     @Test
@@ -82,6 +99,30 @@ class YudaoEffectTargetExistenceTest {
         advice.correct(page(row));
 
         assertEquals(false, row.get("targetExists"));
+    }
+
+    @Test
+    void aContactThatIsStillThereReadsAsPresent() {
+        // 2026-11-22 扩面之前，`crm_contact` 没有探针，存在的联系人被画成「已不在」。
+        // Before the 2026-11-22 widening `crm_contact` had no probe, so a contact that existed read as gone.
+        when(crmContacts.selectById(3L)).thenReturn(new CrmContactDO());
+
+        Map<String, Object> row = row("crm_contact", 3L, false);
+
+        advice.correct(page(row));
+
+        assertEquals(true, row.get("targetExists"), "contact #3 is still in the table");
+    }
+
+    @Test
+    void aDeletedContactReadsAsGone() {
+        when(crmContacts.selectById(4L)).thenReturn(null);
+
+        Map<String, Object> row = row("crm_contact", 4L, true);
+
+        advice.correct(page(row));
+
+        assertEquals(false, row.get("targetExists"), "a real delete keeps the gone reading");
     }
 
     @Test
