@@ -1,5 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
+// ── English ─────────────────────────────────────────────────────────────────────
+// The `N5` reading script's own criterion: **cannot read is not a pass**, and the mirrors inside the
+// script must not drift from the console. This test pins the zh-CN message mirror cell for cell against
+// `0002-governance-ui.patch`; the two small mapping tables against their console sources; a fixture
+// shaped like the real-stack run of 2026-11-21 driving all 32 built-in self-checks; and the rule that
+// no source, a missing verify, a missing ledger or an unknown execution all answer `无法取数` (exit 2)
+// rather than a pass.
+//
 // `N5` 取数脚本的判据：**取不到 ≠ 通过**，以及脚本里的镜像表不许与控制台漂开。
 //
 // 这一条钉四件事 ——
@@ -13,14 +21,6 @@
 //
 //     node --test scripts/n5-acceptance-reading.test.mjs
 //
-// ── English ─────────────────────────────────────────────────────────────────────
-//
-// The `N5` reading script's own criterion: **cannot read is not a pass**, and the mirrors inside the
-// script must not drift from the console. This test pins the zh-CN message mirror cell for cell against
-// `0002-governance-ui.patch`; the two small mapping tables against their console sources; a fixture
-// shaped like the real-stack run of 2026-11-21 driving all 32 built-in self-checks; and the rule that
-// no source, a missing verify, a missing ledger or an unknown execution all answer `无法取数` (exit 2)
-// rather than a pass.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -86,8 +86,8 @@ test('the zh-CN message mirror matches the patch cell for cell', () => {
     ['keelbase.vocab.outcome.', ZH.outcome],
   ]
   for (const [prefix, source] of groups) {
-    // 两个方向都查：脚本用到的每个词条都必须在补丁那个块里，且逐字相同。
     // Both directions: every message the script uses must exist in that block, and match verbatim.
+    // 两个方向都查：脚本用到的每个词条都必须在补丁那个块里，且逐字相同。
     for (const messageKey of Object.keys(MESSAGES).filter((key) => key.startsWith(prefix))) {
       const short = messageKey.slice(prefix.length)
       assert.ok(short in source, `${messageKey} 不在补丁的对应块里`)
@@ -265,12 +265,12 @@ async function exportAndMutate(mutate) {
 }
 
 test('both CSVs may open with a leading note line, and the data still reads green', async () => {
-  // 2026-11-21 预演：核对 CSV 首行是产品写的一句 `#` 说明，机检把它当表头。这里把同一形状补到**两份**
-  // 文件上（六列那份在生产也可能因扫到上限带说明），R5 / R6 都必须照常读数据行，而不是把说明当表头。
-  //
   // The 2026-11-21 dry run: the verification CSV opens with the product's `#` note and the checker took
   // it as the header. The same shape is put on **both** files here (the six-column one can also carry a
   // note when the scan hits its bound); R5 / R6 must still read the data, not the note.
+  //
+  // 2026-11-21 预演：核对 CSV 首行是产品写的一句 `#` 说明，机检把它当表头。这里把同一形状补到**两份**
+  // 文件上（六列那份在生产也可能因扫到上限带说明），R5 / R6 都必须照常读数据行，而不是把说明当表头。
   const { rmSync } = await import('node:fs')
   const { dir, result, text } = await exportAndMutate(async (six, check) => {
     await prependNote(six, '# 已扫到上限：本文件只含扫描覆盖的那一段')
@@ -331,10 +331,10 @@ test('an object search that picks up the held row still answers its third questi
 })
 
 test('a note line does not excuse a genuinely wrong header', async () => {
-  // 反例：说明行可以跳过，但跳过之后表头仍要逐字对得上。把表头第一格改错，两份都必须判红。
-  //
   // Negative: the note may be skipped, but the header after it must still match cell for cell. The
   // header's first cell is changed; both files must go red rather than pass on the skipped note.
+  //
+  // 反例：说明行可以跳过，但跳过之后表头仍要逐字对得上。把表头第一格改错，两份都必须判红。
   const { rmSync } = await import('node:fs')
   const { dir, result, text } = await exportAndMutate(async (six, check) => {
     const { readFileSync: read, writeFileSync: write } = await import('node:fs')

@@ -432,10 +432,6 @@ const { canWrite } = useConsoleWriteAllowed()
 const { isAdmin, userId: myUserId } = useConsoleAdministrator()
 
 /**
- * 结果类型，用读者的语言：控制台认识的类型按业务词说（`crm_customer` → 客户），不认识的取值**原样**显示
- * —— 不隐藏，也不从拼写去猜。第六位读者（2026-11-13）点名过 `crm_customer`「不像普通业务人员会使用的
- * 名称」；词表本来就有，只是这一页没用它。
- *
  * The result type in the reader's language: a type this console knows is said in business words
  * (`crm_customer` → customer), and an unknown value is shown **as itself** — never hidden, never guessed
  * from its spelling. The sixth reader (2026-11-13) named `crm_customer` as a word no business reader uses;
@@ -444,6 +440,10 @@ const { isAdmin, userId: myUserId } = useConsoleAdministrator()
  * A demo-only kind the effects vocabulary does not carry (`follow_up`) is named by the six questions'
  * record word instead, so the ledger and the chain say the same object word. Only when neither
  * vocabulary has a word does the raw code stand for itself.
+ *
+ * 结果类型，用读者的语言：控制台认识的类型按业务词说（`crm_customer` → 客户），不认识的取值**原样**显示
+ * —— 不隐藏，也不从拼写去猜。第六位读者（2026-11-13）点名过 `crm_customer`「不像普通业务人员会使用的
+ * 名称」；词表本来就有，只是这一页没用它。
  *
  * 结果类型用读者的语言说：控制台认识的类型给业务词（`crm_customer` → 客户），不认识的取值**原样**
  * 显示——不隐藏，也不从拼写去猜。第六位读者（2026-11-13）点名过 `crm_customer`
@@ -466,13 +466,6 @@ function toolText(name: string | null | undefined): string {
 }
 
 /**
- * 宿主那一行记下的调用方，按**第一问的形状**写：「名字（账号 #n）」。名字先取宿主**自己配好的**那个
- * （它的操作日志页本就拿自己的用户表译过一遍）；它没给时走**审计链同一条**窄读面（`callerName`，同一份
- * 名录、同一个缓存），名录也认不出时写「姓名未记录」—— 与六问那一格的回落一致，于是同一个人两处逐字
- * 可比。宿主**没记**调用方（连 id 都没有）的行写「未记录」：破折号会被读成「没取到」，而这一行是**确实
- * 没有人可记** —— AI 引起的那一行本就没人。同一条留痕上「未记录」「姓名未记录」各只有一个词，全控制台
- * 共用，不在这里另造说法。
- *
  * The caller the host's own row recorded, in the **first answer's shape**: name (account #n). The host's
  * own name wins; when it kept only an id, that id is named through **the same narrow directory the audit
  * chain reads** (`callerName` — same names, same cache), and an id the directory cannot name says the name
@@ -480,6 +473,13 @@ function toolText(name: string | null | undefined): string {
  * entries. A row that recorded **nobody** (not even an id) says "not recorded": a dash reads as "we could
  * not get it", while this row genuinely has nobody to record — the AI-caused row has no user. The console
  * keeps one word each for "not recorded" and "name not recorded" and does not mint a third here.
+ *
+ * 宿主那一行记下的调用方，按**第一问的形状**写：「名字（账号 #n）」。名字先取宿主**自己配好的**那个
+ * （它的操作日志页本就拿自己的用户表译过一遍）；它没给时走**审计链同一条**窄读面（`callerName`，同一份
+ * 名录、同一个缓存），名录也认不出时写「姓名未记录」—— 与六问那一格的回落一致，于是同一个人两处逐字
+ * 可比。宿主**没记**调用方（连 id 都没有）的行写「未记录」：破折号会被读成「没取到」，而这一行是**确实
+ * 没有人可记** —— AI 引起的那一行本就没人。同一条留痕上「未记录」「姓名未记录」各只有一个词，全控制台
+ * 共用，不在这里另造说法。
  */
 function whoText(row: BusinessLogRow): string {
   const id = row.userId
@@ -489,14 +489,14 @@ function whoText(row: BusinessLogRow): string {
 }
 
 /**
- * 这一腿的对象，按**第三问的写法**：业务词（`keelbase.record.*`，与六问同一组词）· 主键。两处用的是同
- * 一个 `(resultType, resultId)`，故读者不必从面板的取数方式里猜「这是哪个对象」。控制台没有词的类型
- * 说「本控制台没有给它名字的业务对象」，不印运行时的类型名 —— 与第三问同一条规则。
- *
  * The leg's object, in the **third answer's notation**: business word (`keelbase.record.*`, the six answers'
  * own words) · key. Both entries use the same `(resultType, resultId)`, so the reader does not have to
  * guess the object from how the panel was fetched. A type this console has no word for says so, rather than
  * printing the runtime's type name — the same rule the third answer follows.
+ *
+ * 这一腿的对象，按**第三问的写法**：业务词（`keelbase.record.*`，与六问同一组词）· 主键。两处用的是同
+ * 一个 `(resultType, resultId)`，故读者不必从面板的取数方式里猜「这是哪个对象」。控制台没有词的类型
+ * 说「本控制台没有给它名字的业务对象」，不印运行时的类型名 —— 与第三问同一条规则。
  */
 function objectHead(row: EffectRow): string {
   const key = `keelbase.record.${row.resultType ?? ''}`
@@ -1040,12 +1040,12 @@ async function onExpand(row: EffectRow, expandedRows: EffectRow[]) {
     const res = await businessLogApi.byObject(businessType, row.resultId)
     const list = res.list ?? []
     bizRows.value = { ...bizRows.value, [row.id]: list }
-    // 这些行上的「谁」按第一问同一个来源补名：宿主自己给了名字的行原样用，没给的行经调用方名录 ——
-    // 名录认不出时 `callerName` 说「姓名未记录」，与六问那一格的回落一致。补名从不 reject。
-    //
     // The "who" on these rows is named from the first answer's source: rows the host named keep that name,
     // and rows it did not go through the caller directory — when the directory cannot name one, `callerName`
     // says the name was not recorded, the same fallback the first answer takes. The lookup never rejects.
+    //
+    // 这些行上的「谁」按第一问同一个来源补名：宿主自己给了名字的行原样用，没给的行经调用方名录 ——
+    // 名录认不出时 `callerName` 说「姓名未记录」，与六问那一格的回落一致。补名从不 reject。
     const resolved = await resolveCallerNames(list.map((r) => r.userId))
     names.value = { ...names.value, ...resolved }
   } catch (e) {

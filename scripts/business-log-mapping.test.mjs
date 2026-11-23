@@ -1,22 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// N6 缺口 #2（2026-11-22）：第二入口的业务日志映射扩面。
-//
-// 行动中心展开一行台账时，那一腿查的是宿主自己的 `system_operate_log`，查询键是
-// `(宿主模块词, 业务 id)`。映射表 `businessLogTypes.mjs` 说哪个运行时结果类型对应哪个宿主模块词。
-//
-// 这一文件钉住两件事：
-//   1. 每一条映射都能在**宿主自己的源码**里走通三步 —— 服务上的 `@LogRecord` 用这个模块词、`bizNo`
-//      就是新记录的 id；工具的 `resultType()` 是运行时那个词；工具回传同一个 id 作为副作用主键。
-//      `crm_customer` 之外新扩的七类逐条这样核过，不是照名字猜的。
-//   2. 过不了这三步的类别**不登记**：另一张业务表（`fms_voucher` 审核记的是账套 id）、父对象 id
-//      （`crm_follow_up_record` 记在客户/商机等父记录上）、或宿主压根没有 `@LogRecord`（BPM、OA、
-//      演示对象）—— 页面此时说「本部署没有第二入口」，而不是按一个错的键去查、把别人的行摆过来。
-//
-//     node --test scripts/business-log-mapping.test.mjs
-//
 // ── English ─────────────────────────────────────────────────────────────────────
-//
 // N6 gap #2 (2026-11-22): widening the second entry's business-log mapping.
 //
 // Expanding a ledger row in the action centre queries the host's own `system_operate_log` by
@@ -32,6 +16,22 @@
 // logs against the customer/business it belongs to), or a module with no `@LogRecord` at all (BPM,
 // OA, the demo objects) — and the page then says this deployment has no second entry rather than
 // querying a wrong key and laying someone else's rows beside the action.
+//
+// N6 缺口 #2（2026-11-22）：第二入口的业务日志映射扩面。
+//
+// 行动中心展开一行台账时，那一腿查的是宿主自己的 `system_operate_log`，查询键是
+// `(宿主模块词, 业务 id)`。映射表 `businessLogTypes.mjs` 说哪个运行时结果类型对应哪个宿主模块词。
+//
+// 这一文件钉住两件事：
+//   1. 每一条映射都能在**宿主自己的源码**里走通三步 —— 服务上的 `@LogRecord` 用这个模块词、`bizNo`
+//      就是新记录的 id；工具的 `resultType()` 是运行时那个词；工具回传同一个 id 作为副作用主键。
+//      `crm_customer` 之外新扩的七类逐条这样核过，不是照名字猜的。
+//   2. 过不了这三步的类别**不登记**：另一张业务表（`fms_voucher` 审核记的是账套 id）、父对象 id
+//      （`crm_follow_up_record` 记在客户/商机等父记录上）、或宿主压根没有 `@LogRecord`（BPM、OA、
+//      演示对象）—— 页面此时说「本部署没有第二入口」，而不是按一个错的键去查、把别人的行摆过来。
+//
+//     node --test scripts/business-log-mapping.test.mjs
+//
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
@@ -156,8 +156,8 @@ test('the map covers crm_customer plus seven more kinds, and nothing it cannot p
 test('every mapped kind walks the three host-side steps', () => {
   const constants = read(`${CRM}/enums/LogRecordConstants.java`)
   for (const e of EVIDENCE) {
-    // ① 宿主模块词：常量就是这张表的值。
     // The host module word: the constant is exactly the table's value.
+    // ① 宿主模块词：常量就是这张表的值。
     assert.match(
       constants,
       new RegExp(`String ${e.typeConst} = "${e.word}";`),
@@ -165,8 +165,8 @@ test('every mapped kind walks the three host-side steps', () => {
     )
     assert.equal(BUSINESS_LOG_TYPE[e.type], e.word, `${e.type}: the table drifted from ${e.typeConst}`)
 
-    // ② 服务上的日志用这个模块词，bizNo 是**新记录**的 id。
     // The service logs under that word and keys the row by the **new record's** id.
+    // ② 服务上的日志用这个模块词，bizNo 是**新记录**的 id。
     const service = read(e.service)
     assert.match(
       service,
@@ -177,8 +177,8 @@ test('every mapped kind walks the three host-side steps', () => {
       assert.match(service, extra, `${e.type}: ${e.service} lost the id hand-off the annotation reads`)
     }
 
-    // ③ 工具的 resultType() 是运行时那个词，且把同一个 id 回给运行时作副作用主键。
     // The tool names the runtime kind and answers that same id as the side effect's key.
+    // ③ 工具的 resultType() 是运行时那个词，且把同一个 id 回给运行时作副作用主键。
     const tool = read(e.tool)
     assert.match(tool, new RegExp(`return "${e.type}";`), `${e.type}: ${e.tool} no longer declares that result type`)
     assert.match(tool, /service\.create/, `${e.type}: ${e.tool} does not call the service the annotation sits on`)
@@ -187,11 +187,11 @@ test('every mapped kind walks the three host-side steps', () => {
 })
 
 test('a kind the host keys by another record stays out of the map', () => {
-  // 凭证审核记在**账套** id 上（`bizNo = "{{#accountSetId}}"`），而工具回给运行时的是凭证 id。
-  // 两个 id 不是同一个对象，摆在一起就是把别人的行当成这次写的证据。
   // A voucher review logs against the **account set's** id while the tool answers the voucher id;
   // the two ids name different objects, so laying the row beside the action would show someone
   // else's write as this one's evidence.
+  // 凭证审核记在**账套** id 上（`bizNo = "{{#accountSetId}}"`），而工具回给运行时的是凭证 id。
+  // 两个 id 不是同一个对象，摆在一起就是把别人的行当成这次写的证据。
   const fmsService = read('yudao-module-fms/src/main/java/cn/iocoder/yudao/module/fms/service/voucher/FmsVoucherServiceImpl.java')
   assert.match(
     fmsService,
@@ -201,17 +201,17 @@ test('a kind the host keys by another record stays out of the map', () => {
   assert.match(read(`${TOOLS}/FmsVoucherTools.java`), /out\.put\("id", id\)/)
   assert.equal(mappedBusinessLogType('fms_voucher'), null, 'fms_voucher now maps to a row keyed by another id')
 
-  // 跟进记录记在**父对象**（客户）上：`bizNo` 是客户 id，模块词是「CRM 客户」，而工具回的是跟进记录 id。
   // A follow-up record logs against its **parent** (the customer): the bizNo is the customer id
   // under the "CRM 客户" word, while the tool answers the follow-up record's id.
+  // 跟进记录记在**父对象**（客户）上：`bizNo` 是客户 id，模块词是「CRM 客户」，而工具回的是跟进记录 id。
   const customer = read(`${CRM}/service/customer/CrmCustomerServiceImpl.java`)
   assert.match(customer, /@LogRecord\(type = CRM_CUSTOMER_TYPE, subType = CRM_CUSTOMER_FOLLOW_UP_SUB_TYPE,\s*bizNo = "\{\{#id\}\}"/)
   assert.match(read(`${TOOLS}/CrmFollowUpTools.java`), /out\.put\("id", recordId\)/)
   assert.equal(mappedBusinessLogType('crm_follow_up_record'), null)
 
-  // BPM / OA / 演示对象（infra、pms）在本宿主里**没有**任何 `@LogRecord` —— 没有第二入口，不是没配映射。
   // BPM, OA and the demo objects (infra, pms) carry **no** `@LogRecord` in this host at all — there
   // is no second entry to map to, not a mapping left unconfigured.
+  // BPM / OA / 演示对象（infra、pms）在本宿主里**没有**任何 `@LogRecord` —— 没有第二入口，不是没配映射。
   for (const module of ['yudao-module-bpm', 'yudao-module-oa', 'yudao-module-infra', 'yudao-module-pms']) {
     assert.equal(logRecordCount(`${module}/src/main/java`), 0, `${module} grew a @LogRecord; revisit the map`)
   }
@@ -219,15 +219,15 @@ test('a kind the host keys by another record stays out of the map', () => {
     assert.equal(mappedBusinessLogType(type), null, `${type} has no host log to point at`)
   }
 
-  // 系统模块只给角色与管理员记日志，通知公告没有。
   // The system module logs roles and admin users only; notices have none.
+  // 系统模块只给角色与管理员记日志，通知公告没有。
   const systemConstants = read('yudao-module-system/src/main/java/cn/iocoder/yudao/module/system/enums/LogRecordConstants.java')
   assert.doesNotMatch(systemConstants, /SYSTEM_NOTICE_TYPE|SYSTEM_NOTIFY_MESSAGE_TYPE/)
   assert.equal(mappedBusinessLogType('system_notice'), null)
   assert.equal(mappedBusinessLogType('system_notify_message'), null)
 
-  // 标量负向：空值 / 不认识的类型都不猜。
   // The scalar negatives: empty and unknown kinds are never guessed at.
+  // 标量负向：空值 / 不认识的类型都不猜。
   assert.equal(mappedBusinessLogType(''), null)
   assert.equal(mappedBusinessLogType(null), null)
   assert.equal(mappedBusinessLogType(undefined), null)
@@ -235,9 +235,9 @@ test('a kind the host keys by another record stays out of the map', () => {
 })
 
 test('the action centre fetches the leg with that mapped word and the row’s own object id', () => {
-  // 命中：查询键就是「宿主模块词 + resultId」。这就是六问第三问的同一个对象键。
   // A hit: the query key is "host module word + resultId" — the six questions' third answer's own
   // object key.
+  // 命中：查询键就是「宿主模块词 + resultId」。这就是六问第三问的同一个对象键。
   const row = { resultType: 'crm_contract', resultId: 7 }
   const request = { type: mappedBusinessLogType(row.resultType), bizId: row.resultId }
   assert.deepEqual(request, { type: 'CRM 合同', bizId: 7 })
@@ -249,9 +249,9 @@ test('the action centre fetches the leg with that mapped word and the row’s ow
   assert.match(api, /params: \{ type: businessType, bizId, pageNo: 1, pageSize: 5 \}/)
 
   const page = read('keelbase-ui/host-overlay/src/views/keelbase/governance/ActionCenterPage.vue')
-  // 未映射：页面自己说「没有第二入口」，且 onExpand 在取数**之前**返回，不拿空模块词去查。
   // Unmapped: the page says so itself, and onExpand returns **before** the request, so no empty
   // module word is ever sent.
+  // 未映射：页面自己说「没有第二入口」，且 onExpand 在取数**之前**返回，不拿空模块词去查。
   assert.match(page, /v-if="!businessLogApi\.mappedType\(row\.resultType\)"/)
   assert.match(page, /t\('keelbase\.effects\.businessLogUnmapped'\)/)
   assert.match(page, /const businessType = businessLogApi\.mappedType\(row\.resultType\)/)
@@ -261,27 +261,27 @@ test('the action centre fetches the leg with that mapped word and the row’s ow
 
 test('the three axes read the same on the leg as on the six questions', () => {
   const page = read('keelbase-ui/host-overlay/src/views/keelbase/governance/ActionCenterPage.vue')
-  // 时间：业务腿那一格直接用六问那一条 `zonedTime`（带偏移）—— 同一时刻在两处逐字可比。
   // Time: the leg's cell uses the six questions' own `zonedTime` (offset included), so one instant
   // reads identically in both entries.
+  // 时间：业务腿那一格直接用六问那一条 `zonedTime`（带偏移）—— 同一时刻在两处逐字可比。
   assert.match(page, /\{\{ zonedTime\(r\.createTime\) \}\}/)
   assert.match(read('keelbase-ui/host-overlay/src/keelbase/time.ts'), /return zonedTime\(/)
 
-  // 谁：按第一问的形状「名字（账号 #n）」一格写完；编号与名字同格，不再另起一行。
   // Who: the first answer's shape, name (account #n), in one cell; the id rides with the name.
+  // 谁：按第一问的形状「名字（账号 #n）」一格写完；编号与名字同格，不再另起一行。
   assert.match(page, /\{\{ whoText\(r\) \}\}/)
   assert.match(page, /t\('keelbase\.sixQ\.account'\)\} #\$\{id\}）`/)
 
-  // 对象：业务腿本身不印对象（它属于同一个展开面板）；面板的对象行与六问用同一套 record 词。
   // Object: the leg itself names none (it sits inside the same panel); the panel's object row uses
   // the same record vocabulary the six questions do.
+  // 对象：业务腿本身不印对象（它属于同一个展开面板）；面板的对象行与六问用同一套 record 词。
   assert.match(page, /\{\{ targetText\(row\) \}\}/)
   assert.match(page, /\{\{ idText\(row\.resultId\) \}\}/)
   assert.match(page, /const key = resultTypeWordKey\(value, te\)/)
 
-  // 新扩的八类，中文对象词在台账与六问两边逐字相同（英文措辞/大小写差异不属本次范围）。
   // For the eight mapped kinds the Chinese object word is identical in both bundles (English
   // wording/case differences are out of this task's scope).
+  // 新扩的八类，中文对象词在台账与六问两边逐字相同（英文措辞/大小写差异不属本次范围）。
   const zh = read(LOCALES).slice(read(LOCALES).indexOf('diff --git a/src/locales/zh-CN.ts'))
   const words = (marker) => {
     const start = zh.indexOf(marker)

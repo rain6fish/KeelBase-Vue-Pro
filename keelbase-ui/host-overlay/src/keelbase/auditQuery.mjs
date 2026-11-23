@@ -43,17 +43,6 @@ export const CSV_QUESTION_KEYS = SIX_QUESTIONS
 export const PAIR_WINDOW_MS = 5000
 
 /**
- * 这一行的**业务对象**，按 `(类型, 主键)`。三条来路与审计页同一次序，取到第一条为止：
- * 台账行（一次真的写）→ 确认记录里的提议（被扣下或被拒）→ 行末自己记下的键。
- * 三条都没有时回 `null`：那就是运行时确实没记下这次调用落在哪条记录上。
- *
- * 行末的键有两种拼写，先认**带类型**的那一种（` · object MCP connection #12`，写在没有工具的动作上，
- * 种类就在句子里），再认被拦下那种（` · intended object #12`，种类来自工具声明）。台账与提议仍然优先：
- * 有它们时，行末的键一个字都不读。
- *
- * 台账**优先按 `executionId` 精确配**（契约 v6 的关联键）。带了这个键却在窗口里找不到那一行时回
- * `null`，**不**退回去按「工具 + 五秒」猜：那一猜正是把两条不同的执行摆到一起的路。
- *
  * The **business object** of this row, as `(type, key)`. Three roads in the audit page's own order, the
  * first one that answers wins: the ledger row (a write that happened) → the proposal in a confirmation
  * record (held or refused) → the key recorded at the end of the row's own sentence. None of the three
@@ -67,6 +56,17 @@ export const PAIR_WINDOW_MS = 5000
  * The ledger is matched **by `executionId` first** (contract v6's correlation key). When the row carries
  * one and the window has no such row, this returns `null` rather than falling back to "tool + five
  * seconds": that fallback is exactly how two different executions get put beside each other.
+ *
+ * 这一行的**业务对象**，按 `(类型, 主键)`。三条来路与审计页同一次序，取到第一条为止：
+ * 台账行（一次真的写）→ 确认记录里的提议（被扣下或被拒）→ 行末自己记下的键。
+ * 三条都没有时回 `null`：那就是运行时确实没记下这次调用落在哪条记录上。
+ *
+ * 行末的键有两种拼写，先认**带类型**的那一种（` · object MCP connection #12`，写在没有工具的动作上，
+ * 种类就在句子里），再认被拦下那种（` · intended object #12`，种类来自工具声明）。台账与提议仍然优先：
+ * 有它们时，行末的键一个字都不读。
+ *
+ * 台账**优先按 `executionId` 精确配**（契约 v6 的关联键）。带了这个键却在窗口里找不到那一行时回
+ * `null`，**不**退回去按「工具 + 五秒」猜：那一猜正是把两条不同的执行摆到一起的路。
  */
 export function objectRefOf(row, { effects = [], proposals = [], resultTypeOf = () => '' } = {}) {
   if (!row) return null
@@ -198,16 +198,6 @@ export function selectRows(rows, { object = null, since, until, effects = [], pr
 }
 
 /**
- * 这份答复是不是**比发出去的筛选更宽** —— 读面没有施加它们的**正面证据**。
- *
- * 只有它**返回**的那些行能证明：一条落在区间外、或本页能解析出对象却不是所查对象的行，不可能出自一个
- * 施加过筛选的面。本页解析不出对象的行**不算证据**（台账窗口有界，读面没有），恰好都匹配的答复也什么都
- * 证明不了 —— 那两种情形下命中集一样，不需要告诫。
- *
- * 由此可证的只有「读面忽略了筛选」，不能反推「读面施加了筛选」：生成器产出的应用会静默忽略它不认识的
- * 查询参数（运行时仓 `JavaGenerator` 生成的 `/audit/logs` 只收 `userId/since/isError`），故没有证据时
- * 页面不多说一个字。
- *
  * Whether this answer is **wider than the filters that were sent** — positive evidence that the read
  * face did not apply them.
  *
@@ -220,6 +210,16 @@ export function selectRows(rows, { object = null, since, until, effects = [], pr
  * What this can prove is "the face ignored the filters", never the converse: an application produced by
  * the generator silently ignores query parameters it does not know (the generated `/audit/logs` in the
  * runtime repository takes `userId/since/isError` only), so with no evidence the page says nothing.
+ *
+ * 这份答复是不是**比发出去的筛选更宽** —— 读面没有施加它们的**正面证据**。
+ *
+ * 只有它**返回**的那些行能证明：一条落在区间外、或本页能解析出对象却不是所查对象的行，不可能出自一个
+ * 施加过筛选的面。本页解析不出对象的行**不算证据**（台账窗口有界，读面没有），恰好都匹配的答复也什么都
+ * 证明不了 —— 那两种情形下命中集一样，不需要告诫。
+ *
+ * 由此可证的只有「读面忽略了筛选」，不能反推「读面施加了筛选」：生成器产出的应用会静默忽略它不认识的
+ * 查询参数（运行时仓 `JavaGenerator` 生成的 `/audit/logs` 只收 `userId/since/isError`），故没有证据时
+ * 页面不多说一个字。
  */
 export function readFaceIgnoredFilters(
   rows,
@@ -253,13 +253,6 @@ export function displayRowsOf({ queryRan, queryRows, rows }) {
 }
 
 /**
- * 表格空态该说哪一句话，按这次检索的**三种结局**分开：没跑过（无空态）· 请求失败（没有完成）· 跑完了。
- * 跑完的那一档再分两层 —— 触到扫描上限时说「上限内没有命中，命中可能在上限之外」，只有真的在上限内扫完
- * 且一行没有时才说「没有命中任何行」。一句「没有命中」会把「没读到」读成「没有这件事」，而这正是本页在
- * 别处反复要防的读法。
- *
- * 返回的是词条**键**，由页面交给 `t()`：这一层不碰 i18n，故三种结局可以当测试直接跑。
- *
  * Which sentence the table's empty state says, by this search's **three endings**: it never ran (no empty
  * text), the request failed (it did not finish), and it finished. The finished one splits again — with the
  * scan bound hit it says "nothing matched within the bound, a match may sit outside it", and only a scan
@@ -268,6 +261,13 @@ export function displayRowsOf({ queryRan, queryRows, rows }) {
  *
  * It returns the message **key**, which the page hands to `t()`: this layer touches no i18n, so the three
  * endings can be run as a test.
+ *
+ * 表格空态该说哪一句话，按这次检索的**三种结局**分开：没跑过（无空态）· 请求失败（没有完成）· 跑完了。
+ * 跑完的那一档再分两层 —— 触到扫描上限时说「上限内没有命中，命中可能在上限之外」，只有真的在上限内扫完
+ * 且一行没有时才说「没有命中任何行」。一句「没有命中」会把「没读到」读成「没有这件事」，而这正是本页在
+ * 别处反复要防的读法。
+ *
+ * 返回的是词条**键**，由页面交给 `t()`：这一层不碰 i18n，故三种结局可以当测试直接跑。
  */
 export function emptyTextKey({ queryFailed, queryRan, queryScanBound }) {
   if (!queryRan) return undefined
@@ -366,14 +366,6 @@ export function csvFilename(at = new Date()) {
 export const CHECK_COLUMN_KEYS = ['id', ...SIX_QUESTIONS, 'checks']
 
 /**
- * 核对 CSV 的正文。与 `csvText` 同一条转义与泄漏规则：缺答案写 `—`，任何一格带内部名就整份拒绝，
- * 且错误只说**是哪一列**。`entryRows` 的每一项是 `{ id, answers, checks }`。
- *
- * `note` 可选：给了就在表头**之前**写一行以 `#` 开头的说明。它是这份文件与第二入口（宿主自己的操作日志）
- * 之间关系的限度声明 —— 两份轨之间没有共享编号，只能按业务主键与时间相关。这一行是**元数据、不是数据行**：
- * 六列/八列的判据只数数据行，故它不改变「一行就是一次操作」这件事。`#` 是这里自己定的记号：RFC 4180 没有
- * 注释行，故下游若按纯数据解析，看到的会是一条只有一个格子的行 —— 它不会被误读成某个操作。
- *
  * The verification CSV's body. The same escaping and leak rules as `csvText`: a missing answer is `—`, any
  * cell carrying an internal name refuses the whole file, and the error names **which column** only. Each
  * entry of `entryRows` is `{ id, answers, checks }`.
@@ -384,6 +376,14 @@ export const CHECK_COLUMN_KEYS = ['id', ...SIX_QUESTIONS, 'checks']
  * six/eight-column criterion counts data rows only, so it does not change "one line is one operation". The
  * `#` marker is this file's own: RFC 4180 has no comment lines, so a strict data parser sees a one-cell row
  * — which cannot be mistaken for an operation.
+ *
+ * 核对 CSV 的正文。与 `csvText` 同一条转义与泄漏规则：缺答案写 `—`，任何一格带内部名就整份拒绝，
+ * 且错误只说**是哪一列**。`entryRows` 的每一项是 `{ id, answers, checks }`。
+ *
+ * `note` 可选：给了就在表头**之前**写一行以 `#` 开头的说明。它是这份文件与第二入口（宿主自己的操作日志）
+ * 之间关系的限度声明 —— 两份轨之间没有共享编号，只能按业务主键与时间相关。这一行是**元数据、不是数据行**：
+ * 六列/八列的判据只数数据行，故它不改变「一行就是一次操作」这件事。`#` 是这里自己定的记号：RFC 4180 没有
+ * 注释行，故下游若按纯数据解析，看到的会是一条只有一个格子的行 —— 它不会被误读成某个操作。
  */
 export function checkCsvText(entryRows, labels, note = '') {
   if (!Array.isArray(labels) || labels.length !== CHECK_COLUMN_KEYS.length) {

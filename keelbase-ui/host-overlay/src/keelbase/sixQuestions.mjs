@@ -323,13 +323,6 @@ export function recordedObjectIn(row) {
 }
 
 /**
- * 行末那个**带类型**的键的类型词，与检索用的结果类型之间的对照。写这一行的那一侧用**可读的词**
- * （`object MCP connection #12`），因为这段文字会进六问的第三格、也进导出，而内部名会让整份导出被拒；
- * 检索按 `(resultType, resultId)` 判等，故读面把词映射回类型再比 —— 两边只在**这个词**上耦合。
- *
- * 表里只有**确实会写这种键**的对象。表外的词一律不认：一句 `object ai1_mcp#12`（把表名写进去的坏键）
- * 不回落到任何东西上 —— 宁可说「未记录」，也不把一个内部名当成一条对象。
- *
  * The type words of the **typed** key at a row's end, and the result types searches use. The side that
  * writes the row spells a **readable word** (`object MCP connection #12`), because that text reaches the
  * third answer and the export, and an internal name refuses the whole export; a search compares
@@ -339,6 +332,13 @@ export function recordedObjectIn(row) {
  * The table holds only objects that actually write such a key. A word outside it is never recognised: a
  * sentence like `object ai1_mcp#12` (a bad key carrying the table name) falls back to nothing — better to
  * say 「未记录」 than to treat an internal name as an object.
+ *
+ * 行末那个**带类型**的键的类型词，与检索用的结果类型之间的对照。写这一行的那一侧用**可读的词**
+ * （`object MCP connection #12`），因为这段文字会进六问的第三格、也进导出，而内部名会让整份导出被拒；
+ * 检索按 `(resultType, resultId)` 判等，故读面把词映射回类型再比 —— 两边只在**这个词**上耦合。
+ *
+ * 表里只有**确实会写这种键**的对象。表外的词一律不认：一句 `object ai1_mcp#12`（把表名写进去的坏键）
+ * 不回落到任何东西上 —— 宁可说「未记录」，也不把一个内部名当成一条对象。
  */
 export const OBJECT_KEY_KINDS = Object.freeze({ ai1_mcp: 'MCP connection' })
 
@@ -348,13 +348,6 @@ const KIND_BY_WORD = new Map(Object.entries(OBJECT_KEY_KINDS).map(([type, word])
 export const OBJECT_KEY_TYPES = Object.keys(OBJECT_KEY_KINDS)
 
 /**
- * 这一行在句末自己记下的**带类型**的对象键（` · object MCP connection #12`），读成 `(类型, 主键)`。
- * 只认句末这一种拼写，且类型词必须在 `OBJECT_KEY_KINDS` 里；否则回 `null` —— 不认的词不算
- * 「没有对象」，也不算「这一条」，它只是没被读出来。
- *
- * 与 `recordedObjectIn` 并存而不是取代它：那一种是**被拦下**的调用写的、种类来自工具声明；这一种是
- * **没有工具**的动作（如一次 MCP 连通测试）写的、种类就写在句子里。两者都只在句末，都只认一种拼写。
- *
  * The **typed** object key a row records at the end of its own sentence (` · object MCP connection #12`),
  * read as `(type, key)`. Only that spelling, only at the end, and the word must be in
  * `OBJECT_KEY_KINDS`; anything else is `null` — an unrecognised word is not "no object" and not
@@ -363,16 +356,23 @@ export const OBJECT_KEY_TYPES = Object.keys(OBJECT_KEY_KINDS)
  * It sits beside `recordedObjectIn` rather than replacing it: that one is written by a **blocked** call
  * with the kind taken from the tool's declaration; this one is written by an action with **no tool** (an
  * MCP connect test) and carries its kind in the sentence. Both are end-anchored and single-spelling.
+ *
+ * 这一行在句末自己记下的**带类型**的对象键（` · object MCP connection #12`），读成 `(类型, 主键)`。
+ * 只认句末这一种拼写，且类型词必须在 `OBJECT_KEY_KINDS` 里；否则回 `null` —— 不认的词不算
+ * 「没有对象」，也不算「这一条」，它只是没被读出来。
+ *
+ * 与 `recordedObjectIn` 并存而不是取代它：那一种是**被拦下**的调用写的、种类来自工具声明；这一种是
+ * **没有工具**的动作（如一次 MCP 连通测试）写的、种类就写在句子里。两者都只在句末，都只认一种拼写。
  */
 export function recordedTypedObject(row) {
-  // 判据以**运行时**为准（`conformance/typed-object-key.json`）：键必须**恰好**收尾 —— 尾随空白
-  // 不算；主键 1–18 位 ASCII 数字、**前导零有意义**、17–18 位超出 `Number` 的安全范围，故按写下的
-  // 字符串保留，绝不把 `#007` 读成 `#7`、也绝不把长主键截成浮点。
-  //
   // The criterion is the **runtime's** (`conformance/typed-object-key.json`): the key must end the
   // sentence exactly — a trailing space is not the end; the key is 1–18 ASCII digits, **leading zeros
   // are significant**, and 17–18 digits are past `Number`'s safe range, so they are kept as written —
   // `#007` is never read as `#7`, and a long key is never rounded into a float.
+  //
+  // 判据以**运行时**为准（`conformance/typed-object-key.json`）：键必须**恰好**收尾 —— 尾随空白
+  // 不算；主键 1–18 位 ASCII 数字、**前导零有意义**、17–18 位超出 `Number` 的安全范围，故按写下的
+  // 字符串保留，绝不把 `#007` 读成 `#7`、也绝不把长主键截成浮点。
   const hit = String(row?.detail ?? '').match(/ · object (.+?) #(\d{1,18})$/)
   if (!hit) return null
   const resultType = KIND_BY_WORD.get(hit[1].trim())
@@ -495,6 +495,28 @@ export function composeSix({ row, callerName, callerId, effect, proposal, record
 }
 
 /**
+ * Two shapes catch an internal name written in camelCase: an **identifier of three or more words**, and
+ * one **opening with a head word of the vocabularies this console declares**.
+ *
+ * Why not one "any camelCase" rule: camelCase is ordinary in an exported cell — brands (`iPhone`), plain
+ * word forms (`boardGame`), people's names (`johnSmith`) all look like that, and a blanket rule would
+ * refuse whole legitimate exports. Internal camelCase names are not arbitrary either: they are the
+ * **existing snake_case vocabularies** with the separators removed (`crm_customer` → `crmCustomer`,
+ * `crm_customer_scope` → `crmCustomerScope`, `risk_policy` → `riskPolicy`). So the heads are taken from
+ * the declarations:
+ *
+ * **Business nouns stay out on purpose** (`deal` · `follow` · `customer`): they are the reader's own
+ * words, and forms like `followUp` appear in ordinary prose; internal names beginning with them
+ * (`followUpStatus`, `dealStatus`) are still caught by the seven-name rule and the three-word shape.
+ *
+ * `labels.ts` is not importable here (this module stays free of Vue and of host imports so `node --test`
+ * can run it), so the heads are mirrored; `scripts/yd42-six-questions.test.mjs` pins the mirror against
+ * today's internal names. The cost is said out loud: a two-word name like `crmCustomer` is caught only
+ * through its head, and a two-word form whose head is not in the list (`subjectScope`) is not judged —
+ * better to miss a shape that does not exist yet than to refuse ordinary business text. An identifier
+ * of three or more words (a pinyin nickname like `zhangSanFeng` included) is refused, which is the same
+ * trade the underscore rule already makes for `zhang_san_feng`.
+ *
  * camelCase 形态的内部名，靠两个形状判：**三段以上的标识符写法**，以及**以本控制台声明的内部词汇表的首词
  * 开头**的写法。
  *
@@ -521,16 +543,6 @@ export function composeSix({ row, callerName, callerId, effect, proposal, record
  * 不判 —— 宁可少判一条尚不存在的形态，也不拿正常业务文本去换。三段以上的标识符写法（拼音昵称
  * `zhangSanFeng` 也算）会被拒，这与下划线规则今天拒 `zhang_san_feng` 是同一条取舍。
  *
- * Two shapes catch an internal name written in camelCase: an **identifier of three or more words**, and
- * one **opening with a head word of the vocabularies this console declares**.
- *
- * Why not one "any camelCase" rule: camelCase is ordinary in an exported cell — brands (`iPhone`), plain
- * word forms (`boardGame`), people's names (`johnSmith`) all look like that, and a blanket rule would
- * refuse whole legitimate exports. Internal camelCase names are not arbitrary either: they are the
- * **existing snake_case vocabularies** with the separators removed (`crm_customer` → `crmCustomer`,
- * `crm_customer_scope` → `crmCustomerScope`, `risk_policy` → `riskPolicy`). So the heads are taken from
- * the declarations:
- *
  *   · namespaces and table prefixes from `labels.ts`'s `RESULT_TYPES` / `TOOLS` (`crm` · `pm` · `bpm` ·
  *     `fms` · `infra` · `yudao` · `keelbase` · `system` · `notify`);
  *   · snapshot and ledger column words from this file's seven-name rule and the protocol fields
@@ -538,18 +550,6 @@ export function composeSix({ row, callerName, callerId, effect, proposal, record
  *     `requires` · `revoke` · `audit` · `effect` · `claim`);
  *   · the first word of each of the six check names (`risk` · `tool` · `role` · `feature` · `admin` ·
  *     `agent`).
- *
- * **Business nouns stay out on purpose** (`deal` · `follow` · `customer`): they are the reader's own
- * words, and forms like `followUp` appear in ordinary prose; internal names beginning with them
- * (`followUpStatus`, `dealStatus`) are still caught by the seven-name rule and the three-word shape.
- *
- * `labels.ts` is not importable here (this module stays free of Vue and of host imports so `node --test`
- * can run it), so the heads are mirrored; `scripts/yd42-six-questions.test.mjs` pins the mirror against
- * today's internal names. The cost is said out loud: a two-word name like `crmCustomer` is caught only
- * through its head, and a two-word form whose head is not in the list (`subjectScope`) is not judged —
- * better to miss a shape that does not exist yet than to refuse ordinary business text. An identifier
- * of three or more words (a pinyin nickname like `zhangSanFeng` included) is refused, which is the same
- * trade the underscore rule already makes for `zhang_san_feng`.
  */
 const INTERNAL_HEADS = [
   // namespaces / table prefixes (labels.ts: RESULT_TYPES + TOOLS)
@@ -607,9 +607,9 @@ export function leaksIn(text) {
   const found = []
   for (const pattern of INTERNAL_PATTERNS) {
     const hit = String(text ?? '').match(pattern)
-    // 同一条名字可以同时命中几条规则（`ownerUserId` 命中七名列名、三段形状与首词三条）—— 报一次就够。
     // One name can trip several patterns at once (`ownerUserId` trips the seven-name rule, the
     // three-word shape and the head word); report it once.
+    // 同一条名字可以同时命中几条规则（`ownerUserId` 命中七名列名、三段形状与首词三条）—— 报一次就够。
     if (hit && !found.includes(hit[0])) found.push(hit[0])
   }
   // One token can fall under two forms (`ownerUserId` is both a listed field name and a two-hump

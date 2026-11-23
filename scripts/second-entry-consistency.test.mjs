@@ -1,5 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
+// N6 (2026-11-21): one operation has to line up at the **object, the time and the person** with no
+// guessing. This file pins those three readings, plus how a proposal's arguments are read: the time
+// always carries its offset and goes through the audit chain's own formatter; a person the host cannot
+// name is never replaced by a bare id or a dash; `R5` is the block tier, not "always blocked" (this
+// deployment declares no R5 tool, so "always" would be false); and a proposal's arguments read one
+// recorded line at a time instead of a JSON block.
+//
+// The page assertions stop at the source: this repository ships no Vue test runner, and the UI checkout
+// it builds from is disposable (`target/`). The pure functions (time, arguments) run directly; the
+// pages only pin their wiring — the same reason `audit-chain-page.test.mjs` states.
+//
 // N6（2026-11-21）：同一操作在**对象、时间、谁**三处无需猜测即可对上。这一文件钉住三处口径，外加参数的读法：
 //
 //   · 时间 —— 每一页、每一格都写偏移量，且与审计链自己那一格走**同一个**格式化器；
@@ -13,18 +24,7 @@
 // 页面那几条停在源码层：本仓不带 Vue 测试运行器，而 UI 检出是一次性的（`target/`）。纯函数（时间、参数）
 // 直接跑，页面只钉接线 —— 与 `audit-chain-page.test.mjs` 同一条理由。
 //
-// N6 (2026-11-21): one operation has to line up at the **object, the time and the person** with no
-// guessing. This file pins those three readings, plus how a proposal's arguments are read: the time
-// always carries its offset and goes through the audit chain's own formatter; a person the host cannot
-// name is never replaced by a bare id or a dash; `R5` is the block tier, not "always blocked" (this
-// deployment declares no R5 tool, so "always" would be false); and a proposal's arguments read one
-// recorded line at a time instead of a JSON block.
-//
 //     node --test scripts/second-entry-consistency.test.mjs
-//
-// The page assertions stop at the source: this repository ships no Vue test runner, and the UI checkout
-// it builds from is disposable (`target/`). The pure functions (time, arguments) run directly; the
-// pages only pin their wiring — the same reason `audit-chain-page.test.mjs` states.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -56,9 +56,9 @@ const t = (key) => MESSAGES[key] ?? key
 const te = (key) => Object.hasOwn(MESSAGES, key)
 
 test('every moment carries its offset, and the same instant reads the same in both arrival shapes', () => {
-  // 运行时答 UTC ISO 串，宿主自己那条面答毫秒数；两者是同一个时刻，就必须读出同一个钟面，且都带偏移量。
   // The runtime answers a UTC ISO string and the host's own face answers epoch milliseconds; the same
   // instant has to read as one clock face, offset included.
+  // 运行时答 UTC ISO 串，宿主自己那条面答毫秒数；两者是同一个时刻，就必须读出同一个钟面，且都带偏移量。
   const iso = '2026-11-21T01:02:03Z'
   const fromIso = six.zonedTime(iso)
   const fromMillis = six.zonedTime(new Date(iso).getTime())
@@ -68,9 +68,9 @@ test('every moment carries its offset, and the same instant reads the same in bo
 })
 
 test('the shared time helper delegates to the audit chain formatter instead of keeping a second shape', () => {
-  // 两处各自格式化，就是同一个时刻并排读出两个钟面的来源。`time.ts` 只留一条路：交给 `zonedTime`。
   // Two formatters are exactly how one instant reads as two clocks side by side. `time.ts` keeps one
   // road only: hand the value to `zonedTime`.
+  // 两处各自格式化，就是同一个时刻并排读出两个钟面的来源。`time.ts` 只留一条路：交给 `zonedTime`。
   const source = read('keelbase-ui/host-overlay/src/keelbase/time.ts')
   assert.match(source, /import \{ zonedTime \} from '\.\/sixQuestions\.mjs'/)
   assert.match(source, /return zonedTime\(/, 'timeText no longer renders through zonedTime')
@@ -159,11 +159,11 @@ test('the action centre renders the arguments through that reader', () => {
 })
 
 test('the “who” columns never fall back to a dash or a bare id', () => {
-  // 三条留痕（审计链、操作审计、旁路留痕）的「谁」列：配不出名字时由词条说明，页面本身不再回落成 id
-  // 或破折号。
   // The "who" column on all three trails (the audit chain, the operation audit, the bypass trail): when
   // the host cannot name the id, a message says so; the page itself no longer falls back to the id or a
   // dash.
+  // 三条留痕（审计链、操作审计、旁路留痕）的「谁」列：配不出名字时由词条说明，页面本身不再回落成 id
+  // 或破折号。
   const pages = {
     chain: 'keelbase-ui/host-overlay/src/views/keelbase/governance/AuditChainPage.vue',
     operation: 'keelbase-ui/host-overlay/src/views/keelbase/governance/OperationAuditPage.vue',

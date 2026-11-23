@@ -17,11 +17,6 @@ import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 
 /**
- * 写不进库只是一次**少报**，不是一次失败的请求 —— 这是这一层唯一的失败姿态，故单独量它。
- *
- * <p>库坏（表不在、连不上）时：{@code write} 不抛、{@code record} 不抛、{@code stop} 的收尾不抛。三者任何
- * 一个抛出去，留痕就会影响它本该完全不碰的东西。
- *
  * <p>A row that cannot be written is a **shallower record**, not a failed request — the only failure posture
  * this layer has, so it is measured on its own.
  *
@@ -33,6 +28,11 @@ import org.junit.jupiter.api.Test;
  * the counter starts at zero, and only the row beyond the cap moves it. A row whose insert fails did not
  * reach the table either, so it moves the same counter — that is what makes the count a shortfall rather
  * than a queue statistic.
+ *
+ * 写不进库只是一次**少报**，不是一次失败的请求 —— 这是这一层唯一的失败姿态，故单独量它。
+ *
+ * <p>库坏（表不在、连不上）时：{@code write} 不抛、{@code record} 不抛、{@code stop} 的收尾不抛。三者任何
+ * 一个抛出去，留痕就会影响它本该完全不碰的东西。
  *
  * 丢弃数在操作者读的同一个面上量：队列由测试亲手填满，计数器从 0 开始，只有越过容量的那一行让它动。插入
  * 失败的行同样没进表，因此也动同一个计数器 —— 这才让这个数代表留痕的缺口，而不是一条队列统计。

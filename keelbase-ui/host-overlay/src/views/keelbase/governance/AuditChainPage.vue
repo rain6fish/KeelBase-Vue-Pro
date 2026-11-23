@@ -629,15 +629,15 @@ const PROPOSAL_WINDOW = 50
 const query = reactive<{ userId: string; isError: string }>({ userId: '', isError: '' })
 
 /**
- * 按业务对象 + 区间查。`since` 与上面的列表**共用一个窗口起点**（同一条读面同一个含义），`until` 只属于
- * 这次检索。对象与终点都发给读面，但**本页照旧自己挑一遍**：会施加它们的运行时先收窄，不施加的（生成器
- * 产出的应用会静默忽略不认识的参数）也不会让答案变宽 —— 读者看到的是同一份命中。
- *
  * The object + range search. It shares the list's window **start** (`since` — same face, same meaning);
  * `until` belongs to the search alone. The object and the end both go to the read face, and this page
  * picks again anyway: a runtime that applies them narrows first, and one that does not (an application
  * produced by the generator silently ignores parameters it does not know) cannot widen the answer the
  * reader sees — it is the same matched set.
+ *
+ * 按业务对象 + 区间查。`since` 与上面的列表**共用一个窗口起点**（同一条读面同一个含义），`until` 只属于
+ * 这次检索。对象与终点都发给读面，但**本页照旧自己挑一遍**：会施加它们的运行时先收窄，不施加的（生成器
+ * 产出的应用会静默忽略不认识的参数）也不会让答案变宽 —— 读者看到的是同一份命中。
  */
 const objectQuery = reactive<{ resultType: string; resultId: string }>({ resultType: '', resultId: '' })
 const until = ref<Date | null>(null)
@@ -654,22 +654,22 @@ const queryRan = ref(false)
 const queryFailed = ref(false)
 const queryTruncated = ref(false)
 /**
- * 这次检索的**审计扫描**触到了它自己的行数上界（默认 1000，见 `scanCap.mjs`）。它与 `queryTruncated`
- * 分开：后者还把台账与确认记录各自的窗口算在内，而导出件的声明、以及「0 行」的空态，说的只是审计扫描
- * 这一条上界 —— 拿合并的标记去说，会把台账的窗口说成「老的行没读到」。
- *
  * This search's **audit scan** hit its own row bound (1000 by default — see `scanCap.mjs`). It is kept
  * apart from `queryTruncated`: that one also counts the ledger's and the confirmation queue's own windows,
  * while the export's statement — and the empty state for "0 rows" — is about this audit-scan bound alone.
  * Using the merged flag would describe the ledger's window as "older rows were not read".
+ *
+ * 这次检索的**审计扫描**触到了它自己的行数上界（默认 1000，见 `scanCap.mjs`）。它与 `queryTruncated`
+ * 分开：后者还把台账与确认记录各自的窗口算在内，而导出件的声明、以及「0 行」的空态，说的只是审计扫描
+ * 这一条上界 —— 拿合并的标记去说，会把台账的窗口说成「老的行没读到」。
  */
 const queryScanBound = ref(false)
 /**
- * 读面明显比发出去的筛选更宽 —— 它没有施加对象/终点。只在**有证据**时为真（见
- * `readFaceIgnoredFilters`），页面据此说出来；没有证据时不猜。
- *
  * The read face came back recognisably wider than the filters sent — it did not apply the object or the
  * end. True only with **evidence** (see `readFaceIgnoredFilters`); with none the page does not guess.
+ *
+ * 读面明显比发出去的筛选更宽 —— 它没有施加对象/终点。只在**有证据**时为真（见
+ * `readFaceIgnoredFilters`），页面据此说出来；没有证据时不猜。
  */
 const readFaceIgnored = ref(false)
 /**
@@ -751,26 +751,26 @@ const viewEffects = computed(() => (queryRan.value ? scanEffects.value : effects
 const viewProposals = computed(() => (queryRan.value ? scanProposals.value : proposals.value))
 
 /**
- * 对象筛选能选哪些类型：台账认识的那些，加上**只靠行末带类型的键才认得出**的那几种（一次 MCP 连通测试
- * 不写台账，它的对象只在 `detail` 里）。两种都只列**消息表里有业务词**的 —— 加一个词就多一种可查的对象，
- * 不必改代码；没有词条的选项只会印出一串键名。
- *
  * Which types the object filter offers: those the ledger knows, plus the ones **only the typed key at a
  * row's end** can name (an MCP connect test writes no ledger row; its object lives in `detail` alone).
  * Either kind is listed only when the message tree has a **business word** for it — add a word and the
  * kind becomes searchable with no code change; an option without one prints a key name.
+ *
+ * 对象筛选能选哪些类型：台账认识的那些，加上**只靠行末带类型的键才认得出**的那几种（一次 MCP 连通测试
+ * 不写台账，它的对象只在 `detail` 里）。两种都只列**消息表里有业务词**的 —— 加一个词就多一种可查的对象，
+ * 不必改代码；没有词条的选项只会印出一串键名。
  */
 const recordTypes = [...RECORD_TYPES, ...OBJECT_KEY_TYPES].filter((kind) => te(`keelbase.record.${kind}`))
 
 /**
- * 审计扫描的行数上限。默认 1000（原 `200 × 5`），可在构建期用 `KEELBASE_AUDIT_SCAN_ROWS` 调到 200–1200；
- * 区间外的值被夹住并留下 `clamped` 读数（见 `scanCap.mjs`）。上限抽成纯模块，故「查询不可能超过它」有测试
- * 可断言，而不只是页面里的一个常量。
- *
  * The audit scan's row cap. Default 1000 (the old `200 × 5`), overridable at build time with
  * `KEELBASE_AUDIT_SCAN_ROWS` inside 200–1200; an out-of-band value is clamped and marked with `clamped`
  * (see `scanCap.mjs`). The cap is a pure module, so "a query cannot exceed it" is asserted by tests
  * rather than being one constant in a page.
+ *
+ * 审计扫描的行数上限。默认 1000（原 `200 × 5`），可在构建期用 `KEELBASE_AUDIT_SCAN_ROWS` 调到 200–1200；
+ * 区间外的值被夹住并留下 `clamped` 读数（见 `scanCap.mjs`）。上限抽成纯模块，故「查询不可能超过它」有测试
+ * 可断言，而不只是页面里的一个常量。
  */
 const auditScanCap = resolveScanCap(import.meta.env.VITE_KEELBASE_AUDIT_SCAN_ROWS as string | undefined)
 /** 台账与确认记录各自的窗口：100 一页，台账最多往回 3 页。 */
@@ -1024,14 +1024,6 @@ function objectOf(row: AuditRow): string {
 }
 
 /**
- * 被**闸门拦下**的调用既没有台账行、也没有提议时，它本来落在哪条记录上 —— 读运行时写在那条审计行
- * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。**根本没有工具**的动作（一次 MCP 连通测试）
- * 写的是**带类型**的键（` · object MCP connection #12`），种类就在句子里（见 `recordedTypedObject`）；
- * 这条路先读。
- *
- * 表格那一列与展开的六问**都从这里取**：同一条审计行的第三问只该有一个答案。两处各拼一份，正是它们
- * 会给出两个答案的方式（2026-11-08 走查实测：列上说「未记录」、展开说「项目 · #1」）。
- *
  * Which record a **gate-blocked** call was about when it has neither a ledger row nor a proposal — the key
  * the runtime wrote at the end of that audit row's own sentence (see `recordedObjectIn`), with the kind
  * taken from the tool's own declaration. An action that has **no tool** at all (an MCP connect test)
@@ -1041,15 +1033,23 @@ function objectOf(row: AuditRow): string {
  * The table column and the expanded six answers **both take it from here**: one audit row must answer its
  * third question one way. Composing it twice at the two call sites is exactly how they came to disagree
  * (measured on a real stack, 2026-11-08: the column read 「未记录」 while the expansion read 「项目 · #1」).
+ *
+ * 被**闸门拦下**的调用既没有台账行、也没有提议时，它本来落在哪条记录上 —— 读运行时写在那条审计行
+ * 句末的键（见 `recordedObjectIn`），种类按工具自己的声明查。**根本没有工具**的动作（一次 MCP 连通测试）
+ * 写的是**带类型**的键（` · object MCP connection #12`），种类就在句子里（见 `recordedTypedObject`）；
+ * 这条路先读。
+ *
+ * 表格那一列与展开的六问**都从这里取**：同一条审计行的第三问只该有一个答案。两处各拼一份，正是它们
+ * 会给出两个答案的方式（2026-11-08 走查实测：列上说「未记录」、展开说「项目 · #1」）。
  */
 function recordedObjectOf(
   row: AuditRow,
   effect: EffectRow | null,
   proposal: { resultType: string; resultId: number | string } | null,
 ): { resultType: string; resultId: number | string } | null {
-  // 没有工具的动作（一次 MCP 连通测试）在句末写的是**带类型**的键，种类就在句子里 —— 不需要 `row.tool`。
   // An action with no tool (an MCP connect test) writes the **typed** key, its kind in the sentence —
   // `row.tool` is not needed for it.
+  // 没有工具的动作（一次 MCP 连通测试）在句末写的是**带类型**的键，种类就在句子里 —— 不需要 `row.tool`。
   if (!effect && !proposal) {
     const typed = recordedTypedObject(row)
     if (typed) return typed
@@ -1171,14 +1171,6 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
 }
 
 /**
- * 从窗口起点往后读审计行，按 `scanPageRequests` 的计划取页：每页 `limit` 之和恰等于配置的上限，且每份
- * 答复都经 `absorbChunk` 裁剪，故累计不越界 —— 读面无视 `limit` 时也一样。`complete=false` 表示**到了
- * 上界**：区间里更早的行没读到，页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
- *
- * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，不施加的（旧运行时、
- * 生成器产出的应用）忽略这两个参数、页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在
- * 扫回来的行数。
- *
  * Reads audit rows from the window's start, walking `scanPageRequests`' plan: its per-page `limit`s add
  * up to the configured cap, and every answer is trimmed by `absorbChunk`, so the total cannot cross it
  * even if the read face ignores `limit`. `complete=false` means the **bound was hit**: older rows in the
@@ -1189,6 +1181,14 @@ function gapTagType(severity: string): 'danger' | 'warning' | 'info' {
  * an already narrowed list, and one that does not (an older runtime, or an application produced by the
  * generator) ignores the two parameters while the page's own narrowing still decides — so the answer is
  * the same under either, and only the number of rows scanned differs.
+ *
+ * 从窗口起点往后读审计行，按 `scanPageRequests` 的计划取页：每页 `limit` 之和恰等于配置的上限，且每份
+ * 答复都经 `absorbChunk` 裁剪，故累计不越界 —— 读面无视 `limit` 时也一样。`complete=false` 表示**到了
+ * 上界**：区间里更早的行没读到，页面必须把这件事说出来 —— 一句不说的上界会让「没有行」读成「没有这件事」。
+ *
+ * 区间的终点与业务对象一并发给读面：会施加它们的运行时回一份已经收窄的列表，不施加的（旧运行时、
+ * 生成器产出的应用）忽略这两个参数、页面自己的收窄照旧决定结果 —— 故两种运行时下答案一致，差别只在
+ * 扫回来的行数。
  */
 async function scanAudit(
   sinceIso: string | undefined,
@@ -1342,22 +1342,22 @@ async function runQuery() {
     const sinceIso = since.value ? since.value.toISOString() : undefined
     const untilIso = until.value ? until.value.toISOString() : undefined
     let audit = await scanAudit(sinceIso, untilIso, objectForServer)
-    // 取证只用**第一次**扫回来的那份：它才是带着筛选问出去的答复。下面按区间重扫的那一次是页面自己
-    // 有意放宽的，把它算成「读面忽略了筛选」会是一句假话。
-    //
     // Evidence comes from the **first** answer only: that is the one asked for with the filters. The
     // by-range rescan below is this page deliberately widening the ask, and counting it as "the read
     // face ignored the filters" would be a false statement.
-    const firstAnswer = audit.rows
-    // 读面的对象筛选只走**台账**。台账里没有这一对时它答空 —— 但这一行可能仍在：没有工具的动作（一次
-    // MCP 连通测试）不写台账，它在句末的带类型键里说得出自己是哪条对象。故空答案按区间重扫一次，由下面
-    // 本地那条证据链再挑；台账命中时这一步不发生，台账优先的语义不变。
     //
+    // 取证只用**第一次**扫回来的那份：它才是带着筛选问出去的答复。下面按区间重扫的那一次是页面自己
+    // 有意放宽的，把它算成「读面忽略了筛选」会是一句假话。
+    const firstAnswer = audit.rows
     // The read face's object filter goes through the **ledger** alone. When the ledger has no such pair
     // it answers empty — but the row may still exist: an action with no tool (an MCP connect test)
     // writes no ledger row and names its object in the typed key at the end of its sentence. So an
     // empty answer is scanned again by range, and the local evidence chain below picks from it; a
     // ledger hit never gets here, so "the ledger wins" still holds.
+    //
+    // 读面的对象筛选只走**台账**。台账里没有这一对时它答空 —— 但这一行可能仍在：没有工具的动作（一次
+    // MCP 连通测试）不写台账，它在句末的带类型键里说得出自己是哪条对象。故空答案按区间重扫一次，由下面
+    // 本地那条证据链再挑；台账命中时这一步不发生，台账优先的语义不变。
     if (objectForServer && audit.rows.length === 0) {
       audit = await scanAudit(sinceIso, untilIso, undefined)
     }
@@ -1386,16 +1386,16 @@ async function runQuery() {
     queryRows.value = picked.map((entry) => entry.row)
     queryScanBound.value = !audit.complete
     queryTruncated.value = !audit.complete || !ledger.complete || proposals.length >= PROPOSAL_LIMIT
-    // 只有**真的把对象发出去过**（类型 + 主键两半都有）才拿它取证；只给种类或只给主键时页面从不发对象
-    // 筛选，把那时的行说成「读面忽略了对象」会是一句假话。判等按**控制台自己的类型**，不按发给读面的
-    // 种类词：句末带类型的键在运行时那边叫 `MCP connection`、在这边叫 `ai1_mcp`，拿种类词去比会把每一行
-    // 都误判成「读面忽略了筛选」。
-    //
     // The object is evidence only when it was **actually sent** (both halves); a kind-only or key-only
     // search sends no object filter at all, and calling those rows "the read face ignored the object"
     // would be a false statement. Compare by the **console's own type**, not the kind word sent to the
     // read face: a typed key at the end of a sentence is `MCP connection` to the runtime and `ai1_mcp`
     // here, and comparing against the word would mark every row as "the read face ignored the filter".
+    //
+    // 只有**真的把对象发出去过**（类型 + 主键两半都有）才拿它取证；只给种类或只给主键时页面从不发对象
+    // 筛选，把那时的行说成「读面忽略了对象」会是一句假话。判等按**控制台自己的类型**，不按发给读面的
+    // 种类词：句末带类型的键在运行时那边叫 `MCP connection`、在这边叫 `ai1_mcp`，拿种类词去比会把每一行
+    // 都误判成「读面忽略了筛选」。
     readFaceIgnored.value = readFaceIgnoredFilters(firstAnswer, {
       object: objectForServer ? wanted : null,
       since: since.value,
@@ -1419,12 +1419,12 @@ async function runQuery() {
 }
 
 /**
- * 导出件里那一行上界声明。扫到 1000 行上界时给一句「这份只含上限内读到的行」，没触到时给空串（文件一个字
- * 都不多）；两个按钮共用它，故两份导出的说法不会分叉。
- *
  * The bound statement that rides in an export. When the 1000-row bound was hit it says "this file holds only
  * what the scan read within its bound"; when it was not, it is an empty string (the file gains nothing). Both
  * buttons take it from here, so the two exports cannot drift apart.
+ *
+ * 导出件里那一行上界声明。扫到 1000 行上界时给一句「这份只含上限内读到的行」，没触到时给空串（文件一个字
+ * 都不多）；两个按钮共用它，故两份导出的说法不会分叉。
  */
 // The sentence names the cap, and the cap is a build-time setting; passing it keeps the file from
 // claiming 1000 when the scan was configured to 200 or 1200.

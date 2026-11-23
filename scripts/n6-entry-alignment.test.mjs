@@ -1,23 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// N6：同一操作在对象、时间、谁三处，六问与第二入口（行动中心里那条宿主操作日志）不靠猜就能对上。
-//
-// 三处的判据：
-//
-//   ① 时间 —— 六问的答案与它的 CSV 用 `zonedTime`（本机时区 + 显式偏移）；第二入口的两处时间
-//      （台账行与宿主日志行）也走同一个函数，于是「何时」两处逐字可比。宿主日志的 `createTime`
-//      是毫秒数，六问拿到的是 UTC ISO 串 —— 两种形状必须给出同一个字符串。
-//   ② 对象 —— 第二入口用第三问那一组词（`keelbase.record.*`）加同一个主键，不印运行时的类型名。
-//   ③ 谁 —— 第二入口按第一问的形状「名字（账号 #n）」写，名字取不到时用 id 顶替（与第一问的回落
-//      一致）；宿主那一行本来就没记人的，说「未记操作人」，而不是一个会被读成「没取到」的破折号。
-//
-// 关联仍写「相关」而不是硬链接：宿主日志里没有共享 id 可指，硬链要往宿主日志写一个 id —— 那是宿主
-// 业务侧的事，本任务只到展示与文案。这条测试钉的是「相关」这个说法确实出现在页面上，以及上面三处。
-//
 // 运行：node --test scripts/n6-entry-alignment.test.mjs
 //
 // ── English ─────────────────────────────────────────────────────────────────────────────────────
-//
 // N6: one operation must line up between the six answers and the second entry (the host operate log
 // shown in the action centre) on object, time and person, without guessing.
 //
@@ -35,6 +20,21 @@
 // display and copy. This test pins that "related" appears in the page and that the three alignments do.
 //
 // Run: node --test scripts/n6-entry-alignment.test.mjs
+//
+// N6：同一操作在对象、时间、谁三处，六问与第二入口（行动中心里那条宿主操作日志）不靠猜就能对上。
+//
+// 三处的判据：
+//
+//   ① 时间 —— 六问的答案与它的 CSV 用 `zonedTime`（本机时区 + 显式偏移）；第二入口的两处时间
+//      （台账行与宿主日志行）也走同一个函数，于是「何时」两处逐字可比。宿主日志的 `createTime`
+//      是毫秒数，六问拿到的是 UTC ISO 串 —— 两种形状必须给出同一个字符串。
+//   ② 对象 —— 第二入口用第三问那一组词（`keelbase.record.*`）加同一个主键，不印运行时的类型名。
+//   ③ 谁 —— 第二入口按第一问的形状「名字（账号 #n）」写，名字取不到时用 id 顶替（与第一问的回落
+//      一致）；宿主那一行本来就没记人的，说「未记操作人」，而不是一个会被读成「没取到」的破折号。
+//
+// 关联仍写「相关」而不是硬链接：宿主日志里没有共享 id 可指，硬链要往宿主日志写一个 id —— 那是宿主
+// 业务侧的事，本任务只到展示与文案。这条测试钉的是「相关」这个说法确实出现在页面上，以及上面三处。
+//
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -52,10 +52,10 @@ const auditQuery = read('keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs')
 const patch = read('keelbase-ui/host-patches/0002-governance-ui.patch')
 
 test('the six answers and the second entry read one clock: two shapes, one string with its offset', () => {
-  // 宿主日志给的是毫秒数，六问给的是 UTC ISO 串 —— 同一个时刻必须读成同一句话。
-  //
   // The host log gives epoch millis and the six answers get a UTC ISO string — one instant has to read
   // as one sentence either way.
+  //
+  // 宿主日志给的是毫秒数，六问给的是 UTC ISO 串 —— 同一个时刻必须读成同一句话。
   const iso = '2026-11-11T04:11:46.000Z'
   const millis = Date.parse(iso)
   assert.match(zonedTime(iso), /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC[+-]\d{2}:\d{2}$/, 'the answer lost its offset')
@@ -63,10 +63,10 @@ test('the six answers and the second entry read one clock: two shapes, one strin
   assert.equal(zonedTime(null), '—')
   assert.equal(zonedTime('not a time'), 'not a time', 'an unreadable value is no longer shown as itself')
 
-  // 六问的「何时」与导出用的是这一个函数；第二入口的两处时间也必须走它。
-  //
   // The sixth answer's "when" and the export both take this function; the second entry's two time cells
   // have to go through it too.
+  //
+  // 六问的「何时」与导出用的是这一个函数；第二入口的两处时间也必须走它。
   assert.match(sixQuestions, /\{ key: 'when', label: 'when', text: zonedTime\(row\?\.createdAt\)/, 'the sixth answer stopped using zonedTime')
   assert.match(auditQuery, /export function csvText\(/, 'the six-answer CSV is gone')
   assert.match(
@@ -82,10 +82,10 @@ test('the six answers and the second entry read one clock: two shapes, one strin
 })
 
 test('the second entry names the object the way the third answer does', () => {
-  // 第三问的写法：业务词（`keelbase.record.*`）+ 主键。第二入口的对象行必须从同一组词来。
-  //
   // The third answer's notation: business word (`keelbase.record.*`) plus key. The second entry's object
   // line has to come from the same words.
+  //
+  // 第三问的写法：业务词（`keelbase.record.*`）+ 主键。第二入口的对象行必须从同一组词来。
   assert.match(sixQuestions, /word\(te, t, `keelbase\.record\.\$\{effect\.resultType\}`/, 'the third answer stopped spelling objects with the record words')
   assert.match(actionCenter, /`keelbase\.record\.\$\{row\.resultType \?\? ''\}`/, 'the second entry no longer uses the record words')
   assert.match(actionCenter, /t\('keelbase\.effects\.businessLogObject', \{ object: objectHead\(row\) \}\)/, 'the second entry draws no object line')
@@ -93,10 +93,10 @@ test('the second entry names the object the way the third answer does', () => {
 })
 
 test('the second entry names people the way the first answer does, and says when nobody was recorded', () => {
-  // 六问把第一问抽成了 `whoLine`：「名字（账号 #n）」。第二入口必须写同一个形状。
-  //
   // The six answers moved the first answer into `whoLine`: name (account #n). The second entry must
   // write the same shape.
+  //
+  // 六问把第一问抽成了 `whoLine`：「名字（账号 #n）」。第二入口必须写同一个形状。
   assert.match(sixQuestions, /const account = callerId \? `\$\{t\('keelbase\.sixQ\.account'\)\} #\$\{callerId\}` : ''/, 'the first answer changed shape')
   assert.match(sixQuestions, /text: account \? `\$\{callerName\}（\$\{account\}）`/, 'the first answer no longer brackets the account the same way')
   assert.match(actionCenter, /t\('keelbase\.sixQ\.account'\)/, 'the second entry no longer prints the account number')
@@ -129,9 +129,9 @@ test('both locale bundles carry the three aligned words', () => {
 })
 
 test('the six-answer screen and its export are still the same six cells', () => {
-  // 导出不能借这次改动漂开：CSV 的六列就是屏幕上那六格。
-  //
   // The export must not drift in this change: the CSV's six columns are the cells on screen.
+  //
+  // 导出不能借这次改动漂开：CSV 的六列就是屏幕上那六格。
   assert.match(auditChain, /csvText\(/, 'the six-column export is gone')
   assert.match(auditChain, /sixOf\(row\)/, 'the screen stopped rendering the six answers')
 })

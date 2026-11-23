@@ -97,11 +97,11 @@ test('the page asks the face itself, once, and says what the answer proved', () 
 })
 
 test('both exports carry the statements, and neither changes when nothing was proven', () => {
-  // 两条部署级说明并进 `readFaceNote()` —— 两份导出本就带的那一行表头前注记；说明行只出现在表头之前
-  // 这一处，下游 `splitCsvNotes` 不必在数据行之后另找。
-  //
   // The two deployment-level statements join `readFaceNote()` — the pre-header note both exports already
   // carry; note lines live only before the header, so `splitCsvNotes` need not look past the data.
+  //
+  // 两条部署级说明并进 `readFaceNote()` —— 两份导出本就带的那一行表头前注记；说明行只出现在表头之前
+  // 这一处，下游 `splitCsvNotes` 不必在数据行之后另找。
   assert.match(script, /function readFaceNote\(\): string \{[\s\S]*?readFaceNoteLines\(\)/)
   assert.match(script, /withCsvNotes\(csvText\(answerRows, labels\), \[readFaceNote\(\), scanBoundNote\(\)\]\)/)
   assert.match(script, /withCsvNotes\(checkCsvText\(entryRows, labels, exportNotes\), \[\s*readFaceNote\(\),\s*scanBoundNote\(\),\s*\]\)/)

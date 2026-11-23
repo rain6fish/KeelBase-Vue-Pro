@@ -300,12 +300,12 @@ test('an approval row takes its approver from the decision row, never from the i
     'the page does not import the approver matcher')
   assert.match(script, /const approver = approverOf\(row, viewRows\.value\)/,
     'the page does not pair the decision row from the audit rows it holds')
-  // N6（2026-11-21）：配到的裁决人若宿主给不出名字，交进去的是**空**，第六问于是说「没有记下批准人」，
-  // 而不是把一串数字当成名字。裸 id 冒充人名，正是「谁」这一处对不上账的来源之一。
-  //
   // N6 (2026-11-21): when the host cannot name the paired decider, an **empty** answer is handed in, so
   // the fifth question says it did not record the approver instead of passing an id off as a name. A bare
   // id standing in for a person is one of the ways the "who" cell failed to line up.
+  //
+  // N6（2026-11-21）：配到的裁决人若宿主给不出名字，交进去的是**空**，第六问于是说「没有记下批准人」，
+  // 而不是把一串数字当成名字。裸 id 冒充人名，正是「谁」这一处对不上账的来源之一。
   assert.match(script, /approverName: approver \? names\.value\[String\(approver\.userId\)\] \?\? '' : ''/,
     'the paired approver is not resolved to a name (or the empty answer is not explicit)')
   assert.match(script, /composeSix\(\{[\s\S]*?\bapproverName:/, 'the six answers no longer receive the approver')
@@ -383,17 +383,17 @@ test('an unfinished search does not read as one that matched nothing', () => {
 })
 
 test('R-2: a scan that hit its bound says so in both exports, and an unfinished one gains nothing', () => {
-  // 2026-11-21 的真栈读数：3000 行的区间里，同区间重扫只读到最新 1000 行（5 页 × 200）。页面说出了上限，
-  // 两份 CSV 却把这 1000 行以「全部命中」的样子带走 —— 文件一旦离开页面，声明就不在读者眼前了。这一条
-  // 钉住接线：两份导出都经 `withCsvNotes`，声明只从 `scanBoundNote()` 来，而它的真假来自审计扫描自己
-  // 的 `complete`（不是把台账与确认记录的窗口也算进去的 `queryTruncated`）。
-  //
   // The 2026-11-21 real-stack reading: in a 3000-row range the by-range rescan read only the newest 1000
   // rows (5 pages × 200). The page said so; the two CSVs carried those 1000 rows away as "everything that
   // matched". Once the file leaves the page the statement is no longer in front of the reader. This pins
   // the wiring: both exports go through `withCsvNotes`, the statement comes only from `scanBoundNote()`,
   // and its truth is the audit scan's own `complete` — not `queryTruncated`, which also counts the ledger's
   // and the confirmation queue's windows.
+  //
+  // 2026-11-21 的真栈读数：3000 行的区间里，同区间重扫只读到最新 1000 行（5 页 × 200）。页面说出了上限，
+  // 两份 CSV 却把这 1000 行以「全部命中」的样子带走 —— 文件一旦离开页面，声明就不在读者眼前了。这一条
+  // 钉住接线：两份导出都经 `withCsvNotes`，声明只从 `scanBoundNote()` 来，而它的真假来自审计扫描自己
+  // 的 `complete`（不是把台账与确认记录的窗口也算进去的 `queryTruncated`）。
   const exportSix = script.slice(script.indexOf('async function exportSix'), script.indexOf('async function exportCheck'))
   const exportCheck = script.slice(script.indexOf('async function exportCheck'), script.indexOf('function downloadCsv'))
   assert.match(
@@ -417,9 +417,9 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
     /function clearQueryResults\(\) \{[\s\S]{0,400}?queryScanBound\.value = false/,
     'clearing the search leaves the bound statement behind',
   )
-  // 空态由三种结局挑一句话，其中「跑完且触到上限」与「跑完、上限内真的没有」必须分开说。
   // The empty text picks one sentence by three endings; "finished and hit the bound" must read apart from
   // "finished and there really was nothing inside the bound".
+  // 空态由三种结局挑一句话，其中「跑完且触到上限」与「跑完、上限内真的没有」必须分开说。
   assert.match(script, /import \{[^}]*\bemptyTextKey\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/,
     'the page does not take the empty-text key from the query module')
   assert.match(script, /queryScanBound: queryScanBound\.value/, 'the empty text is not told whether the bound was hit')
@@ -439,14 +439,6 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
 })
 
 test('both exports name the read face only when the answer proved it ignored the filters', () => {
-  // N4 的第二支：读面忽略对象/终点这件事，页面说了，文件却不说 —— 导出件一离开页面就只剩一份看着像
-  // 「就是这些」的列表。现在两份导出各带一行 `#` 注记，**与页面警告同一句话、同一个词条**（不新造第二种
-  // 说法）；它的真假只来自 `readFaceIgnored`，而那个值只由第一次答复的行决定（`readFaceIgnoredFilters`）：
-  // 空链、探针式空答复、请求失败、没跑过检索都是 false，文件不多一个字。
-  //
-  // 次序固定：读面注记在**前**，扫描上限注记在**后** —— 先说这些行为什么是控制台自己挑的，再说这次挑拣
-  // 只读到多远。`withCsvNotes` 按给定次序写行（纯函数侧逐字钉在 `audit-query.test.mjs`）。
-  //
   // N4's second branch: the page said the read face ignored the object/end, the file did not — once the
   // export left the page it was a list that looked like "this is all there is". Both exports now carry a
   // `#` note with **the page warning's own sentence and key** (no second wording); its truth comes only
@@ -457,6 +449,14 @@ test('both exports name the read face only when the answer proved it ignored the
   // The order is fixed: the read-face note **first**, the bound note **after** — why these rows are the
   // console's own narrowing, then how far that narrowing could read. `withCsvNotes` writes the lines in
   // the order given (pinned verbatim in `audit-query.test.mjs`).
+  //
+  // N4 的第二支：读面忽略对象/终点这件事，页面说了，文件却不说 —— 导出件一离开页面就只剩一份看着像
+  // 「就是这些」的列表。现在两份导出各带一行 `#` 注记，**与页面警告同一句话、同一个词条**（不新造第二种
+  // 说法）；它的真假只来自 `readFaceIgnored`，而那个值只由第一次答复的行决定（`readFaceIgnoredFilters`）：
+  // 空链、探针式空答复、请求失败、没跑过检索都是 false，文件不多一个字。
+  //
+  // 次序固定：读面注记在**前**，扫描上限注记在**后** —— 先说这些行为什么是控制台自己挑的，再说这次挑拣
+  // 只读到多远。`withCsvNotes` 按给定次序写行（纯函数侧逐字钉在 `audit-query.test.mjs`）。
   assert.match(
     script,
     /import \{[^}]*\bwithCsvNotes\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/s,
@@ -475,8 +475,8 @@ test('both exports name the read face only when the answer proved it ignored the
       `the ${name} export does not put the read-face note before the bound note`,
     )
   }
-  // 无证据的三种路：初始 false、清空检索时复位、请求失败时复位。
   // The three no-evidence roads: false by default, reset when the search is cleared, reset when it fails.
+  // 无证据的三种路：初始 false、清空检索时复位、请求失败时复位。
   assert.match(script, /const readFaceIgnored = ref\(false\)/, 'the read-face evidence does not start false')
   assert.match(
     script,
@@ -514,11 +514,11 @@ test('D-8: a second export carries the id and the checks, and the six-column one
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(template, /void exportCheck\(\)/, 'there is no second export control')
   assert.match(script, /async function exportCheck\(\)/)
-  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走；租户那一句（丙）也并进这
-  // 一行。读面那两句（N4）由 `readFaceNote()` 并进同一条 `#` 注记，仍是表头前的一行、不是一列。
   // The line before the header is the second entry's limit (`N6`), so it rides along with this call; the
   // tenant sentence (丙) joins the same line. The read face's two statements (N4) join the same `#` note
   // through `readFaceNote()` — still one line before the header, never a column.
+  // 表头前那一行说明就是第二入口的限度（`N6`），故它跟着这次调用一起走；租户那一句（丙）也并进这
+  // 一行。读面那两句（N4）由 `readFaceNote()` 并进同一条 `#` 注记，仍是表头前的一行、不是一列。
   assert.match(
     script,
     /const exportNotes = \[t\('keelbase\.audit\.exportNote'\), t\('keelbase\.audit\.exportTenantNote'\)\]\.join\(' '\)/,
@@ -586,15 +586,15 @@ test('the search hands the range end and the object to the read face', () => {
 })
 
 test('a read face that ignored the filters is named as such, from the answer that carried them', () => {
-  // F10 的宿主侧：生成器产出的应用会静默忽略 `until/objectType/objectId`，同一查询回一份更宽的列表。
-  // 命中仍由本页自己挑（上一组测试钉住两种读面同一个答案），但当答复**明显更宽**时页面要说出这件事，
-  // 并把读者指向读面自己的答复。取证只用**第一次**扫回来的那份 —— 页面有意按区间重扫的那次不算。
-  //
   // The host side of F10: an application produced by the generator silently ignores `until/objectType/objectId`
   // and answers a wider list. The page still picks the rows itself (the tests above pin one answer on both
   // faces), but when the answer is **recognisably wider** it says so and points the reader at the read
   // face's own answer. Evidence comes from the **first** answer only — the page's own by-range rescan is
   // not the face ignoring anything.
+  //
+  // F10 的宿主侧：生成器产出的应用会静默忽略 `until/objectType/objectId`，同一查询回一份更宽的列表。
+  // 命中仍由本页自己挑（上一组测试钉住两种读面同一个答案），但当答复**明显更宽**时页面要说出这件事，
+  // 并把读者指向读面自己的答复。取证只用**第一次**扫回来的那份 —— 页面有意按区间重扫的那次不算。
   assert.match(
     script,
     /import \{[^}]*readFaceIgnoredFilters[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/s,
@@ -610,12 +610,12 @@ test('a read face that ignored the filters is named as such, from the answer tha
     /readFaceIgnoredFilters\(firstAnswer, \{/,
     'the wider-answer check is not made against the answer that carried the filters',
   )
-  // 只给种类或只给主键时页面根本不发对象筛选，故不能拿对象取证 —— 否则每一次这样的检索都会被读成
-  // 「读面忽略了对象」。对象那一半只认**真的发出去过**的那一组条件。
-  //
   // A kind-only or key-only search sends no object filter at all, so it cannot be evidence about the
   // object — otherwise every such search would read as "the read face ignored the object". The object
   // half is taken only from the conditions that were actually sent.
+  //
+  // 只给种类或只给主键时页面根本不发对象筛选，故不能拿对象取证 —— 否则每一次这样的检索都会被读成
+  // 「读面忽略了对象」。对象那一半只认**真的发出去过**的那一组条件。
   assert.match(
     run,
     /object: objectForServer \? wanted : null/,
@@ -632,13 +632,13 @@ test('a read face that ignored the filters is named as such, from the answer tha
 })
 
 test('an empty object answer is scanned again, because the row may name its object in the sentence', () => {
-  // 读面的对象筛选只走台账。一次 MCP 连通测试不写台账，它把带类型的键写在句末；读面按对象答空时，
-  // 页面必须按区间重扫一次，再由本地证据链挑行 —— 否则这一行永远检索不到。台账命中时这一步不发生。
-  //
   // The read face's object filter goes through the ledger alone. An MCP connect test writes no ledger row
   // and names its object in the typed key at the end of the sentence; an empty object answer must be
   // scanned again by range, with the local evidence chain picking, or the row is never found. A ledger
   // hit never gets here.
+  //
+  // 读面的对象筛选只走台账。一次 MCP 连通测试不写台账，它把带类型的键写在句末；读面按对象答空时，
+  // 页面必须按区间重扫一次，再由本地证据链挑行 —— 否则这一行永远检索不到。台账命中时这一步不发生。
   const runStart = script.indexOf('async function runQuery')
   const runRest = script.slice(runStart)
   const runNext = runRest.indexOf('async function ', 10)
@@ -659,9 +659,9 @@ test('an empty object answer is scanned again, because the row may name its obje
     /\[\.\.\.RECORD_TYPES, \.\.\.OBJECT_KEY_TYPES\]/,
     'the object filter offers only the ledger kinds, so an MCP connection cannot be chosen at all',
   )
-  // 只由句末句子点名的种类，读面收到的是它的**种类词**：运行时在台账答空后按这个词逐字对键。
   // A kind only the sentence names goes to the read face as its **kind word**: the runtime compares
   // that word, character for character, when the ledger answers nothing.
+  // 只由句末句子点名的种类，读面收到的是它的**种类词**：运行时在台账答空后按这个词逐字对键。
   assert.match(
     script,
     /const serverType = OBJECT_KEY_KINDS\[wantedType\] \|\| wantedType/,
@@ -737,17 +737,17 @@ test('the two follow-up kinds read differently, and a key-only search says why i
   assert.ok(template.lastIndexOf('v-if="keyOnlySearch"', hintAt) > 0, 'the key-only rule is drawn for every search')
 })
 
-// ── 租户不是这条链的维度（丙，2026-11-21）────────────────────────────────────────────────────────────
-// 一行 MCP 连通测试在句末点名了它的连接，却没说那条连接属于哪个租户；六问里也没有租户这一问。冻结期不加列、
-// 不升 wire，故页面与核对导出把这件事**明写**出来。乙b（按 `ai1_mcp.tenant_id` 反查收窄）要一条宿主侧
-// 能回答租户的面，而今天那几条面没有一条对读者成立 —— 见 `handoff/tenantvis-1121.md`。
-//
 // Tenant is not a dimension of this chain (丙, 2026-11-21): an MCP connectivity test row names its
 // connection at the end of its sentence and does not say which tenant it belongs to, and the six
 // questions do not ask for one. This freeze adds no column and raises no wire version, so the page and
 // the verification export **say** it outright. 乙b (narrowing by `ai1_mcp.tenant_id`) needs a host face
 // that answers a tenant, and none of the faces that exist today is sound for a reader — see
 // `handoff/tenantvis-1121.md`.
+//
+// ── 租户不是这条链的维度（丙，2026-11-21）────────────────────────────────────────────────────────────
+// 一行 MCP 连通测试在句末点名了它的连接，却没说那条连接属于哪个租户；六问里也没有租户这一问。冻结期不加列、
+// 不升 wire，故页面与核对导出把这件事**明写**出来。乙b（按 `ai1_mcp.tenant_id` 反查收窄）要一条宿主侧
+// 能回答租户的面，而今天那几条面没有一条对读者成立 —— 见 `handoff/tenantvis-1121.md`。
 test('a row is not attributed to a tenant, and the page says so beside the rows', () => {
   const template = page.slice(page.indexOf('<template>'), page.indexOf('<script'))
   assert.match(
@@ -755,9 +755,9 @@ test('a row is not attributed to a tenant, and the page says so beside the rows'
     /v-if="displayRows\.length"[^>]*>\s*\{\{ t\('keelbase\.audit\.tenantHint'\) \}\}/s,
     'the page no longer says a row is not attributed to a tenant',
   )
-  // 六问仍是恰好六格：租户那句话画在行旁，不进 `sixOf`，也不进导出那六列。
   // The six answers stay exactly six: the tenant sentence is drawn beside the rows, never inside
   // `sixOf` and never in the six exported columns.
+  // 六问仍是恰好六格：租户那句话画在行旁，不进 `sixOf`，也不进导出那六列。
   assert.doesNotMatch(script, /tenantHint[\s\S]{0,200}composeSix/, 'the tenant sentence slipped into the six answers')
   assert.doesNotMatch(expandBlock(page), /tenantHint/, 'the tenant sentence is drawn inside the six-answer expansion')
 })
@@ -780,9 +780,9 @@ test('the tenant sentence is in both bundles, says what it must, and names no ta
 })
 
 test('the verification export repeats the tenant statement in its note line', () => {
-  // 六列业务 CSV 一个字符都不动（U1 的验收口径）：那句话由页面那一行与核对 CSV 的说明行承担。
   // The six-column business CSV is untouched (U1's acceptance reading): the page line and the
   // verification CSV's note line carry the statement.
+  // 六列业务 CSV 一个字符都不动（U1 的验收口径）：那句话由页面那一行与核对 CSV 的说明行承担。
   const patch = readFileSync(join(ROOT, 'keelbase-ui/host-patches/0002-governance-ui.patch'), 'utf8').replace(/\r\n/g, '\n')
   const notes = [...patch.matchAll(/^\+\s*exportTenantNote:\s*\n\+\s*'([^']*)'/gm)].map((m) => m[1])
   assert.equal(notes.length, 2, 'expected one exportTenantNote per language in the host patch')

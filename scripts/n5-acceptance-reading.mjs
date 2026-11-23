@@ -1,6 +1,27 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 //
+// ── English ─────────────────────────────────────────────────────────────────────
+// N5 acceptance readings: given **one execution** or **one business object**, collect every reading the
+// criteria ask for — the six answers cell by cell, the rows of both CSVs, the audit chain's hashes and
+// `/audit/verify`, and the second entry (the host's own operation log).
+//
+// This script does **not** re-implement the console's criterion. The six-cell composition, the object's
+// evidence chain, the CSV column order and the internal-name refusal are all imported from the
+// console's own pure modules (`sixQuestions.mjs` / `auditQuery.mjs`) — one body of logic for the file
+// and the screen, not a second one. What this script adds is only what the console cannot do: run
+// **offline** against a captured snapshot, and say exactly which reading could not be taken
+// (`无法取数`, exit 2).
+//
+// Three fixed rules: **cannot-read is not a failure** (unreachable host, 404, a missing snapshot
+// section → exit 2, never FAIL and never PASS); the **approval row is selected by executionId**, falling
+// back to tool + five seconds only when the runtime does not carry it, and the report says which was
+// used; and when the page's pairing rule and the object read face's rule point at different ledger rows,
+// the report names it instead of swallowing it.
+//
+// Exit codes: 0 = readings taken and every criterion passes; 1 = readings taken and at least one
+// criterion fails; 2 = a reading could not be taken (never read as a pass); 64 = usage error.
+//
 // N5 验收取数：给定**一次执行**或**一个业务对象**，把验收判据要的读数一次取全 ——
 //
 //   六问逐格（谁 / 何时 / 哪个业务对象 / 改成什么 / 谁确认 / 结果）
@@ -34,27 +55,6 @@
 // 退出码：0 = 取到数且全部判据通过；1 = 取到数但至少一条判据不通过；2 = 有一段取不到（不得当通过）；
 //         64 = 用法错误。
 //
-// ── English ─────────────────────────────────────────────────────────────────────
-//
-// N5 acceptance readings: given **one execution** or **one business object**, collect every reading the
-// criteria ask for — the six answers cell by cell, the rows of both CSVs, the audit chain's hashes and
-// `/audit/verify`, and the second entry (the host's own operation log).
-//
-// This script does **not** re-implement the console's criterion. The six-cell composition, the object's
-// evidence chain, the CSV column order and the internal-name refusal are all imported from the
-// console's own pure modules (`sixQuestions.mjs` / `auditQuery.mjs`) — one body of logic for the file
-// and the screen, not a second one. What this script adds is only what the console cannot do: run
-// **offline** against a captured snapshot, and say exactly which reading could not be taken
-// (`无法取数`, exit 2).
-//
-// Three fixed rules: **cannot-read is not a failure** (unreachable host, 404, a missing snapshot
-// section → exit 2, never FAIL and never PASS); the **approval row is selected by executionId**, falling
-// back to tool + five seconds only when the runtime does not carry it, and the report says which was
-// used; and when the page's pairing rule and the object read face's rule point at different ledger rows,
-// the report names it instead of swallowing it.
-//
-// Exit codes: 0 = readings taken and every criterion passes; 1 = readings taken and at least one
-// criterion fails; 2 = a reading could not be taken (never read as a pass); 64 = usage error.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, relative, resolve, sep } from 'node:path'
@@ -86,16 +86,16 @@ import {
   splitCsvNotes,
 } from '../keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'
 
+// This table is a **mirror**, not a definition: every value is copied from the zh-CN messages in
+// `0002-governance-ui.patch`, and the test holds the two against each other verbatim. A mirror is
+// needed because this script cannot import a patch file or a `.ts` module on CI's Node 22; when a
+// message changes, that test goes red first.
+//
 // ── 词表 ──────────────────────────────────────────────────────────────────────
 //
 // 这一张是**镜像**，不是定义：每个值都抄自 `keelbase-ui/host-patches/0002-governance-ui.patch` 的
 // zh-CN 词条，`scripts/n5-acceptance-reading.test.mjs` 逐字对账。镜像的原因是本脚本不能 import 那份
 // 补丁、也不能 import `.ts`（CI 跑 Node 22）；一旦补丁改了词，那条测试先红。
-//
-// This table is a **mirror**, not a definition: every value is copied from the zh-CN messages in
-// `0002-governance-ui.patch`, and the test holds the two against each other verbatim. A mirror is
-// needed because this script cannot import a patch file or a `.ts` module on CI's Node 22; when a
-// message changes, that test goes red first.
 const MESSAGES = {
   'keelbase.sixQ.who': '谁',
   'keelbase.sixQ.when': '何时（带时区）',
@@ -809,15 +809,15 @@ function evaluate(state, ctx, opts) {
     }
   }
 
-  // N5 已定走**方案 B**（宿主写 + 策略 `approval`）。执行行的 `authorization` 仍按工具的**声明级别**
-  // 记 `confirmation`，所以第五格会写「本人确认」；同一次执行的批准行点名了第二人。这不是一条会红的
-  // 判据 —— 它是**已知口径**，由本脚本产成一句告诫，场次记录直接抄。
-  //
   // N5 chose **path B** (a host write with the policy set to `approval`). The executed row's
   // `authorization` still records `confirmation`, taken from the tool's **declared** level, so its fifth
   // cell reads "self-confirmed" while the approval row of the same execution names the second person.
   // That is not a criterion to turn red — it is a **known wording**, emitted here as one warning the
   // session record can copy verbatim.
+  //
+  // N5 已定走**方案 B**（宿主写 + 策略 `approval`）。执行行的 `authorization` 仍按工具的**声明级别**
+  // 记 `confirmation`，所以第五格会写「本人确认」；同一次执行的批准行点名了第二人。这不是一条会红的
+  // 判据 —— 它是**已知口径**，由本脚本产成一句告诫，场次记录直接抄。
   if (executedRow && approvedRow && state.callerNames.status === 'ok') {
     const gate = gateFromRow(executedRow)
     const approverId = String(approvedRow.userId ?? '')
@@ -867,8 +867,8 @@ function evaluate(state, ctx, opts) {
     const linkage = chainLinkage(state)
     const missingHash = rows.filter((row) => !hashNodeOf(state, row.id))
     if (!Array.isArray(verify.chain) || !verify.chain.length) {
-      // 一条 `valid=true` 而**没有链节点**的答复，给不出行哈希 —— 那是取不到，不是断链。
       // A `valid=true` answer with **no chain nodes** cannot give a row hash: cannot read, not broken.
+      // 一条 `valid=true` 而**没有链节点**的答复，给不出行哈希 —— 那是取不到，不是断链。
       criteria.push(criterion('R3', '/audit/verify valid=true', UNREADABLE, '/audit/verify 没有返回链节点，行哈希取不到'))
     } else if (verify.valid !== true) {
       criteria.push(criterion('R3', '/audit/verify valid=true', FAIL, `valid=${String(verify.valid)} brokenIndex=${String(verify.brokenIndex)}`))
@@ -1156,8 +1156,8 @@ function selectionOf(opts, rows) {
   const [type, ...rest] = String(opts.object).split(':')
   const id = rest.join(':')
   if (!type || !id) throw new UsageError('--object 要写成 type:id，例如 crm_customer:1')
-  // 对象的三条来路里，台账优先；此刻台账还没读到，故先给一个空选区，读完台账后再 `reselectByObject`。
   // The ledger is the object's first road and is not loaded yet, so start empty and reselect once it is.
+  // 对象的三条来路里，台账优先；此刻台账还没读到，故先给一个空选区，读完台账后再 `reselectByObject`。
   return { kind: 'object', value: `${type}:${id}`, rows: [], direct: [], paired: [], note: '' }
 }
 
@@ -1382,9 +1382,9 @@ async function run(argv, io = {}) {
   const stamp = stampLocal()
   let writeNote = ''
   if (opts.out && !cellsByRow.size) {
-    // 六问没组合出来（通常是有行没有台账、判据已经是「无法取数」）。不写一份注定错的文件。
     // The six answers were not composed (usually a row with no ledger; the criterion is already
     // cannot-read). Do not write a file that is bound to be wrong.
+    // 六问没组合出来（通常是有行没有台账、判据已经是「无法取数」）。不写一份注定错的文件。
     writeNote = '无法取数：六问没有组合出来，未写 CSV —— 看上面的判据行'
   } else if (opts.out) {
     mkdirSync(opts.out, { recursive: true })
@@ -1457,23 +1457,23 @@ async function run(argv, io = {}) {
   return { exitCode, json, csvPaths }
 }
 
+// A fixture shaped like the real-stack run of 2026-11-21, driving every criterion the script judges:
+// three rows, six answers, the hash chain, the second entry, the CSV round-trip, the internal-name
+// refusal, and "cannot read is not a pass". Two approver variants prove self-approval turns red and a
+// second person turns green.
+//
 // ── 自检 ──────────────────────────────────────────────────────────────────────
 //
 // 内置一份与 2026-11-21 真栈那一场同形的夹具（对象 `客户 · #1`，三行一笔写），把脚本能判的判据全部
 // 驱动一遍：三行、六问、哈希链、第二入口、CSV 往返、内部名拒绝、以及「取不到 ≠ 通过」。其中
 // `approver` 的两个变体专门证明自批会被判红、第二人会被判绿。
-//
-// A fixture shaped like the real-stack run of 2026-11-21, driving every criterion the script judges:
-// three rows, six answers, the hash chain, the second entry, the CSV round-trip, the internal-name
-// refusal, and "cannot read is not a pass". Two approver variants prove self-approval turns red and a
-// second person turns green.
 
 function fixture({ approverId = '1', creds = { 1: 'KeelBase' }, approvalExecutionId = 'e-n5' } = {}) {
-  // 宿主那一侧的 `createTime` 是本机钟面、不带偏移；夹具按**本机时区**把它写成与审计时刻同一秒，
-  // 于是这个自检在 UTC 的 CI 与 +08:00 的开发机上读起来一样。屏幕与文件也正是这么对上的。
-  //
   // The host's `createTime` is a local wall clock with no offset; the fixture writes the same local
   // second as the audit row, so this self-test reads the same on a UTC CI box and a +08:00 laptop.
+  //
+  // 宿主那一侧的 `createTime` 是本机钟面、不带偏移；夹具按**本机时区**把它写成与审计时刻同一秒，
+  // 于是这个自检在 UTC 的 CI 与 +08:00 的开发机上读起来一样。屏幕与文件也正是这么对上的。
   const wall = (iso) => {
     const d = new Date(iso)
     const pad = (n) => String(n).padStart(2, '0')

@@ -88,8 +88,8 @@ test('one execution naming two different initiators is not paired — a guess is
 })
 
 test('an executionId the scanned window does not hold answers null — no fallback to tool + five seconds', () => {
-  // 同一工具、五秒之内的**另一次**执行就摆在旁边：退回「工具 + 五秒」正好会把这一次说成那一次。
   // A different execution of the same tool sits five seconds away; the time fallback would pair it.
+  // 同一工具、五秒之内的**另一次**执行就摆在旁边：退回「工具 + 五秒」正好会把这一次说成那一次。
   const other = { ...AUDIT_B[0], executionId: 'a-different-execution' }
   assert.equal(callers.initiatorOfEffect(READER_EFFECT_B, [other]), null)
 })
