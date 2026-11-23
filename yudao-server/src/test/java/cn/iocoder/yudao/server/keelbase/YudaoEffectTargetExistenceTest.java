@@ -103,8 +103,8 @@ class YudaoEffectTargetExistenceTest {
 
     @Test
     void aContactThatIsStillThereReadsAsPresent() {
-        // 2026-11-22 扩面之前，`crm_contact` 没有探针，存在的联系人被画成「已不在」。
         // Before the 2026-11-22 widening `crm_contact` had no probe, so a contact that existed read as gone.
+        // 2026-11-22 扩面之前，`crm_contact` 没有探针，存在的联系人被画成「已不在」。
         when(crmContacts.selectById(3L)).thenReturn(new CrmContactDO());
 
         Map<String, Object> row = row("crm_contact", 3L, false);

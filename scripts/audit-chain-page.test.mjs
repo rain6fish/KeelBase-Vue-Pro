@@ -123,12 +123,12 @@ const { t } = useI18n()
 })
 
 test('the write record is shown only when exactly one candidate matches', () => {
-  // 「恰好一个候选」现在住在共用的 `matchEffect` 里（精确 `executionId` 与五秒回落各一条），页面把
-  // 这件事交给它，自己不再另写一份 —— 否则六问与对象检索会再次分成两种读法。
-  //
   // "Exactly one candidate" now lives in the shared `matchEffect` (one rule for the exact `executionId`,
   // one for the five-second fallback); the page hands the job to it instead of keeping a second copy —
   // otherwise the six answers and the object search drift into two readings again.
+  //
+  // 「恰好一个候选」现在住在共用的 `matchEffect` 里（精确 `executionId` 与五秒回落各一条），页面把
+  // 这件事交给它，自己不再另写一份 —— 否则六问与对象检索会再次分成两种读法。
   const query = readFileSync(join(ROOT, 'keelbase-ui/host-overlay/src/keelbase/auditQuery.mjs'), 'utf8')
   assert.match(query, /return exact\.length === 1 \? exact\[0\] : null/,
     'the exact executionId match lost its "exactly one" rule')
@@ -165,14 +165,14 @@ test('the gate is read from the row, never from the tool inventory', () => {
 })
 
 test('a held or refused call takes its object from the confirmation record', () => {
-  // 被扣下或被拒的调用不写台账，第三问此前只能答「未记录」—— 而运行时其实把这次提议记在确认记录里。
-  // 这一条钉住接线：页面真的去读那条队列，按与导出的对象证据**同一条**规则（`matchProposal`，恰好一个
-  // 候选）配对，再把结果交给六问。
-  //
   // A held or refused call writes no ledger row, so the third question could only say 「未记录」 — while
   // the runtime did record the proposal in a confirmation record. This pins the wiring: the page really
   // reads that queue, pairs it under the **export's own** rule (`matchProposal`, exactly one candidate),
   // and hands the result to the six answers.
+  //
+  // 被扣下或被拒的调用不写台账，第三问此前只能答「未记录」—— 而运行时其实把这次提议记在确认记录里。
+  // 这一条钉住接线：页面真的去读那条队列，按与导出的对象证据**同一条**规则（`matchProposal`，恰好一个
+  // 候选）配对，再把结果交给六问。
   assert.match(script, /confirmationApi\.listAll\(1, PROPOSAL_WINDOW\)/, 'the page never reads the confirmation queue')
   assert.match(
     script,
@@ -428,8 +428,8 @@ test('R-2: a scan that hit its bound says so in both exports, and an unfinished 
     const hits = patch.split(`+      ${key}`).length - 1
     assert.equal(hits, 2, `${key} is not in both language bundles`)
   }
-  // 上限可配之后，注记正文必须跟着上限走：两份语言包都带 {n}，且都不再写死 1000。
   // With a configurable cap the note has to carry it: both bundles use {n} and neither keeps the literal 1000.
+  // 上限可配之后，注记正文必须跟着上限走：两份语言包都带 {n}，且都不再写死 1000。
   const boundEntries = [...patch.matchAll(/exportScanBound:\n\+\s*'([^']+)'/g)].map((match) => match[1])
   assert.equal(boundEntries.length, 2, 'exportScanBound is not in both language bundles')
   for (const text of boundEntries) {
@@ -792,13 +792,13 @@ test('the verification export repeats the tenant statement in its note line', ()
 })
 
 test('the ledger pairing and the object search share one rule: execution id first', () => {
-  // 2026-11-22：同一工具相隔几秒的两笔写（联系人 #1 与 #2）曾让六问与对象列都答「未记录」—— 页面按
-  // 「同工具 + 五秒内恰好一个候选」配，而对象检索先按 `executionId` 精确配。两条路现在共用
-  // `matchEffect`，故同一行的第三问只有一种读法。
-  //
   // 2026-11-22: two writes of one tool seconds apart (contacts #1 and #2) made the six answers and the
   // object column say "not recorded", while the object search paired by `executionId` exactly. Both roads
   // now share `matchEffect`, so one row cannot answer question ③ two ways.
+  //
+  // 2026-11-22：同一工具相隔几秒的两笔写（联系人 #1 与 #2）曾让六问与对象列都答「未记录」—— 页面按
+  // 「同工具 + 五秒内恰好一个候选」配，而对象检索先按 `executionId` 精确配。两条路现在共用
+  // `matchEffect`，故同一行的第三问只有一种读法。
   assert.match(script, /import \{[^}]*\bmatchEffect\b[^}]*\} from '@\/keelbase\/auditQuery\.mjs'/,
     'the page does not take the ledger pairing rule from the query module')
   assert.match(
