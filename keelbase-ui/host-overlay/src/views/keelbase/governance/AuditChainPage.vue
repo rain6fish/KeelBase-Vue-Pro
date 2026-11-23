@@ -940,12 +940,6 @@ function recordOf(row: AuditRow): EffectRow | null {
 }
 
 /**
- * 这次调用**本来**落在哪条记录上，当它被扣下或被拒时 —— 与导出的对象证据共用 `matchProposal`
- * （同一工具、五秒之内、恰好一个候选），只是读的是确认记录：台账只记「真的写成了什么」，确认记录记
- * 「提议了什么」。确认记录没有 `executionId`，故这里只有这一条配法。
- *
- * 时间对哪一端都算：扣下那一刻写的审计行离确认记录的 `createdAt` 近，裁决那一刻写的离 `decidedAt` 近。
- *
  * Which record the call **was about** when it was held or refused — it shares `matchProposal` with the
  * export's object evidence (same tool, within five seconds, exactly one candidate), read from the
  * confirmation records: the ledger only says what was really written, a confirmation says what was
@@ -953,6 +947,12 @@ function recordOf(row: AuditRow): EffectRow | null {
  *
  * Either end of the clock counts: the audit row written when the call was held is near the record's
  * `createdAt`, and the one written when it was decided is near its `decidedAt`.
+ *
+ * 这次调用**本来**落在哪条记录上，当它被扣下或被拒时 —— 与导出的对象证据共用 `matchProposal`
+ * （同一工具、五秒之内、恰好一个候选），只是读的是确认记录：台账只记「真的写成了什么」，确认记录记
+ * 「提议了什么」。确认记录没有 `executionId`，故这里只有这一条配法。
+ *
+ * 时间对哪一端都算：扣下那一刻写的审计行离确认记录的 `createdAt` 近，裁决那一刻写的离 `decidedAt` 近。
  */
 function proposalOf(row: AuditRow): ConfirmationItem | null {
   return matchProposal(row, viewProposals.value)

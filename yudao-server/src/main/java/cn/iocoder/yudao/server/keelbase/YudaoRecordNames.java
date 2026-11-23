@@ -191,15 +191,15 @@ public class YudaoRecordNames {
             CrmProductDO row = crmProducts.selectById(id);
             return row == null ? null : row.getName();
         });
-        // 回款没有标题，编号就是它的名字。
         // A receivable has no title: its own number is what identifies it.
+        // 回款没有标题，编号就是它的名字。
         found.put("crm_receivable", id -> {
             CrmReceivableDO row = receivables.selectById(id);
             return row == null ? null : row.getNo();
         });
-        // 回款计划也没有标题，期数就是它的名字，写成业务词而不是一串数字。
         // A receivable plan has no title either: its period is its name, said as a business word instead
         // of a bare number.
+        // 回款计划也没有标题，期数就是它的名字，写成业务词而不是一串数字。
         found.put("crm_receivable_plan", id -> {
             CrmReceivablePlanDO row = receivablePlans.selectById(id);
             return row == null || row.getPeriod() == null ? null : "第 " + row.getPeriod() + " 期";

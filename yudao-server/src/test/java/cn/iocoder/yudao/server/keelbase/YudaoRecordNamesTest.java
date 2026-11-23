@@ -132,8 +132,8 @@ class YudaoRecordNamesTest {
 
     @Test
     void aContactTheLedgerNamedIsNamedToo() {
-        // 2026-11-22 扩面之前，联系人这一格只会写「未登记名称」。
         // Before the 2026-11-22 widening this cell said "name not registered" for a contact.
+        // 2026-11-22 扩面之前，联系人这一格只会写「未登记名称」。
         List<YudaoRecordNames.Named> named =
                 directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_contact", 9010)));
 
@@ -142,8 +142,8 @@ class YudaoRecordNamesTest {
 
     @Test
     void aReceivablePlanIsNamedByItsPeriod() {
-        // 回款计划没有标题，期数就是它的名字。
         // A receivable plan has no title; its period is its name.
+        // 回款计划没有标题，期数就是它的名字。
         List<YudaoRecordNames.Named> named =
                 directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_receivable_plan", 9011)));
 
