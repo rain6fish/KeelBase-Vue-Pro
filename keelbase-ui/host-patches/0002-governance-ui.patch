@@ -86,7 +86,7 @@ index 9d14564..eff8173 100644
 +      queryHits: 'Matched {n} row(s) in what was scanned',
 +      scanBound: 'the scan hit its bound — older rows in this range were not read',
 +      exportScanBound:
-+        'This file holds the rows the console scan read within its bound — at most 1000 rows, newest first. Older rows in this range were not read, so a row missing from this file may sit outside the bound.',
++        'This file holds the rows the console scan read within its bound — at most {n} rows, newest first. Older rows in this range were not read, so a row missing from this file may sit outside the bound.',
 +      keyOnlyHint:
 +        'Key only means this record, whatever its kind: rows with that key under a different kind, or with no kind recorded, also count — so it can return more than kind + key, including a pending row from the same operation. Both exports carry exactly the rows above.',
 +      secondEntryHint:
@@ -916,7 +916,7 @@ index 13065de..23b6e1f 100644
 +      queryHits: '扫描到的范围里命中 {n} 行',
 +      scanBound: '已扫到上限 —— 这个区间里更早的行没有读到',
 +      exportScanBound:
-+        '这份文件只含控制台扫描在上限内读到的行（至多 1000 行，按最新在前）。这个区间里更早的行没有读到，文件里没有的行可能就在上限之外。',
++        '这份文件只含控制台扫描在上限内读到的行（至多 {n} 行，按最新在前）。这个区间里更早的行没有读到，文件里没有的行可能就在上限之外。',
 +      keyOnlyHint:
 +        '只给主键 = 这一条记录、不分类别：主键相同而类别不同、或类别没记下来的行都算，故可能比「类型 + 主键」多命中，包括同一次操作的待决行。两份导出的就是上面这些行。',
 +      secondEntryHint:

@@ -1,8 +1,15 @@
 // SPDX-License-Identifier: Apache-2.0
 package cn.iocoder.yudao.server.keelbase;
 
+import cn.iocoder.yudao.module.crm.dal.mysql.business.CrmBusinessMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.clue.CrmClueMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contact.CrmContactMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contract.CrmContractMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.customer.CrmCustomerMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.followup.CrmFollowUpRecordMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.product.CrmProductMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivableMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.fms.dal.mysql.voucher.FmsVoucherMapper;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
 import cn.iocoder.yudao.module.products.dal.mysql.products.ProductsMapper;
@@ -31,11 +38,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * the table while its ledger row said it was gone.
  *
  * <p>The host is the only side that knows where those rows live, so this advice corrects the field
- * on the way out: for each result type this host compensates, ask that module's mapper whether the
- * row exists. It changes nothing else — the runtime still decides the scope, the revocability and
- * the refusal, and a row whose target really was deleted (a completed revoke) still answers false.
- * Unknown result types are left exactly as the runtime answered them; this class does not invent a
- * verdict for a table it cannot read.
+ * on the way out: for each host-written result type this class can read back, ask that module's mapper
+ * whether the row exists. Existence and revocability are different questions: a type may be probed here
+ * while having no compensator, so the ledger still refuses to revoke such a write. It changes nothing
+ * else — the runtime still decides the scope, the revocability and the refusal, and a row whose target
+ * really was deleted (a completed revoke) still answers false. Unknown result types are left exactly as
+ * the runtime answered them; this class does not invent a verdict for a table it cannot read.
  *
  * <p>It runs before the runtime's envelope advice ({@link Ordered#HIGHEST_PRECEDENCE}), because after
  * wrapping the body is an envelope rather than the row list this class reads.
@@ -47,10 +55,10 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
  * 每一行宿主记录到了控制台都成了「已不在」—— 这正是 2026-10-21 Proxy-1 那次误报：客户 #1 还在表里，
  * 台账行却说它没了。
  *
- * <p>只有宿主知道那些行住在哪，故这条 advice 在出口处更正这个字段：对每一种本宿主要补偿的结果类型，
- * 问那个模块的 mapper 这一行在不在。别的一概不动 —— 范围、可撤性、拒绝仍由运行时裁决；目标真被删掉
- * （一次撤销落成）仍旧答 false。本类不认识的结果类型原样保留运行时的答案；它不会为一张自己读不了的
- * 表编一个判决。
+ * <p>只有宿主知道那些行住在哪，故这条 advice 在出口处更正这个字段：对每一种本类读得回来的宿主写结果类型，
+ * 问那个模块的 mapper 这一行在不在。**「还在不在」与「撤不撤得动」是两件事**：一类可以有探针而没有补偿器，
+ * 那种写仍不可撤。别的一概不动 —— 范围、可撤性、拒绝仍由运行时裁决；目标真被删掉（一次撤销落成）仍旧
+ * 答 false。本类不认识的结果类型原样保留运行时的答案；它不会为一张自己读不了的表编一个判决。
  *
  * <p>它排在运行时信封 advice **之前**（{@link Ordered#HIGHEST_PRECEDENCE}）：包起来之后正文是信封，
  * 不再是本类要读的行列表。
@@ -76,16 +84,32 @@ public class YudaoEffectTargetExistence implements ResponseBodyAdvice<Object> {
                                       CrmFollowUpRecordMapper followUps,
                                       FmsVoucherMapper vouchers,
                                       Demo01ContactMapper contacts,
-                                      ProductsMapper products) {
+                                      ProductsMapper products,
+                                      CrmClueMapper clues,
+                                      CrmContactMapper crmContacts,
+                                      CrmBusinessMapper businesses,
+                                      CrmContractMapper contracts,
+                                      CrmProductMapper crmProducts,
+                                      CrmReceivableMapper receivables,
+                                      CrmReceivablePlanMapper receivablePlans) {
         Map<String, TargetProbe> found = new LinkedHashMap<>();
-        // The result types `YudaoLocalCompensators` serves, and only those: a type with no
-        // compensator is not a type this host can say anything about.
-        // 只覆盖 `YudaoLocalCompensators` 服务的那些结果类型：没有补偿器的类型，本宿主说不出什么。
+        // Every host-written result type this class can read back: the compensators' types, plus the CRM
+        // write kinds that gained a second entry on 2026-11-22. Existence and revocability are different
+        // questions — a probe says "the record is still there", never "this write can be undone".
+        // 本类读得回来的每一种宿主写结果类型：补偿器那几类，加上 2026-11-22 取得第二入口的 CRM 写类型。「还在不在」
+        // 与「撤不撤得动」是两件事 —— 探针只答前者，从不许诺后者。
         found.put("crm_customer", id -> customers.selectById(id) != null);
         found.put("crm_follow_up_record", id -> followUps.selectById(id) != null);
         found.put("fms_voucher", id -> vouchers.selectById(id) != null);
         found.put("infra_demo01_contact", id -> contacts.selectById(id) != null);
         found.put("products", id -> products.selectById(id) != null);
+        found.put("crm_clue", id -> clues.selectById(id) != null);
+        found.put("crm_contact", id -> crmContacts.selectById(id) != null);
+        found.put("crm_business", id -> businesses.selectById(id) != null);
+        found.put("crm_contract", id -> contracts.selectById(id) != null);
+        found.put("crm_product", id -> crmProducts.selectById(id) != null);
+        found.put("crm_receivable", id -> receivables.selectById(id) != null);
+        found.put("crm_receivable_plan", id -> receivablePlans.selectById(id) != null);
         this.probes = Map.copyOf(found);
     }
 

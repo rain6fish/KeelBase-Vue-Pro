@@ -464,6 +464,8 @@ import {
   displayRowsOf,
   emptyTextKey,
   instantOf,
+  matchEffect,
+  matchProposal,
   objectRefOf,
   readFaceIgnoredFilters,
   selectRows,
@@ -923,46 +925,37 @@ function whatText(row: AuditRow): string {
  */
 
 /**
- * The write record this row landed on, when **exactly one** candidate matches. The two trails carry no
- * shared key — the audit says what a call came to, the ledger says what it wrote — so the only honest
- * match is tool plus a close timestamp, and only when that leaves one candidate. A guess here would put
- * one record beside another person's action, which is worse than showing nothing at all.
+ * The write record this row landed on, by **the same rule the object search uses** (`matchEffect`):
+ * the runtime's `executionId` first, exactly; only a row written before that key existed falls back to
+ * "same tool, within five seconds, exactly one candidate". Two writes of one tool seconds apart are then
+ * told apart instead of both answering "not recorded", and the six answers cannot drift from the search
+ * that matched the row.
  *
- * 这一行落在哪条写入记录上 —— **恰好只有一个**候选项时。两条轨之间没有共同的键（审计说「一次调用怎么了」、
- * 台账说「它写了什么」），故唯一诚实的对法是**工具 ＋ 相近的时刻**，且只在它**只剩一个**候选时成立。
- * 在这里猜，会把**一条记录摆到另一个人的动作旁边** —— 那比什么都不显示更糟。
+ * 这一行落在哪条写入记录上，用**与对象检索同一条规则**（`matchEffect`）：先按运行时的 `executionId`
+ * 精确配；只有写在那根关联键之前的老行，才回落到「同工具、五秒内、恰好一个候选」。同一工具相隔几秒的
+ * 两笔写因此分得开，而不是两行都答「未记录」；六问也不会与挑中这一行的检索判成两个答案。
  */
 function recordOf(row: AuditRow): EffectRow | null {
-  if (!row.tool) return null
-  const at = Date.parse(row.createdAt)
-  const near = viewEffects.value.filter(
-    (e) => e.toolName === row.tool && Math.abs(Date.parse(e.createdAt) - at) <= 5000,
-  )
-  return near.length === 1 ? near[0] : null
+  return matchEffect(row, viewEffects.value)
 }
 
 /**
- * 这次调用**本来**落在哪条记录上，当它被扣下或被拒时 —— 与 `recordOf` 同一条规则（同一工具、五秒之内、
- * 恰好一个候选），只是读的是确认记录：台账只记「真的写成了什么」，确认记录记「提议了什么」。
+ * 这次调用**本来**落在哪条记录上，当它被扣下或被拒时 —— 与导出的对象证据共用 `matchProposal`
+ * （同一工具、五秒之内、恰好一个候选），只是读的是确认记录：台账只记「真的写成了什么」，确认记录记
+ * 「提议了什么」。确认记录没有 `executionId`，故这里只有这一条配法。
  *
  * 时间对哪一端都算：扣下那一刻写的审计行离确认记录的 `createdAt` 近，裁决那一刻写的离 `decidedAt` 近。
  *
- * Which record the call **was about** when it was held or refused — the same rule as `recordOf` (same
- * tool, within five seconds, exactly one candidate), read from the confirmation records: the ledger only
- * says what was really written, a confirmation says what was proposed.
+ * Which record the call **was about** when it was held or refused — it shares `matchProposal` with the
+ * export's object evidence (same tool, within five seconds, exactly one candidate), read from the
+ * confirmation records: the ledger only says what was really written, a confirmation says what was
+ * proposed. A confirmation carries no `executionId`, so this is the only road it has.
  *
  * Either end of the clock counts: the audit row written when the call was held is near the record's
  * `createdAt`, and the one written when it was decided is near its `decidedAt`.
  */
 function proposalOf(row: AuditRow): ConfirmationItem | null {
-  if (!row.tool) return null
-  const at = Date.parse(row.createdAt)
-  const near = viewProposals.value.filter((c) => {
-    if (c.toolName !== row.tool) return false
-    if (Math.abs(Date.parse(c.createdAt) - at) <= 5000) return true
-    return Boolean(c.decidedAt) && Math.abs(Date.parse(c.decidedAt as string) - at) <= 5000
-  })
-  return near.length === 1 ? near[0] : null
+  return matchProposal(row, viewProposals.value)
 }
 
 /**
@@ -1433,8 +1426,11 @@ async function runQuery() {
  * what the scan read within its bound"; when it was not, it is an empty string (the file gains nothing). Both
  * buttons take it from here, so the two exports cannot drift apart.
  */
+// The sentence names the cap, and the cap is a build-time setting; passing it keeps the file from
+// claiming 1000 when the scan was configured to 200 or 1200.
+// 这句话点名上限，而上限是构建期设置；把实际值传进去，文件才不会在 200 / 1200 档仍声称 1000。
 function scanBoundNote(): string {
-  return queryScanBound.value ? t('keelbase.audit.exportScanBound') : ''
+  return queryScanBound.value ? t('keelbase.audit.exportScanBound', { n: auditScanCap.rows }) : ''
 }
 
 /**

@@ -12,9 +12,18 @@ import cn.com.keelbase.runtime.identity.Principal;
 import cn.com.keelbase.runtime.tool.AiTool;
 import cn.com.keelbase.runtime.tool.ToolRegistry;
 import cn.com.keelbase.runtime.tool.ToolResult;
+import cn.iocoder.yudao.module.crm.dal.dataobject.contact.CrmContactDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.customer.CrmCustomerDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.receivable.CrmReceivablePlanDO;
+import cn.iocoder.yudao.module.crm.dal.mysql.business.CrmBusinessMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.clue.CrmClueMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contact.CrmContactMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contract.CrmContractMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.customer.CrmCustomerMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.followup.CrmFollowUpRecordMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.product.CrmProductMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivableMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
 import cn.iocoder.yudao.module.products.dal.mysql.products.ProductsMapper;
 import java.lang.reflect.Proxy;
@@ -52,6 +61,8 @@ class YudaoRecordNamesTest {
     private YudaoAdministrator administrators;
     private YudaoAuditReaderRules auditReaders;
     private CrmCustomerMapper customers;
+    private CrmContactMapper crmContacts;
+    private CrmReceivablePlanMapper receivablePlans;
     private ToolRegistry tools;
     private YudaoRecordNames directory;
 
@@ -71,12 +82,20 @@ class YudaoRecordNamesTest {
         when(customers.selectById(9004L)).thenReturn(CrmCustomerDO.builder().name("海康").build());
         when(customers.selectById(9007L)).thenReturn(CrmCustomerDO.builder().name("比亚迪").build());
 
+        crmContacts = mock(CrmContactMapper.class);
+        when(crmContacts.selectById(9010L)).thenReturn(CrmContactDO.builder().name("张三").build());
+        receivablePlans = mock(CrmReceivablePlanMapper.class);
+        when(receivablePlans.selectById(9011L)).thenReturn(CrmReceivablePlanDO.builder().period(3).build());
+
         tools = new ToolRegistry(List.of(
                 new FakeTool("update_crm_customer", "crm_customer"),
                 new FakeTool("create_crm_customer", "crm_customer")));
 
         directory = new YudaoRecordNames(customers, mock(CrmFollowUpRecordMapper.class),
                 mock(Demo01ContactMapper.class), mock(ProductsMapper.class),
+                mock(CrmClueMapper.class), crmContacts, mock(CrmBusinessMapper.class),
+                mock(CrmContractMapper.class), mock(CrmProductMapper.class),
+                mock(CrmReceivableMapper.class), receivablePlans,
                 tools, dataSource, administrators, auditReaders);
     }
 
@@ -95,7 +114,8 @@ class YudaoRecordNamesTest {
             // 9001's own real write landed on 9005 and his refused proposal named 9004; 9003 (another ordinary
             // caller) owns 9006 and 9007.
             statement.execute("insert into side_effects (result_type, result_id, user_id) values"
-                    + " ('crm_customer', 9005, '9001'), ('crm_customer', 9006, '9003')");
+                    + " ('crm_customer', 9005, '9001'), ('crm_customer', 9006, '9003'),"
+                    + " ('crm_contact', 9010, '9001'), ('crm_receivable_plan', 9011, '9001')");
             statement.execute("insert into confirmation_requests (tool_name, args_json, operator_id) values"
                     + " ('update_crm_customer', '{\"id\":9004,\"name\":\"x\"}', '9001'),"
                     + " ('update_crm_customer', '{\"id\":9007,\"name\":\"y\"}', '9003')");
@@ -108,6 +128,26 @@ class YudaoRecordNamesTest {
                 directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_customer", 9005)));
 
         assertEquals(List.of(new YudaoRecordNames.Named("crm_customer", "9005", "万****")), named);
+    }
+
+    @Test
+    void aContactTheLedgerNamedIsNamedToo() {
+        // 2026-11-22 扩面之前，联系人这一格只会写「未登记名称」。
+        // Before the 2026-11-22 widening this cell said "name not registered" for a contact.
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_contact", 9010)));
+
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_contact", "9010", "张****")), named);
+    }
+
+    @Test
+    void aReceivablePlanIsNamedByItsPeriod() {
+        // 回款计划没有标题，期数就是它的名字。
+        // A receivable plan has no title; its period is its name.
+        List<YudaoRecordNames.Named> named =
+                directory.namesFor(9002L, List.of(new YudaoRecordNames.Ref("crm_receivable_plan", 9011)));
+
+        assertEquals(List.of(new YudaoRecordNames.Named("crm_receivable_plan", "9011", "第****")), named);
     }
 
     @Test
@@ -229,7 +269,10 @@ class YudaoRecordNamesTest {
         // answers.
         YudaoRecordNames strict = new YudaoRecordNames(
                 customers, mock(CrmFollowUpRecordMapper.class), mock(Demo01ContactMapper.class),
-                mock(ProductsMapper.class), tools, refusesNumbers(dataSource), administrators, auditReaders);
+                mock(ProductsMapper.class), mock(CrmClueMapper.class), mock(CrmContactMapper.class),
+                mock(CrmBusinessMapper.class), mock(CrmContractMapper.class), mock(CrmProductMapper.class),
+                mock(CrmReceivableMapper.class), mock(CrmReceivablePlanMapper.class),
+                tools, refusesNumbers(dataSource), administrators, auditReaders);
 
         // 用普通调用方（9001）：属主条件与主键一样必须按文本绑，否则严格服务器上这一腿同样会空。
         // Ask as an ordinary caller (9001): the owner predicate must bind text like the key, or this leg goes

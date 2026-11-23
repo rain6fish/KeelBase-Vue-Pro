@@ -1,27 +1,33 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 //
-// 台账的 `targetExists` 必须按宿主真实记录回答：每个宿主补偿器认识的结果类型，都要有同名的目标探针。
+// 台账的 `targetExists` 必须按宿主真实记录回答：每个**本宿主写得出、且读得回来**的结果类型，都要有同名
+// 的目标探针与记录名探针。补偿器类型是其中一部分；2026-11-22 扩进来的七类 CRM 写没有补偿器（不可撤销），
+// 但它们写进了操作日志、有真实记录 id，故同样必须有探针 —— 否则台账与六问会把存在的记录画成「已不在」。
 //
 //   node scripts/check-effect-target-existence.mjs
 //
 // 为什么需要这道检查：运行时的 `EffectController.view()` 只认它自己的 `follow_up`，宿主结果类型
 // （`crm_customer` 等）一律得到 `targetExists=false`，页面于是把它们都画成「已不在」。宿主侧新增的
-// `YudaoEffectTargetExistence` 在出口处按模块 mapper 更正这个字段；一旦补偿器加了新类型而探针没跟上，
-// 那一类写就会再次误报。本检查读两份源码，确认两边的类型集合相同，并钉住「只在 `/ai/tool-effects`
-// 上、在信封 advice 之前、读失败不改答案」这三条。
+// `YudaoEffectTargetExistence` 在出口处按模块 mapper 更正这个字段；一旦加了新类型而探针没跟上，
+// 那一类写就会再次误报。本检查读源码，确认**补偿器 ∪ 已证宿主写类型**都有探针、名字与探针出自同一张表，
+// 并钉住「只在 `/ai/tool-effects` 上、在信封 advice 之前、读失败不改答案」这三条。
 //
 // English:
 //
-// The ledger's `targetExists` must answer from the host's real records: every result type a host
-// compensator knows must have a probe of the same name.
+// The ledger's `targetExists` must answer from the host's real records: every result type the host
+// **writes and can read back** must have a target probe and a record-name probe. Compensator types are
+// part of that set; the seven CRM write kinds added on 2026-11-22 have no compensator (not revocable) but
+// do write into the host's operate log with a real record id, so they need probes too — otherwise the
+// ledger and the six questions draw existing records as "gone".
 //
 // Why this check exists: the runtime's `EffectController.view()` only knows its own `follow_up`, so
 // every host result type (`crm_customer`, ...) reached it as `targetExists=false` and the console drew
 // them all as "no longer there". The host-side `YudaoEffectTargetExistence` corrects the field from
-// each module's mapper; if a compensator gains a type and the probe does not, that class of write goes
-// back to lying. This check reads both sources, confirms the two type sets are equal, and pins the
-// three rules — only `/ai/tool-effects`, before the envelope advice, and a failed read changes nothing.
+// each module's mapper; if a type gains a write and the probe does not, that class of write goes back to
+// lying. This check reads the sources, confirms that every **compensator or proven host-written type**
+// has a probe, that names and probes come from the same table, and pins the three rules — only
+// `/ai/tool-effects`, before the envelope advice, and a failed read changes nothing.
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -68,17 +74,26 @@ if (compensatorFiles.length === 0) fail(`没有找到任何 SideEffectCompensato
 const compensators = compensatorFiles.map(read).join('\n')
 const advice = read(ADVICE)
 
-// 记录名那条窄读面（`YudaoRecordNames`）按同一张封闭表作答，故它的类型集合必须是补偿器类型集合的**子集**：
-// 一个没有补偿器的类型意味着本宿主不产出它，那条面不该认得它。子集而不是相等 —— 说得出名字的类型可以更少
-// （说不出名字的那几种不在表里，那一格回落到类型与主键）。
+// 探针与记录名覆盖的是「本宿主写得出来、且读得回来」的结果类型，不只是「可撤销」的那些。
+// 两件事自 2026-11-22 起分开：CRM 的七类写进了操作日志、有真实记录 id，却**没有**补偿器（不可撤销）；
+// 它们仍然必须有探针与名字，否则台账与六问会把存在的记录画成「已不在 / 未登记名称」。
+// 这张「已证宿主写类型」的清单取自界面侧 `businessLogTypes.mjs` —— 它本身就是按宿主源码三步证据链
+// （`@LogRecord` 的 bizNo、工具 resultType、工具回传同一 id）核对出来的。
 //
-// The record-name face (`YudaoRecordNames`) answers from the same closed table, so its type set must be a
-// **subset** of the compensator types: a type with no compensator is one this host never produces, and that
-// face must not know it. A subset, not an equality — the named types may be fewer (a type this class cannot
-// name is absent from the table, and the cell falls back to the type and the key).
+// The probes and the name face cover every result type the host **writes and can read back**, not only the
+// compensable ones. Since 2026-11-22 the two questions are separate: seven CRM write kinds reach the host's
+// operate log and have a real record id, yet have **no** compensator (they are not revocable); they still
+// need a probe and a name, or the ledger and the six questions draw existing records as "gone" / "name not
+// registered". The list of proven host-written types is the interface-side `businessLogTypes.mjs`, itself
+// held to the host sources by the three-step evidence chain (`@LogRecord`'s bizNo, the tool's resultType,
+// and the same id coming back from the tool).
 const NAMES = join(PACKAGE, 'YudaoRecordNames.java')
 const named = new Set([...read(NAMES).matchAll(/found\.put\("([^"]+)"/g)].map((match) => match[1]))
 if (named.size === 0) fail('记录名那条面没有读到任何类型（源码形状变了？）')
+
+const MAPPED = join(ROOT, 'keelbase-ui', 'host-overlay', 'src', 'keelbase', 'businessLogTypes.mjs')
+const mapped = new Set([...read(MAPPED).matchAll(/^\s+(crm_[a-z_]+):\s*'/gm)].map((match) => match[1]))
+if (mapped.size === 0) fail('没有读到任何已证宿主写类型（businessLogTypes.mjs 形状变了？）')
 
 const resultTypes = (source) =>
   [...source.matchAll(/resultType\s*\(\)\s*\{\s*return\s+"([^"]+)"/g)].map((match) => match[1])
@@ -91,15 +106,22 @@ for (const type of compensated) {
     fail(`补偿器认识 "${type}"，但台账探针没有它 —— 这一类写会再次显示「已不在」`)
   }
 }
-for (const type of probed) {
-  if (!compensated.has(type)) {
-    fail(`台账探针认识 "${type}"，但没有补偿器产出它 —— 探针在回答一个本宿主不写的类型`)
+for (const type of mapped) {
+  if (!probed.has(type)) {
+    fail(`已证宿主写类型 "${type}" 没有台账探针 —— 存在的记录会被画成「已不在」`)
+  }
+  if (!named.has(type)) {
+    fail(`已证宿主写类型 "${type}" 没有记录名探针 —— 有名字的记录会写成「未登记名称」`)
   }
 }
-
+for (const type of probed) {
+  if (!compensated.has(type) && !mapped.has(type)) {
+    fail(`台账探针认识 "${type}"，但既没有补偿器也不是已证宿主写类型 —— 它在回答一个本宿主不写的类型`)
+  }
+}
 for (const type of named) {
-  if (!compensated.has(type)) {
-    fail(`记录名那条面认识 "${type}"，但没有补偿器产出它 —— 它在给一个本宿主不写的类型配名字`)
+  if (!probed.has(type)) {
+    fail(`记录名那条面认识 "${type}"，但台账探针不认识它 —— 名字与存在性必须出自同一张表`)
   }
 }
 

@@ -3,10 +3,24 @@ package cn.iocoder.yudao.server.keelbase;
 
 import cn.com.keelbase.runtime.tool.AiTool;
 import cn.com.keelbase.runtime.tool.ToolRegistry;
+import cn.iocoder.yudao.module.crm.dal.dataobject.business.CrmBusinessDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.clue.CrmClueDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.contact.CrmContactDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.contract.CrmContractDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.customer.CrmCustomerDO;
 import cn.iocoder.yudao.module.crm.dal.dataobject.followup.CrmFollowUpRecordDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.product.CrmProductDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.receivable.CrmReceivableDO;
+import cn.iocoder.yudao.module.crm.dal.dataobject.receivable.CrmReceivablePlanDO;
+import cn.iocoder.yudao.module.crm.dal.mysql.business.CrmBusinessMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.clue.CrmClueMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contact.CrmContactMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.contract.CrmContractMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.customer.CrmCustomerMapper;
 import cn.iocoder.yudao.module.crm.dal.mysql.followup.CrmFollowUpRecordMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.product.CrmProductMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivableMapper;
+import cn.iocoder.yudao.module.crm.dal.mysql.receivable.CrmReceivablePlanMapper;
 import cn.iocoder.yudao.module.infra.dal.dataobject.demo.demo01.Demo01ContactDO;
 import cn.iocoder.yudao.module.infra.dal.mysql.demo.demo01.Demo01ContactMapper;
 import cn.iocoder.yudao.module.products.dal.dataobject.products.ProductsDO;
@@ -122,6 +136,13 @@ public class YudaoRecordNames {
                             CrmFollowUpRecordMapper followUps,
                             Demo01ContactMapper contacts,
                             ProductsMapper products,
+                            CrmClueMapper clues,
+                            CrmContactMapper crmContacts,
+                            CrmBusinessMapper businesses,
+                            CrmContractMapper contracts,
+                            CrmProductMapper crmProducts,
+                            CrmReceivableMapper receivables,
+                            CrmReceivablePlanMapper receivablePlans,
                             ToolRegistry tools,
                             DataSource dataSource,
                             YudaoAdministrator administrators,
@@ -144,6 +165,44 @@ public class YudaoRecordNames {
         found.put("products", id -> {
             ProductsDO row = products.selectById(id);
             return row == null ? null : row.getName();
+        });
+        // The CRM write kinds that gained a second entry on 2026-11-22. Each has a host-side record whose
+        // id is the one the runtime stores, so the ledger can name it; without these probes the cell said
+        // "name not registered" for a record that clearly has one.
+        // 2026-11-22 取得第二入口的那批 CRM 写类型。每条都有宿主侧记录，其 id 就是运行时存下的那个，故台账叫得出
+        // 名字；没有这些探针时，明明有名字的记录那一格却写「未登记名称」。
+        found.put("crm_clue", id -> {
+            CrmClueDO row = clues.selectById(id);
+            return row == null ? null : row.getName();
+        });
+        found.put("crm_contact", id -> {
+            CrmContactDO row = crmContacts.selectById(id);
+            return row == null ? null : row.getName();
+        });
+        found.put("crm_business", id -> {
+            CrmBusinessDO row = businesses.selectById(id);
+            return row == null ? null : row.getName();
+        });
+        found.put("crm_contract", id -> {
+            CrmContractDO row = contracts.selectById(id);
+            return row == null ? null : row.getName();
+        });
+        found.put("crm_product", id -> {
+            CrmProductDO row = crmProducts.selectById(id);
+            return row == null ? null : row.getName();
+        });
+        // 回款没有标题，编号就是它的名字。
+        // A receivable has no title: its own number is what identifies it.
+        found.put("crm_receivable", id -> {
+            CrmReceivableDO row = receivables.selectById(id);
+            return row == null ? null : row.getNo();
+        });
+        // 回款计划也没有标题，期数就是它的名字，写成业务词而不是一串数字。
+        // A receivable plan has no title either: its period is its name, said as a business word instead
+        // of a bare number.
+        found.put("crm_receivable_plan", id -> {
+            CrmReceivablePlanDO row = receivablePlans.selectById(id);
+            return row == null || row.getPeriod() == null ? null : "第 " + row.getPeriod() + " 期";
         });
         this.probes = Map.copyOf(found);
         this.tools = tools;
