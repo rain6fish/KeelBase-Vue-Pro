@@ -8,7 +8,7 @@
 # authoritative: `maven.yml` never triggers on this repository's branches. The host's own Java tests
 # and the ai1 module's own tests run for real in `conformance`, below.
 #
-# Twelve jobs, and each answers a question the others cannot (one carries a step that answers a
+# Thirteen jobs, and each answers a question the others cannot (one carries a step that answers a
 # question of its own, marked where it appears):
 #
 #   path-refs            every path this repository writes about itself — in a comment, a doc, a
@@ -54,6 +54,10 @@
 #   family-block         the generated "KeelBase family" section at the top of this repository's
 #                        READMEs still matches the stamp it was generated with — the copy carries its
 #                        own hash, so this needs neither the sibling repositories nor the network;
+#   object-key           the typed object key's spelling this host writes and reads still agrees with
+#                        the runtime version its POM pins — the host is the consumer, so the job checks
+#                        out that released tag (not the runtime's main), and without it the comparison
+#                        only ever ran on a developer machine behind `HOST_ENV=1`;
 #   governance-tests     the host's governance test package passes on its own — 20 classes, no
 #                        database, Redis or port — so a broken governance fact fails fast instead of
 #                        waiting behind the full-stack `conformance` job;
@@ -63,8 +67,9 @@
 #                        run.
 #
 # All but `generator`, `governance-tests`, `conformance` and `real-stack-gates` are pure Node and finish
-# in seconds, except `rendered-copy`: it is pure Node too, but it fetches the UI checkout and installs
-# the gate's four packages, so it costs about a minute.
+# in seconds, except `rendered-copy` and `object-key`: both are pure Node too, but each fetches one
+# sibling checkout — the UI in the first case, the pinned runtime repository in the second — so each
+# costs about a minute.
 # `generator` and `governance-tests` want a JDK 25 toolchain and a Maven build, so they cost minutes;
 # `generator` is kept to its two **offline** checks, and `governance-tests` to the governance package.
 #
@@ -90,7 +95,7 @@
 # 测试 skip 开关在本仓**不作数**：`maven.yml` 在本仓的分支上根本不触发。宿主自己的 Java 测试、以及 ai1
 # 模块自己的测试，都在下面的 `conformance` 里**真跑**。
 #
-# 十二道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
+# 十三道 job，各答一个别的 job 答不了的问题（其中一道还带着一个自己回答问题的 step，在它出现的地方标出）：
 #
 #   path-refs            本仓写到自己身上的每一条路径——注释里的、文档里的、脚本里的——都指向一个它
 #                        确实持有的文件；
@@ -124,6 +129,9 @@
 #                        东西（`--check`）；
 #   family-block         本仓 README 开头生成的「KeelBase 家族」段仍与生成时的戳相符 —— 副本自带哈希，
 #                        故既不需要兄弟仓、也不需要联网；
+#   object-key           本宿主写出与读回的那条带类型对象键拼写，仍与它 POM 所 pin 的运行时版本一致 ——
+#                        宿主是消费方，故这道 job 检出那个**已发布 tag**（不是运行时的 main）；没有它时，
+#                        这条比对只在开发机的 `HOST_ENV=1` 之后跑过；
 #   governance-tests     宿主治理测试包自己就能过 —— 20 个类，不需要数据库、Redis 或端口 —— 故一条治理
 #                        事实坏了会**先**红，而不是排在整套栈的 `conformance` 后面等；
 #   conformance          应用对着**跑着的栈**（PostgreSQL + Redis + 宿主）端到端符合，且四个治理率可读
@@ -132,8 +140,9 @@
 #                        对着跑着的宿主各跑一遍 —— 它们此前只在各自会话的隔离栈上手跑过，读数只活在交接件
 #                        里；这道 job 让「切面被改坏」在 CI 上红，而不是等人去复跑。
 #
-# 其余各道是纯 Node 或离线检查、几秒到一分钟（`rendered-copy` 要拉一次界面检出、装门禁那四个包，故约
-# 一分钟）。`generator` 与 `governance-tests` 要 JDK 25 工具链与 Maven 构建，以分钟计。需要一套**跑着的
+# 其余各道是纯 Node 或离线检查、几秒到一分钟（`rendered-copy` 要拉一次界面检出、装门禁那四个包；
+# `object-key` 要按 pin 拉一次运行时仓库的 tag 检出 —— 两道各约一分钟）。`generator` 与 `governance-tests`
+# 要 JDK 25 工具链与 Maven 构建，以分钟计。需要一套**跑着的
 # 栈**的是两道：`conformance` 与 `real-stack-gates`。前者是：
 # service containers 起 PostgreSQL（带 pgvector）与 Redis → 构建宿主 → 跑宿主的 Java 测试与 ai1 模块自己的
 # 测试 → 灌种子 → 起服务 → 等 `/actuator/health` → 跑 `scripts/run-app-conformance.mjs`。不起宿主直接调
@@ -834,6 +843,64 @@ jobs:
       # 仓里的闸来说，这是唯一行得通的形状。
       - name: The family section in the READMEs must match its stamp
         run: node scripts/check-family-block.mjs
+
+  # 带类型对象键（句末 ` · object <kind> #<id>`）的拼写由两仓三处共享：运行时匹配器、本宿主写入方、
+  # 控制台读回。仓库里只有两道闸能看出它们分叉，而两道都要宿主检出 —— 以前只在开发机上 `HOST_ENV=1`
+  # 之后跑过，CI 全绿不代表这件事成立。
+  #
+  # 这道 job 站在**消费方**一侧：宿主 pin 的是**已发布**的运行时版本，故检出 `KeelBase4J` 对应的 tag，
+  # 而不是它的 main tip —— 生产方前进不该先让消费方的 CI 变红，pin 的语义也不被悄悄换成「跟最新」。
+  #
+  # 若宿主把 pin 抬到一个运行时尚未打 tag 的版本，这里会在检出那一步失败：一份指向「不存在的发布」
+  # 的 pin，本就该是这个结果。
+  #
+  # The typed object key (` · object <kind> #<id>` at the end of a row) is one spelling shared by three
+  # code paths in two repositories: the runtime's matcher, this host's writer, and the console's reader.
+  # Only two gates can see them drift apart, and both need a host checkout — until this job they ran
+  # only on a developer machine behind `HOST_ENV=1`, so a green CI said nothing about them.
+  #
+  # This job stands on the **consumer** side: the host pins a **released** runtime version, so it checks
+  # out `KeelBase4J` at that tag rather than its main tip — the producer moving ahead must not redden the
+  # consumer's CI first, and the pin's meaning is not quietly replaced with "latest".
+  #
+  # A pin raised to a runtime version that was never tagged fails at the checkout: that is the right
+  # outcome for a pin that names a release that does not exist.
+  object-key:
+    name: The typed object key matches the runtime this host pins
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read the runtime version this host pins
+        id: pin
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pom = fs.readFileSync('yudao-server/pom.xml', 'utf8');
+            const m = pom.match(/<artifactId>keelbase4j-core<\/artifactId>\s*<version>([^<]+)<\/version>/);
+            if (!m) {
+              console.error('yudao-server/pom.xml names no keelbase4j-core version');
+              process.exit(2);
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'version=' + m[1] + '\n');
+          "
+      - uses: actions/checkout@v5
+        with:
+          repository: rain6fish/KeelBase4J
+          ref: v${{ steps.pin.outputs.version }}
+          path: .runtime
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      # Both run from the pinned tag's own tree, so the gate scripts and the one written definition are
+      # the ones that release carries. `--require` keeps an absent host from reading as a pass.
+      #
+      # 两道都从被 pin 的 tag 自己的树里跑，故闸脚本与那份唯一定义都是那个发布所带的。`--require` 让
+      # 「宿主不存在」不读成通过。
+      - name: Both object-key gates compare this host with the pinned runtime
+        working-directory: .runtime
+        run: |
+          node scripts/check-object-key-contract.mjs --strict --require --host "$GITHUB_WORKSPACE"
+          node scripts/check-host-object-key.mjs --require --host "$GITHUB_WORKSPACE"
 
   # 这道 job **只**跑治理测试包 `cn.iocoder.yudao.server.keelbase`：那 20 个 `*Test` 类是纯 JUnit 5 +
   # Mockito，假 mapper、假服务顶住数据面，故不需要数据库、Redis 或端口。范围刻意这么窄，是为了让一条坏掉的
