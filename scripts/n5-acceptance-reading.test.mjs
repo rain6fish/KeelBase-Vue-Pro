@@ -286,6 +286,50 @@ test('both CSVs may open with a leading note line, and the data still reads gree
   }
 })
 
+test('an object search that picks up the held row still answers its third question', async () => {
+  // 2026-11-22 N5 真栈彩排：按对象检索会把同一次操作的「待决」行一并命中（它比批准行早约 14 秒、没有
+  // executionId）。这一行自己没记对象，但确认记录里的提议（`arguments.id`）就是它当时的对象 —— 页面据此
+  // 答得出第三格。脚本曾把**原始确认记录**交给 `composeSix`，而那一格要的是提议指向的 `(类型, 主键)`，
+  // 于是脚本读成「未记录」、R2 判红，而页面并无此问题。这里钉住两者同答。
+  //
+  // The 2026-11-22 N5 rehearsal: an object search also matches the same operation's held row (about 14 s
+  // before the approval, no executionId). That row records no object itself, but the proposal in the
+  // confirmation record (`arguments.id`) is the object it was about, and the page answers its third
+  // question from it. The script used to hand the **raw confirmation record** to `composeSix`, whose
+  // object cell wants the proposal's `(type, key)`; it then read 「未记录」 and R2 went red where the
+  // page was right. This pins the two answers together.
+  const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const dir = mkdtempSync(join(tmpdir(), 'n5-object-'))
+  try {
+    const payload = fixture({ approverId: '2', creds: { 1: '陈晓', 2: '李静' } })
+    payload.confirmations = [{
+      id: 5, toolName: 'update_crm_customer', userId: '1', status: 'approved',
+      arguments: { id: 1 }, createdAt: '2026-11-21T02:24:33.000Z', decidedAt: '2026-11-21T02:24:49.000Z',
+    }]
+    const file = join(dir, 'object.json')
+    writeFileSync(file, JSON.stringify(payload))
+    const lines = []
+    const result = await run(
+      ['--object', 'crm_customer:1', '--since', '2026-11-21T02:24:00.000Z', '--snapshot', file],
+      { out: (line) => lines.push(line) },
+    )
+    const text = lines.join('\n')
+    assert.equal(result.exitCode, 0, `待决行让对象检索判红了：\n${text}`)
+    assert.match(text, /^R2\b.*\bPASS\b.*4 行 × 6 格/m, `R2 没有按四行全答：\n${text}`)
+    assert.match(text, /#28\s+待决/, '选区里没有待决行，夹具没有复现彩排的形状')
+    const sixBlock = text.slice(text.indexOf('-- 六问逐格'))
+    const pending = sixBlock.slice(sixBlock.indexOf('  #28'), sixBlock.indexOf('  #28') + 400)
+    assert.match(
+      pending,
+      /哪个业务对象\s+客户 · #1 · 修\*\*\*\*/,
+      `待决行的第三格没有从提议读出对象：\n${pending}`,
+    )
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('a note line does not excuse a genuinely wrong header', async () => {
   // 反例：说明行可以跳过，但跳过之后表头仍要逐字对得上。把表头第一格改错，两份都必须判红。
   //
