@@ -88,6 +88,20 @@ const ELSEWHERE = [
     zh: 'RuoYi 线那个被本 Java 生成器取代的 Node 生成器；此处是移植时「它原本是什么」的记述，'
       + '文件在那个仓里',
   },
+  {
+    path: 'scripts/check-object-key-contract.mjs',
+    why: "the runtime's own gate: CI runs it from the pinned runtime checkout (working-directory:"
+      + ' .runtime), so the manifest key cites a path that lives in that released tree, not here',
+    zh: '运行时自己的门禁：CI 从被 pin 的运行时检出（working-directory: .runtime）里跑它，'
+      + '故清单那条调用引用的是那个发布树里的路径，不在本仓',
+  },
+  {
+    path: 'scripts/check-host-object-key.mjs',
+    why: "the runtime's sister gate in the same job, also run from the pinned runtime checkout;"
+      + ' the manifest key cites its path there, not here',
+    zh: '同一 job 里运行时的那道姊妹门禁，同样从被 pin 的运行时检出里跑；'
+      + '清单那条调用引用的是那边的路径，不在本仓',
+  },
 ];
 
 function collect(dir, into) {

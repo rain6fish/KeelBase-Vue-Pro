@@ -451,6 +451,24 @@ export const NOT_GATES = [
       'manifest keys on the invocation, so one entry covers all four.',
   },
   {
+    id: 'object-key-contract-pinned-runtime',
+    key: 'node scripts/check-object-key-contract.mjs --strict --require --host $GITHUB_WORKSPACE',
+    reason:
+      'runs from the pinned runtime checkout (`working-directory: .runtime`): that release carries the script ' +
+      'and the one written definition, and the check compares this host with a released tag rather than ' +
+      'reading this tree. ' +
+      '从被 pin 的运行时检出（`working-directory: .runtime`）里跑：脚本与那份唯一定义由那个发布带着，' +
+      '这道检查拿本宿主与已发布 tag 比对，读的不是本树。',
+  },
+  {
+    id: 'host-object-key-pinned-runtime',
+    key: 'node scripts/check-host-object-key.mjs --require --host $GITHUB_WORKSPACE',
+    reason:
+      'the sister check in the same job, also run from the pinned runtime checkout; its script does not ' +
+      'exist in this host’s tree. ' +
+      '同一 job 里的姊妹检查，同样从被 pin 的运行时检出里跑；本宿主的树里没有这个脚本。',
+  },
+  {
     id: 'missing-checkout-keeper-parse',
     key: `node scripts/check-rendered-copy.mjs ${MISSING_UI_VAR}`,
     reason: 'keeper: asserts the gate exits 2 on a missing checkout; it is not a reading of the tree.',
