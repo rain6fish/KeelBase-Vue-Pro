@@ -1,6 +1,48 @@
 #!/usr/bin/env node
 // SPDX-License-Identifier: Apache-2.0
 //
+// ── English ─────────────────────────────────────────────────────────────────────
+// Run every gate this repository has, in one command, and say exactly which ones could not run, why,
+// and what fixes them.
+//
+// Why this exists. CI (`.github/workflows/ci.yml`) names each gate in its own step — right for CI (a
+// red must point at the gate), wrong for the moment before a push, when what you want is "is this tree
+// clean". This repository had no such command, so on 2026-11-04 two different sessions hand-ran from
+// lists they remembered, and one of their reports said it outright: "the pre-commit hook runs only
+// `check-path-refs`; there is no static-gate list to register locally". The two gates added this week
+// (`check-sql-aliases`, `check-trigger-uniqueness`) each got only a CI step too. A list that lives only
+// in CI cannot be asked from a laptop.
+//
+// This list is **copied from** CI, not a second place to drift: `scripts/gates.test.mjs` parses the
+// `run:` lines of `ci.yml` and checks **both directions** — every gate CI names is here, and every gate
+// here is one CI runs (anything local-only must be declared, with its reason in this header). One
+// missing on either side turns red and names it. "The same criterion, two execution sites" is therefore
+// an assertion that fails, not a slogan.
+//
+// There are five prerequisite classes; a missing one is **never** a quiet skip:
+//
+// One class more — **network**: `check-runtime-pin-bytes` reads the `.sha1` the publishing repository
+// serves. When it cannot, it exits 2 ("cannot decide"); the entry declares that code as its
+// `undecidedExitCode`, so this runner records **not verified**, not a failed assertion: the normal mode
+// still exits 0 (listing it), `--require-all` exits 2. CI runs the script directly and keeps its exit
+// code — a network is an environment premise in CI, not something that step asserts.
+//
+// Exit codes: 0 = everything that ran is green (explicit SKIPs and "cannot decide" allowed in the normal
+// mode); 1 = at least one gate red; 2 = `--require-all` and some gate could not run or could not decide;
+// 64 = bad usage.
+//
+// `MAVEN_ARGS` is passed through to Maven (supported since 3.9). On a machine several sessions share,
+// point the local repository at your own copy with it:
+// `MAVEN_ARGS=-Dmaven.repo.local=D:/Rain6fish/.m2-gates-local node scripts/gates.mjs`.
+//
+// ── Declaration of local-only gates ─────────────────────────────────────────────
+//
+// `LOCAL_ONLY` is empty, deliberately: every gate below also runs in CI. `scripts/check-upstream-footprint.mjs`
+// is **not** a gate at all (its own header says so: upstream moving is normal, so a red light would be
+// ignored) and is declared in `NOT_GATES_ON_DISK` instead. The mechanism still exists and is
+// fixture-tested in `scripts/gates.test.mjs`: an entry here needs a non-empty `reason` **and** its id
+// must appear in this header, so the next local-only gate cannot be added silently.
+//
 // 一条命令跑完本仓的**全部门禁**，并逐条说清楚哪一道跑不了、为什么、怎么补。
 //
 // 为什么要有它。CI（`.github/workflows/ci.yml`）把每道门禁点在自己的 step 上——对 CI 是对的（红在哪一道
@@ -42,27 +84,6 @@
 // `MAVEN_ARGS` 原样透传给 Maven（3.9 起支持）。多会话共用一台机器时，用它把本地库指到自己那份：
 // `MAVEN_ARGS=-Dmaven.repo.local=D:/Rain6fish/.m2-gates-local node scripts/gates.mjs`。
 //
-// ── English ─────────────────────────────────────────────────────────────────────
-//
-// Run every gate this repository has, in one command, and say exactly which ones could not run, why,
-// and what fixes them.
-//
-// Why this exists. CI (`.github/workflows/ci.yml`) names each gate in its own step — right for CI (a
-// red must point at the gate), wrong for the moment before a push, when what you want is "is this tree
-// clean". This repository had no such command, so on 2026-11-04 two different sessions hand-ran from
-// lists they remembered, and one of their reports said it outright: "the pre-commit hook runs only
-// `check-path-refs`; there is no static-gate list to register locally". The two gates added this week
-// (`check-sql-aliases`, `check-trigger-uniqueness`) each got only a CI step too. A list that lives only
-// in CI cannot be asked from a laptop.
-//
-// This list is **copied from** CI, not a second place to drift: `scripts/gates.test.mjs` parses the
-// `run:` lines of `ci.yml` and checks **both directions** — every gate CI names is here, and every gate
-// here is one CI runs (anything local-only must be declared, with its reason in this header). One
-// missing on either side turns red and names it. "The same criterion, two execution sites" is therefore
-// an assertion that fails, not a slogan.
-//
-// There are five prerequisite classes; a missing one is **never** a quiet skip:
-//
 //   node   Node only — static gates that read sources and start no stack.
 //   jdk    JDK 25 + Maven — the generator's two offline checks (`scripts/gen-from-spec.sh`) and the
 //          governance test package, which builds with `-am`.
@@ -75,36 +96,15 @@
 //          Without a stack these gates are SKIP, never PASS — their readings only mean something on a
 //          real stack.
 //
-// One class more — **network**: `check-runtime-pin-bytes` reads the `.sha1` the publishing repository
-// serves. When it cannot, it exits 2 ("cannot decide"); the entry declares that code as its
-// `undecidedExitCode`, so this runner records **not verified**, not a failed assertion: the normal mode
-// still exits 0 (listing it), `--require-all` exits 2. CI runs the script directly and keeps its exit
-// code — a network is an environment premise in CI, not something that step asserts.
-//
 //   node scripts/gates.mjs                 # run what can run; SKIP the rest with reason + fix
 //   node scripts/gates.mjs --require-all   # a missing prerequisite or an undecided gate is red (= CI's full condition)
 //   node scripts/gates.mjs --list          # print the manifest only
-//
-// Exit codes: 0 = everything that ran is green (explicit SKIPs and "cannot decide" allowed in the normal
-// mode); 1 = at least one gate red; 2 = `--require-all` and some gate could not run or could not decide;
-// 64 = bad usage.
-//
-// `MAVEN_ARGS` is passed through to Maven (supported since 3.9). On a machine several sessions share,
-// point the local repository at your own copy with it:
-// `MAVEN_ARGS=-Dmaven.repo.local=D:/Rain6fish/.m2-gates-local node scripts/gates.mjs`.
-//
-// ── Declaration of local-only gates ─────────────────────────────────────────────
-//
-// `LOCAL_ONLY` is empty, deliberately: every gate below also runs in CI. `scripts/check-upstream-footprint.mjs`
-// is **not** a gate at all (its own header says so: upstream moving is normal, so a red light would be
-// ignored) and is declared in `NOT_GATES_ON_DISK` instead. The mechanism still exists and is
-// fixture-tested in `scripts/gates.test.mjs`: an entry here needs a non-empty `reason` **and** its id
-// must appear in this header, so the next local-only gate cannot be added silently.
 //
 // 只在本地跑的门禁：**没有** —— 清单里每一道在 CI 里也有。`scripts/check-upstream-footprint.mjs` **不是
 // 门禁**（它自己的文件头就这么说：上游在动是常态，亮红灯会被无视），故它登记在 `NOT_GATES_ON_DISK` 里，
 // 而不是这里。机制仍然在、也有 fixture 用例：登记到 `LOCAL_ONLY` 的条目必须有非空 `reason`，且它的 id
 // 必须出现在本文件头 —— 下一道「只跑本地」的门禁因此没法悄悄加进来。
+//
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';

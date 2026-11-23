@@ -1,19 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
-// `N6`：同一次操作在「对象、时间、谁」三处得能直接对上 —— 审计链、行动中心、宿主操作日志。
-//
-// 2026-11-21 的评审纪要 §6.4 点出三处对不上：① 时区一处带偏移、一处不带；② 「谁」一处是账号名、一处是
-// 破折号、一处是裸编号；③ 第二入口只「相关」不「硬链接」，而宿主操作日志那一页一个字没说。这一条测试钉住
-// 本层的改法：
-//
-//   · 时区 —— `time.ts` 不再自己格式化，委托给六问用的同一个 `zonedTime`，故整层只有一条显示规则；
-//   · 谁 —— 行动中心那张宿主日志小表走与审计链同一条窄读面（`resolveCallerNames`）配名；
-//   · 相关 —— 审计链页写明第二入口的限度，核对 CSV 在表头前带一行说明，两份词条都在。
-//
 // 运行：node --test scripts/second-entry-unify.test.mjs
 //
 // ── English ─────────────────────────────────────────────────────────────────────
-//
 // `N6`: one operation must line up directly across the three places that answer for it — the audit
 // chain, the action centre and the host's own operation log.
 //
@@ -24,6 +13,17 @@
 // six questions use; the action centre's host-log table is named through the same narrow directory the
 // chain reads; and the chain page states the second entry's limit, with the verification CSV carrying it
 // before the header — in both message bundles.
+//
+// `N6`：同一次操作在「对象、时间、谁」三处得能直接对上 —— 审计链、行动中心、宿主操作日志。
+//
+// 2026-11-21 的评审纪要 §6.4 点出三处对不上：① 时区一处带偏移、一处不带；② 「谁」一处是账号名、一处是
+// 破折号、一处是裸编号；③ 第二入口只「相关」不「硬链接」，而宿主操作日志那一页一个字没说。这一条测试钉住
+// 本层的改法：
+//
+//   · 时区 —— `time.ts` 不再自己格式化，委托给六问用的同一个 `zonedTime`，故整层只有一条显示规则；
+//   · 谁 —— 行动中心那张宿主日志小表走与审计链同一条窄读面（`resolveCallerNames`）配名；
+//   · 相关 —— 审计链页写明第二入口的限度，核对 CSV 在表头前带一行说明，两份词条都在。
+//
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -49,24 +49,24 @@ const te = () => true
 const mask = (v) => `${String(v).slice(0, 1)}****`
 
 test('the timezone is written by one formatter, and the pages share it', () => {
-  // ① 时区：`time.ts` 委托给六问那一条 `zonedTime` —— 不再有第二份格式。
   // The timezone: `time.ts` delegates to the six questions' `zonedTime` — there is no second format.
+  // ① 时区：`time.ts` 委托给六问那一条 `zonedTime` —— 不再有第二份格式。
   const time = read(TIME)
   assert.match(time, /import \{ zonedTime \} from '\.\/sixQuestions\.mjs'/, 'time.ts no longer shares the six questions’ formatter')
   assert.match(time, /return zonedTime\(v\)/, 'time.ts no longer returns the shared formatter’s answer')
 
-  // 同一时刻，两种形状，都带偏移量。
   // One instant, both shapes, each with an offset.
+  // 同一时刻，两种形状，都带偏移量。
   const fromIso = zonedTime('2026-11-11T04:11:46.000Z')
   const fromEpoch = zonedTime(Date.parse('2026-11-11T04:11:46.000Z'))
   assert.equal(fromIso, fromEpoch, 'the ISO string and the epoch number read as different instants')
   assert.match(fromIso, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC[+-]\d{2}:\d{2}$/, 'the time no longer carries its offset')
   assert.equal(zonedTime(null), BLANK, 'an empty value should still be the dash')
 
-  // 参与交叉核对的三页都用这一份：经 `timeText`，或（第二入口与六问同格时）直接取 `zonedTime` ——
-  // 两条路都是同一个格式器，不存在第二份。
   // The three cross-checking pages all use it: through `timeText`, or — where the second entry takes the
   // six answers' own cell — `zonedTime` directly. Both are the same formatter; there is no second one.
+  // 参与交叉核对的三页都用这一份：经 `timeText`，或（第二入口与六问同格时）直接取 `zonedTime` ——
+  // 两条路都是同一个格式器，不存在第二份。
   const SHARED_TIME = /import \{ timeText \} from '@\/keelbase\/time'|import \{ zonedTime \} from '@\/keelbase\/sixQuestions\.mjs'/
   for (const [page, label] of [
     [AUDIT_CHAIN, 'the audit chain'],
@@ -79,11 +79,11 @@ test('the timezone is written by one formatter, and the pages share it', () => {
 
 test('the second entry names a caller the same way the audit chain does', () => {
   const page = read(ACTION_CENTER)
-  // 展开行取回宿主日志后，用同一个窄读面配名。
   // After the host log lands, the ids are named through the same narrow directory.
+  // 展开行取回宿主日志后，用同一个窄读面配名。
   assert.match(page, /resolveCallerNames\(list\.map\(\(r\) => r\.userId\)\)/, 'the host-log leg no longer resolves caller names')
-  // 「谁」这一格：宿主自己给的名字优先；只记了 id 时经名录译名，而不是印裸编号。
   // The "who" cell: the host’s own name first; an id alone goes through the directory, not out as a bare number.
+  // 「谁」这一格：宿主自己给的名字优先；只记了 id 时经名录译名，而不是印裸编号。
   assert.match(page, /row\.userName \|\| callerName\(String\(id\)\)/, 'the host’s own name is no longer preferred')
   assert.doesNotMatch(page, /return row\.userId === null \|\| row\.userId === undefined \? '—' : String\(row\.userId\)/, 'an id-only row still prints the bare id')
 })
@@ -110,8 +110,8 @@ test('the audit chain states the second entry’s limit, and the check export ca
   assert.deepEqual(lines[1].split(','), labels, 'the header no longer follows the note')
   assert.equal(lines[2].split(',').length, 8, 'the data row stopped being eight columns')
 
-  // 不给说明时与从前逐字相同：旧调用方不受影响。
   // Without a note the file is byte-for-byte what it was: existing callers are unaffected.
+  // 不给说明时与从前逐字相同：旧调用方不受影响。
   const plain = checkCsvText([{ id: 31, answers, checks: '通过' }], labels)
   assert.equal(plain, withNote.slice(withNote.indexOf('\r\n') + 2), 'omitting the note changed the body')
   // 六列业务 CSV 不动 —— U1 的验收口径。 / The six-column business CSV is untouched — U1’s acceptance reading.
@@ -128,16 +128,16 @@ test('both message bundles carry the new statements, and neither carries an inte
   for (const key of ['secondEntryHint:', 'exportNote:']) {
     assert.equal(added.split(key).length - 1, 2, `${key} is not defined in both bundles`)
   }
-  // 这条说明会进导出文件，它本身不能带内部名（导出对每一格都跑同一道闸）。
   // This note reaches the export, so it must carry no internal name itself (the export runs that guard on every cell).
+  // 这条说明会进导出文件，它本身不能带内部名（导出对每一格都跑同一道闸）。
   for (const sentence of [
     '相关、非硬链接：每一行的业务主键与时间，可把它与宿主自己的操作日志里的同一次操作对上；两条轨之间没有共享编号，那张日志对动作的叫法也不同。',
     "Related, not linked: each row's business key plus its time pairs this line with the same operation in the host's own operation log; the two trails share no id, and that log words the act differently.",
   ]) {
     assert.doesNotMatch(sentence, /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/, 'the note carries a snake_case internal name')
   }
-  // 两份词条各有一份同样的键集合（缺一边是另一种缺陷）。这两个键中英各一处。
   // Both bundles carry the same key set; each of the two keys appears once per bundle.
+  // 两份词条各有一份同样的键集合（缺一边是另一种缺陷）。这两个键中英各一处。
   assert.equal((patch.match(/^\+\s+secondEntryHint:/gm) || []).length, 2, 'secondEntryHint is not in both bundles')
   assert.equal((patch.match(/^\+\s+exportNote:/gm) || []).length, 2, 'exportNote is not in both bundles')
 })
@@ -178,17 +178,17 @@ test('one operation reads the same on the chain: name, instant and object key li
     te,
   })
   const byKey = Object.fromEntries(answers.map((a) => [a.key, a.text]))
-  // 谁：名字 + 账号号；何时：带偏移；对象：业务名 + 主键 —— 这三格就是第二入口要对上的三样。
   // Who: the name plus the account number; when: with the offset; object: business word plus key — the
   // three things the second entry has to line up with.
+  // 谁：名字 + 账号号；何时：带偏移；对象：业务名 + 主键 —— 这三格就是第二入口要对上的三样。
   assert.equal(byKey.who, 'KeelBase（keelbase.sixQ.account #1）')
   assert.match(byKey.when, /^2026-11-11 \d{2}:\d{2}:\d{2} UTC[+-]\d{2}:\d{2}$/)
   assert.match(byKey.object, /#2/)
-  // 与宿主日志那一行同一个人、同一个对象主键、同一个时刻 —— 三样都能直接比。
   // The host-log row carries the same person, the same object key and the same instant when named
   // through the same directory; this is the rule the page's `whoText` now follows.
-  // 宿主那条面答的是毫秒数（yudao 的 Jackson），与链上同一个时刻。
   // The host face answers epoch milliseconds (yudao's Jackson), the same instant as the chain.
+  // 与宿主日志那一行同一个人、同一个对象主键、同一个时刻 —— 三样都能直接比。
+  // 宿主那条面答的是毫秒数（yudao 的 Jackson），与链上同一个时刻。
   const hostLog = {
     bizId: 2,
     userId: 1,

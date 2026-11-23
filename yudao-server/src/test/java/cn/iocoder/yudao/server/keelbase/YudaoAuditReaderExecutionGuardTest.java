@@ -16,16 +16,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * 审计读者的写面：台账的撤销对它关闭，读面与别人的写面不受影响。
- *
- * <p>为什么这条测试存在：运行时的 `EffectController#revoke` 只判归属、不查规则源，于是读者能撤销自己名下的
- * 台账行（2026-10-25 隔离栈实测）。宿主侧那道守卫是唯一会问规则源的地方，而「撤销也在它的射程里」此前只是
- * 一句没被钉住的意图 —— 这道测试把意图变成可跑的读数：读者 DELETE 被拒（自己的行、不存在的 id 都一样，因为
- * 拒绝发生在查行之前），读者 GET 台账仍放行，普通用户与管理员照旧。它也钉住守卫原有的入口，免得这次
- * 扩面把原来那道墙碰倒。
- *
- * <p>English:
- *
  * <p>The audit reader's write face: the ledger's revoke is closed to it, the read faces and everyone
  * else's writes are not.
  *
@@ -36,6 +26,16 @@ import org.springframework.web.server.ResponseStatusException;
  * reader's DELETE is refused (its own row and an unknown id alike, because the refusal happens before
  * the row is looked up), its GET of the ledger still passes, and ordinary users and administrators are
  * unaffected. It also pins the guard's original entries so widening it cannot knock the old wall down.
+ *
+ * 审计读者的写面：台账的撤销对它关闭，读面与别人的写面不受影响。
+ *
+ * <p>为什么这条测试存在：运行时的 `EffectController#revoke` 只判归属、不查规则源，于是读者能撤销自己名下的
+ * 台账行（2026-10-25 隔离栈实测）。宿主侧那道守卫是唯一会问规则源的地方，而「撤销也在它的射程里」此前只是
+ * 一句没被钉住的意图 —— 这道测试把意图变成可跑的读数：读者 DELETE 被拒（自己的行、不存在的 id 都一样，因为
+ * 拒绝发生在查行之前），读者 GET 台账仍放行，普通用户与管理员照旧。它也钉住守卫原有的入口，免得这次
+ * 扩面把原来那道墙碰倒。
+ *
+ * <p>English:
  */
 class YudaoAuditReaderExecutionGuardTest {
 

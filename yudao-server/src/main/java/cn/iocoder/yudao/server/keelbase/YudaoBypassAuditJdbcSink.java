@@ -21,24 +21,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * 把旁路留痕写进 `keelbase_bypass_log`：**异步、有界、失败只写日志**。
- *
- * <p>三条都是刻意的，而且每条都能被读成一次拒绝：
- *
- * <ul>
- *   <li><b>异步</b>：请求线程只 {@code offer} 一行就回去。一条写请求的耗时不因为多了一张留痕表而变长 ——
- *       这一层「不改行为」的读数里，耗时就包含在内。</li>
- *   <li><b>有界</b>：队列满了就**丢**，并记下丢了多少。反过来（阻塞请求线程等空位）会让一张记满日志的表
- *       把整台宿主拖停 —— 一个只负责留痕的组件没有这个资格。丢行的计数是这条取舍的痕迹，读得出来。</li>
- *   <li><b>失败只写日志</b>：插入抛错（表不在、库断了、类型不对）只报警，不重试、不回传；那一行确实没进表，
- *       故与队列满一样计入丢弃数。留痕缺席是一次**少报**，不是一次失败的写。</li>
- * </ul>
- *
- * <p><b>为什么不走 MyBatis 或运行时那张审计表。</b>走 MyBatis 会过芋道的租户拦截器（这张表按调用时的租户
- * **当数据**存，不该被它按租户过滤）；走运行时的 `ai_audit_logs` 会把留痕混进审计链 —— 而分开正是这一层
- * 存在的理由。故这里直接拿 {@link DataSource} 建一个 {@link JdbcTemplate}，与 `YudaoCallerDirectory`、
- * `YudaoRecordNames` 同一种做法（不额外向容器要一个 bean）。
- *
  * <p>Writes the bypass trail into `keelbase_bypass_log`: **asynchronous, bounded, failures logged only**.
  *
  * <p>All three are deliberate, and each one is a refusal worth being able to read:
@@ -69,6 +51,24 @@ import org.springframework.stereotype.Component;
  * `queue is full` line versus a per-row `row not written` line. The once-per-hundred log line stays for
  * an operator reading logs; the counter is what a scrape or a dashboard can read without waiting for the
  * hundredth drop. No new endpoint and no new response field: the host already exposes metrics.
+ *
+ * 把旁路留痕写进 `keelbase_bypass_log`：**异步、有界、失败只写日志**。
+ *
+ * <p>三条都是刻意的，而且每条都能被读成一次拒绝：
+ *
+ * <ul>
+ *   <li><b>异步</b>：请求线程只 {@code offer} 一行就回去。一条写请求的耗时不因为多了一张留痕表而变长 ——
+ *       这一层「不改行为」的读数里，耗时就包含在内。</li>
+ *   <li><b>有界</b>：队列满了就**丢**，并记下丢了多少。反过来（阻塞请求线程等空位）会让一张记满日志的表
+ *       把整台宿主拖停 —— 一个只负责留痕的组件没有这个资格。丢行的计数是这条取舍的痕迹，读得出来。</li>
+ *   <li><b>失败只写日志</b>：插入抛错（表不在、库断了、类型不对）只报警，不重试、不回传；那一行确实没进表，
+ *       故与队列满一样计入丢弃数。留痕缺席是一次**少报**，不是一次失败的写。</li>
+ * </ul>
+ *
+ * <p><b>为什么不走 MyBatis 或运行时那张审计表。</b>走 MyBatis 会过芋道的租户拦截器（这张表按调用时的租户
+ * **当数据**存，不该被它按租户过滤）；走运行时的 `ai_audit_logs` 会把留痕混进审计链 —— 而分开正是这一层
+ * 存在的理由。故这里直接拿 {@link DataSource} 建一个 {@link JdbcTemplate}，与 `YudaoCallerDirectory`、
+ * `YudaoRecordNames` 同一种做法（不额外向容器要一个 bean）。
  *
  * <p><b>丢弃数是取得到的指标，不只是一行日志。</b>`keelbase.bypass.audit.dropped` 是宿主既有 actuator 面上的
  * micrometer 计数器 —— 在部署档下可于 `/actuator/metrics/keelbase.bypass.audit.dropped` 读到。**它计的是每一条
@@ -151,12 +151,12 @@ public class YudaoBypassAuditJdbcSink implements YudaoBypassAuditSink {
             return;
         }
         if (!queue.offer(row)) {
-            // 有界队列满了：丢，并计数。每 100 次说一句 —— 每次都说会把日志变成噪声，永不说则读不出在丢。
-            // 计数本身在构造时注册进 meter registry，故这一处自增即可被外部读到。
             // A full bounded queue drops, counted. Said once per hundred: every time is noise, never is
             // a drop nobody can read. The counter is registered with the meter registry at construction,
             // so this one increment is what the outside surface reads. The count it prints is the
             // counter's total, so it can exceed the queue's own share — it says "in total" for that.
+            // 有界队列满了：丢，并计数。每 100 次说一句 —— 每次都说会把日志变成噪声，永不说则读不出在丢。
+            // 计数本身在构造时注册进 meter registry，故这一处自增即可被外部读到。
             dropped.increment();
             long lost = (long) dropped.count();
             if (lost % 100 == 1) {

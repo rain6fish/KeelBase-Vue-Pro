@@ -132,11 +132,11 @@ test('a row that records none of the three answers nothing', () => {
 })
 
 test('a connect test takes its object from the typed key at the end of its row', () => {
-  // 一次 MCP 连通测试没有工具，也不写台账：它把**带类型**的键写在句末。句子里是可读的词，检索按类型判等。
-  // 动作词是过渡借用的（契约尚无这个动作）；这条键的读法不看动作词。
   // An MCP connect test has no tool and writes no ledger row: it puts a **typed** key at the end of its
   // sentence. The sentence carries a readable word; the search still compares by type. The action word
   // is a borrowed interim one (the contract has no word for the act yet); this reader does not look at it.
+  // 一次 MCP 连通测试没有工具，也不写台账：它把**带类型**的键写在句末。句子里是可读的词，检索按类型判等。
+  // 动作词是过渡借用的（契约尚无这个动作）；这条键的读法不看动作词。
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 name=x result=ok · object MCP connection #12',
@@ -146,9 +146,9 @@ test('a connect test takes its object from the typed key at the end of its row',
 })
 
 test('the console reads the typed key exactly the way the runtime endpoint does', () => {
-  // 判据以运行时为准：句末必须**恰好**收尾，主键 1–18 位、前导零有意义、长主键不丢位数。
   // The runtime is authoritative: the key must end the sentence exactly, the key is 1–18 digits,
   // leading zeros are significant, and a long key keeps every digit.
+  // 判据以运行时为准：句末必须**恰好**收尾，主键 1–18 位、前导零有意义、长主键不丢位数。
   const at = (detail) => ({
     id: 7, userId: '1', action: 'analyze', tool: null, executionId: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail,
@@ -217,9 +217,9 @@ test('the ledger still wins over the typed key on the same row', () => {
 })
 
 test('a key that spells the table name is not an object, and would refuse the export', () => {
-  // 坏键（把表名写进 detail）不该被读成一条对象：宁可「未记录」。而如果它真到了某一格，导出的防线仍在。
   // A bad key (the table name in `detail`) is not read as an object: better 「未记录」. And if it did
   // reach a cell, the export's guard still stands.
+  // 坏键（把表名写进 detail）不该被读成一条对象：宁可「未记录」。而如果它真到了某一格，导出的防线仍在。
   const row = {
     id: 7, userId: '1', action: 'analyze', tool: null,
     createdAt: '2026-11-20T01:00:00.000Z', detail: 'mcp connectivity test id=12 result=ok · object ai1_mcp#12',
@@ -262,14 +262,14 @@ test('selection: kind + key, kind alone, key alone', () => {
 })
 
 test('the same search picks the same rows whether the read face applied the filters or ignored them', () => {
-  // F10：生成器产出的应用另有一条 `/audit/logs`，它只收 `userId/since/isError` —— 对象与终点被静默
-  // 忽略，同一查询回一份更宽的列表。控制台不靠读面施加筛选：回来的无论是收窄过的还是更宽的，本地按同一
-  // 组条件再挑一遍，命中必须相同。这条钉的就是「两条读面同一个答案」。
-  //
   // F10: an application produced by the generator has its own `/audit/logs` that takes `userId/since/isError`
   // only — the object and the end are silently ignored and the same query answers a wider list. The console
   // does not lean on the face applying them: whether the answer came back narrowed or wider, it picks again
   // under the same conditions and the matched set has to be the same. That is "one answer on both faces".
+  //
+  // F10：生成器产出的应用另有一条 `/audit/logs`，它只收 `userId/since/isError` —— 对象与终点被静默
+  // 忽略，同一查询回一份更宽的列表。控制台不靠读面施加筛选：回来的无论是收窄过的还是更宽的，本地按同一
+  // 组条件再挑一遍，命中必须相同。这条钉的就是「两条读面同一个答案」。
   const rows = [
     operation({ id: 1, createdAt: '2026-10-28T05:37:06.000Z' }),
     operation({ id: 2, executionId: 'x', createdAt: '2026-10-28T06:00:00.000Z' }),
@@ -301,12 +301,12 @@ test('the same search picks the same rows whether the read face applied the filt
 })
 
 test('reading the wider answer: only a row the page can place proves the filters were ignored', () => {
-  // 证据只来自读面**返回**的行：落在区间外、或本页解析出对象却不是所查对象的，不可能是施加过筛选的面
-  // 回出来的。本页解析不出对象的行不算证据 —— 台账窗口有界，读面没有，那只会是一次误报。
-  //
   // Evidence comes only from rows the face **returned**: one outside the range, or one this page places on
   // another object, could not have come from a face that applied the filters. A row this page cannot place
   // is not evidence — its ledger window is bounded and the face's is not, so that would be a false alarm.
+  //
+  // 证据只来自读面**返回**的行：落在区间外、或本页解析出对象却不是所查对象的，不可能是施加过筛选的面
+  // 回出来的。本页解析不出对象的行不算证据 —— 台账窗口有界，读面没有，那只会是一次误报。
   const withObject = { object: { resultType: 'crm_customer', resultId: '9005' }, effects: [effect()], resultTypeOf }
   assert.equal(q.readFaceIgnoredFilters([operation()], withObject), false, 'the matching row is not evidence')
   assert.equal(
@@ -357,12 +357,12 @@ test('after a search the table shows the matched rows, and clearing brings the l
 })
 
 test('a finished scan that hit the bound does not answer "nothing matched"', () => {
-  // 2026-11-21：一个唯一但最旧的对象落在第 1000 行以外，页面答「命中 0 行」。表格空态原来说「这次检索
-  // 没有命中任何行」—— 把「没读到」读成「没有这件事」。三种结局必须分开说，触到上界那一档还要再分两层。
-  //
   // 2026-11-21: one unique object sitting past row 1000 answered "0 rows matched", and the table's empty
   // text said "No row matched this search" — turning "not read" into "nothing happened". The three endings
   // must read apart, and the finished one splits again on whether the bound was hit.
+  //
+  // 2026-11-21：一个唯一但最旧的对象落在第 1000 行以外，页面答「命中 0 行」。表格空态原来说「这次检索
+  // 没有命中任何行」—— 把「没读到」读成「没有这件事」。三种结局必须分开说，触到上界那一档还要再分两层。
   assert.equal(
     q.emptyTextKey({ queryFailed: false, queryRan: true, queryScanBound: false }),
     'keelbase.audit.queryEmpty',
@@ -383,12 +383,12 @@ test('a finished scan that hit the bound does not answer "nothing matched"', () 
 })
 
 test('a note line rides in an export only when given, and never becomes a data row', () => {
-  // 两份导出的说明只在有真事要说时出现；它是一行元数据（`#` 开头），六列与八列的判据只数数据行。
-  // 没有说明时正文逐字不变 —— 一个赚不来的声明比不说更糟。
-  //
   // A statement rides in both exports only when given; it is a metadata line (`#`), and the six/eight
   // column criterion counts data rows only. With no note the body is unchanged character for character —
   // a statement the export did not earn is worse than none.
+  //
+  // 两份导出的说明只在有真事要说时出现；它是一行元数据（`#` 开头），六列与八列的判据只数数据行。
+  // 没有说明时正文逐字不变 —— 一个赚不来的声明比不说更糟。
   const answers = answersOf([
     'KeelBase',
     '2026-11-11 12:11:46 UTC+08:00',
@@ -429,14 +429,14 @@ test('a note line rides in an export only when given, and never becomes a data r
 })
 
 test('the read-face note and the bound note keep their order, and either can stand alone', () => {
-  // 两条说明都为真时，次序固定：读面那条在前（它说这些行为什么是控制台自己挑的），扫描上限那条在后
-  // （它说这次挑拣只读到多远）。测试逐字钉住两行与次序，并确认正文一字未动；两条各自的真假互不影响 ——
-  // 只有读面忽略筛选而没有触顶时，上限那行不得出现，反之亦然。
-  //
   // When both are true the order is fixed: the read-face note first (why these rows are the console's own
   // narrowing), the bound note second (how far that narrowing could read). The test pins both lines and
   // their order verbatim, and that the body is untouched. Each note stands alone: a read face that ignored
   // the filters without the scan hitting its bound gets only its own line, and vice versa.
+  //
+  // 两条说明都为真时，次序固定：读面那条在前（它说这些行为什么是控制台自己挑的），扫描上限那条在后
+  // （它说这次挑拣只读到多远）。测试逐字钉住两行与次序，并确认正文一字未动；两条各自的真假互不影响 ——
+  // 只有读面忽略筛选而没有触顶时，上限那行不得出现，反之亦然。
   const answers = answersOf([
     'KeelBase',
     '2026-11-11 12:11:46 UTC+08:00',
@@ -482,8 +482,8 @@ test('the read-face note and the bound note keep their order, and either can sta
     'a note sits below the verification header',
   )
   assert.equal(bothCheck.replace(`# ${face}\r\n# ${bound}\r\n`, ''), plainCheck, 'the notes changed the check body')
-  // 解析侧仍把这段前导当说明行跳过，表头与数据行不受影响。
   // The parsing side still skips this preamble as notes; the header and data rows are untouched.
+  // 解析侧仍把这段前导当说明行跳过，表头与数据行不受影响。
   const { notes, rows } = q.splitCsvNotes(bothCheck.trimEnd().split('\r\n').map((line) => [line]))
   assert.deepEqual(
     notes,
@@ -581,12 +581,12 @@ test('a verification cell carrying an internal name refuses the whole file, nami
       return true
     },
   )
-  // camelCase 形态的未知检查名（覆盖矩阵 4-G）在导出这一层同样整份拒绝 —— 闸门要连调用方一起测，
-  // 只测 `leaksIn` 证明不了文件不会被写出。
-  //
   // An unknown check name in camelCase (coverage matrix 4-G) refuses the whole file at the export layer
   // too — the gate is tested through its caller, since testing `leaksIn` alone cannot show that no file
   // is written.
+  //
+  // camelCase 形态的未知检查名（覆盖矩阵 4-G）在导出这一层同样整份拒绝 —— 闸门要连调用方一起测，
+  // 只测 `leaksIn` 证明不了文件不会被写出。
   assert.throws(
     () => q.checkCsvText([{ id: 31, answers, checks: '通过 crmCustomerScope' }], CHECK_LABELS),
     (error) => {
@@ -596,8 +596,8 @@ test('a verification cell carrying an internal name refuses the whole file, nami
       return true
     },
   )
-  // 反向：同一份核对行，检查名换成控制台认识的词，文件照常生成、仍是 8 列。
   // The reverse: the same row with a check name this console knows is written as before, still 8 columns.
+  // 反向：同一份核对行，检查名换成控制台认识的词，文件照常生成、仍是 8 列。
   const known = q.checkCsvText(
     [{ id: 31, answers, checks: 'passed Risk level (R5 is always blocked)' }],
     CHECK_LABELS,
@@ -640,9 +640,9 @@ test('a camelCase internal name in a six-question cell refuses the six-column ex
 })
 
 test('a six-question cell carrying the table name refuses the six-column export', () => {
-  // 这次键的写法就是为了这一条：句末的键会进第三格，若它是表名，整份导出必须被拒、且只说哪一格。
   // This is what the key's spelling is for: the end-of-sentence key reaches the third cell, and if it
   // were the table name the whole export must be refused — naming the cell only.
+  // 这次键的写法就是为了这一条：句末的键会进第三格，若它是表名，整份导出必须被拒、且只说哪一格。
   const answers = answersOf(['KeelBase', '2026-11-20 09:00:00 UTC+08:00', 'MCP connection · ai1_mcp#12', '—', '—', 'Failed'])
   assert.throws(
     () => q.csvText([{ answers }], LABELS),
@@ -747,12 +747,12 @@ test('the page exports the same six answers it renders, through the query module
 })
 
 test('the verification note is metadata: one line before the header, and it never counts as a row', () => {
-  // 表头之前那行 `#` 说明是**元数据、不是数据行**（RFC 4180 没有注释行，故下游按纯数据解析时看到的是一条
-  // 只有一个格子的行 —— 它不会被误读成某次操作）。核对 CSV 用它承载「这一行不按租户归属」（丙）。
-  //
   // The `#` line before the header is **metadata, not a data row** (RFC 4180 has no comment lines, so a
   // strict data parser sees a one-cell row — it cannot be mistaken for an operation). The verification
   // CSV uses it to carry "this row is not attributed to a tenant" (丙).
+  //
+  // 表头之前那行 `#` 说明是**元数据、不是数据行**（RFC 4180 没有注释行，故下游按纯数据解析时看到的是一条
+  // 只有一个格子的行 —— 它不会被误读成某次操作）。核对 CSV 用它承载「这一行不按租户归属」（丙）。
   const answers = answersOf(['KeelBase', '2026-11-11 12:11:46 UTC+08:00', 'Customer · #2', '—', '—', 'Executed'])
   const rows = [{ id: 31, answers, checks: 'passed Risk level' }]
   const note =
@@ -763,7 +763,7 @@ test('the verification note is metadata: one line before the header, and it neve
   assert.ok(lines[0].includes('Tenant is not attributed'), 'the note lost the tenant statement')
   assert.deepEqual(lines[1].split(','), CHECK_LABELS, 'the header no longer follows the note')
   assert.equal(lines[2].split(',')[0], '#31', 'the data row no longer follows the header')
-  // 不给说明时仍是「表头 + 数据行」：说明只在被给的时候出现，从不自己长出来。
   // With no note it is still header + data rows: the line appears only when one is given.
+  // 不给说明时仍是「表头 + 数据行」：说明只在被给的时候出现，从不自己长出来。
   assert.equal(q.checkCsvText(rows, CHECK_LABELS).trimEnd().split('\r\n').length, 2)
 })

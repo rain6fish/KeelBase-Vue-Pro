@@ -11,29 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 把审计读者挡在运行时那几条**会执行工具**的入口之外。
- *
- * <p>为什么宿主得自己挡：运行时的 `/ai/chat`、流式兄弟 `/ai/chat/stream`、管理员通道
- * `/admin/ai/chat/stream` 与多步 `/ai/task` **没有** {@code @PreAuthorize}，而引擎的闸门只按风险级与
- * 治理策略裁决，**不查权限规则源**。于是一个只被授予六个治理读面
- * {@code read} 的账户，仍能在这里让 R1 工具真实执行；R3 写则生成一条 `immediate` 确认，而该账户**自己**就能裁它
- * （`/ai/confirmations/{token}` 只拒绝别人的行）——「不能写、不能审批、不能执行」于是在运行时入口上被绕开。
- *
- * <p>本守卫只做一件事：持有启用的 `audit_reader` 角色 ⇒ 拒绝这些执行入口**与写入口**。读面不挡：
- * `GET /ai/confirmations`、`GET /ai/tool-effects` 等仍是该角色的正当射程。写入口里还有副作用台账的撤销
- * （`DELETE /ai/tool-effects/{id}`）：运行时的 `EffectController#revoke` 只判归属、**一次都不问规则源**，故一个
- * 先做过事、后来才被授予该角色的账号仍能撤销自己名下的旧台账行（2026-10-25 隔离栈实测：读者撤销成功、库
- * `executed → compensating`）。角色读不出来时 `YudaoAuditReaderRules` 按「不持有」处理，故守卫失败即放行给运行时
- * 自己的身份处理；这一取舍与规则源一致——缺一次角色读只会收窄规则，不会在这里凭空放大权限。
- *
- * <p>清单里还有宿主自己的 AI 执行形状：AI 模块的 `/admin-api/ai/chat/message/send`（及其流式兄弟）
- * **没有** {@code @PreAuthorize}，却把角色的工具回调交给模型；AI1 的
- * `/admin-api/ai1/session/message/send-stream` 会装配 MCP、SKILL 与受治理的本地工具；对抗展示的
- * `/ai/security-showcase/run/*` 会执行引擎动作，控制器虽有管理员闸，仍按同一清单再挡一次。它们出于同一个
- * 理由、由同一个开关拒绝。
- *
- * <p>英文：
- *
  * <p>Keeps the audit reader out of the runtime's <b>tool-executing</b> entries.
  *
  * <p>The list also carries the host's own AI execution shapes: the AI module's
@@ -62,6 +39,29 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * hold" by `YudaoAuditReaderRules`, so the guard lets the request through to the runtime's own identity
  * handling; that matches the rule source's stance, where a missing role read narrows the rules and
  * never widens a permission here.
+ *
+ * 把审计读者挡在运行时那几条**会执行工具**的入口之外。
+ *
+ * <p>为什么宿主得自己挡：运行时的 `/ai/chat`、流式兄弟 `/ai/chat/stream`、管理员通道
+ * `/admin/ai/chat/stream` 与多步 `/ai/task` **没有** {@code @PreAuthorize}，而引擎的闸门只按风险级与
+ * 治理策略裁决，**不查权限规则源**。于是一个只被授予六个治理读面
+ * {@code read} 的账户，仍能在这里让 R1 工具真实执行；R3 写则生成一条 `immediate` 确认，而该账户**自己**就能裁它
+ * （`/ai/confirmations/{token}` 只拒绝别人的行）——「不能写、不能审批、不能执行」于是在运行时入口上被绕开。
+ *
+ * <p>本守卫只做一件事：持有启用的 `audit_reader` 角色 ⇒ 拒绝这些执行入口**与写入口**。读面不挡：
+ * `GET /ai/confirmations`、`GET /ai/tool-effects` 等仍是该角色的正当射程。写入口里还有副作用台账的撤销
+ * （`DELETE /ai/tool-effects/{id}`）：运行时的 `EffectController#revoke` 只判归属、**一次都不问规则源**，故一个
+ * 先做过事、后来才被授予该角色的账号仍能撤销自己名下的旧台账行（2026-10-25 隔离栈实测：读者撤销成功、库
+ * `executed → compensating`）。角色读不出来时 `YudaoAuditReaderRules` 按「不持有」处理，故守卫失败即放行给运行时
+ * 自己的身份处理；这一取舍与规则源一致——缺一次角色读只会收窄规则，不会在这里凭空放大权限。
+ *
+ * <p>清单里还有宿主自己的 AI 执行形状：AI 模块的 `/admin-api/ai/chat/message/send`（及其流式兄弟）
+ * **没有** {@code @PreAuthorize}，却把角色的工具回调交给模型；AI1 的
+ * `/admin-api/ai1/session/message/send-stream` 会装配 MCP、SKILL 与受治理的本地工具；对抗展示的
+ * `/ai/security-showcase/run/*` 会执行引擎动作，控制器虽有管理员闸，仍按同一清单再挡一次。它们出于同一个
+ * 理由、由同一个开关拒绝。
+ *
+ * <p>英文：
  */
 @Component
 public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
@@ -113,11 +113,6 @@ public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
             throw new AccessDeniedException(
                     "the audit reader is a reader: it cannot reach the AI execution entries");
         }
-        // 写侧的拒绝**带真 HTTP 403**，与这条删改入口本来答的拒绝同形（运行时对别人的台账行答的就是真 403）。
-        // 一个改状态的 DELETE 被拒时若答 HTTP 200，只看状态码的客户端会读成「撤销成功」——而这一条要挡的正是
-        // 一次已经发生的状态迁移。执行入口保持原有的 `AccessDeniedException` 形态（拦截器的拒绝在那里
-        // 到达时是 HTTP 200 + 正文 `code:403`，2026-10-25 已记为 F2，本轮只核不改）；等 F2 收口时两处会合成一种。
-        //
         // The write-side refusal carries a **real HTTP 403**, the shape this delete already answered
         // with (the runtime answers a real 403 for somebody else's ledger row). A refused
         // state-changing DELETE that answered HTTP 200 would be read as "revoked" by a status-only
@@ -125,6 +120,11 @@ public class YudaoAuditReaderExecutionGuard implements HandlerInterceptor {
         // execution entries keep their `AccessDeniedException` shape (an interceptor refusal
         // arrives there as HTTP 200 with `code:403` in the body — recorded as F2 on 2026-10-25 and
         // only examined this round); the two shapes merge when F2 is closed.
+        //
+        // 写侧的拒绝**带真 HTTP 403**，与这条删改入口本来答的拒绝同形（运行时对别人的台账行答的就是真 403）。
+        // 一个改状态的 DELETE 被拒时若答 HTTP 200，只看状态码的客户端会读成「撤销成功」——而这一条要挡的正是
+        // 一次已经发生的状态迁移。执行入口保持原有的 `AccessDeniedException` 形态（拦截器的拒绝在那里
+        // 到达时是 HTTP 200 + 正文 `code:403`，2026-10-25 已记为 F2，本轮只核不改）；等 F2 收口时两处会合成一种。
         if (writeEntry) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "the audit reader is a reader: it cannot write");

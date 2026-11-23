@@ -199,14 +199,14 @@ test('the masking note does not contradict the host leg beside it', () => {
 })
 
 test('the business-leg hint promises the word the cell writes, not a blank cell', () => {
-  // N6 缺口 #8（2026-11-22）：提示语说「宿主没记的行如实留空」，而 `whoText` 在无人可认时写的是「未记录」——
-  // 读者照提示去找空白格，看到的却是两个字，像是两种状态。提示语现在明写格子真的会写的词，
-  // 「只记了编号」那一档也一并说了，两处不再各说各的。
-  //
   // N6 gap #8 (2026-11-22): the hint promised a blank cell where the host logged nobody, while `whoText`
   // writes "not recorded" — a reader told to look for a blank finds two words, as if the two were
   // different states. The hint now names the words the cell actually writes, the id-only case included,
   // so the copy and the code can no longer drift apart.
+  //
+  // N6 缺口 #8（2026-11-22）：提示语说「宿主没记的行如实留空」，而 `whoText` 在无人可认时写的是「未记录」——
+  // 读者照提示去找空白格，看到的却是两个字，像是两种状态。提示语现在明写格子真的会写的词，
+  // 「只记了编号」那一档也一并说了，两处不再各说各的。
   assert.match(
     actionCenter,
     /if \((?:row\.userId|id) === null \|\| (?:row\.userId|id) === undefined\) return t\('keelbase\.audit\.userUnrecorded'\)/,
