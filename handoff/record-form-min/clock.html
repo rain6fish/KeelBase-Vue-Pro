@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>场次参考钟</title>
+<style>
+  html,body{height:100%;margin:0;background:#0b0f14;color:#e8eef5;font-family:Consolas,"Cascadia Mono","Microsoft YaHei",monospace;display:flex;align-items:center;justify-content:center}
+  .wrap{text-align:center;user-select:text}
+  #t{font-size:12vw;line-height:1;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+  #d{font-size:2.4vw;margin-top:1.2vh;color:#9fb3c8}
+  #z{font-size:1.6vw;margin-top:.6vh;color:#6b8299}
+  .hint{position:fixed;bottom:10px;width:100%;text-align:center;font-size:12px;color:#43586b}
+</style>
+<div class="wrap">
+  <div id="t">--:--:--</div>
+  <div id="d"></div>
+  <div id="z"></div>
+</div>
+<div class="hint">按 F 全屏 · 按 C 复制当前时刻到剪贴板 · 本钟只作参考，不替代场次记录</div>
+<script>
+const pad=n=>String(n).padStart(2,'0');
+const tz=(()=>{const m=-new Date().getTimezoneOffset();const s=m<0?'-':'+';return 'UTC'+s+pad(Math.floor(Math.abs(m)/60))+':'+pad(Math.abs(m)%60);})();
+function now(){
+  const d=new Date();
+  document.getElementById('t').textContent=pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+  document.getElementById('d').textContent=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+  document.getElementById('z').textContent=tz;
+}
+function stamp(){
+  const d=new Date();
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' '+tz;
+}
+now();setInterval(now,200);
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='f'){document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();}
+  if(k==='c'){navigator.clipboard&&navigator.clipboard.writeText(stamp());}
+});
+</script>
+</html>
