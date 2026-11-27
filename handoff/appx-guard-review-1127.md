@@ -141,6 +141,25 @@ Read-only throughout. No merge, no push, no tag, no edit inside `D:/Rain6fish/Ke
 
 ---
 
+## 8. Follow-up — the fix exists, independently re-verified (2026-11-27, same day)
+
+A separate session fixed M1–M3 on branch `claude/laughing-germain-d55851`, commit `28a525d` (parent `d939527`). Not pushed, not merged into `main`, no tag. This reviewer re-ran everything against that worktree.
+
+| item | what changed | re-verified here |
+|---|---|---|
+| M1 | `scripts/ci-compile.ps1` now clears `$global:LASTEXITCODE` before the call and rejects a non-integer result with `if ($code -isnot [int]) { exit 1 }` | non-executable `cli.exe` → **exit 1** (was 0), both with and without `-AllowCliCmd`, under the CI-shaped `Stop` preamble |
+| M2 | `timeout-minutes: 30` on `android-compile`; script deliberately stays timeout-free and says so | read from the diff; the switch `APPX_WINDOWS_RUNNER` untouched |
+| M3 | documented as accepted standard in `docs/release-checklist.md` — "the CLI says it succeeded" is the bar, artifacts are not inspected, with the reason (no real compile has ever validated the artifact path) | read from the diff |
+| S1 | the self-test forces UTF-8 inside the subject, and `ide-not-running` now asserts `IDE is not running` **and rejects** `no compile success`, so the explicit branch can no longer silently fall back | case now proves line 45–48 |
+| S2 | `cli.cmd` fallback gated behind `-AllowCliCmd`, off by default | `cli-cmd-only` case → exit 1 with "CLI not found" |
+| S3 | test grew from 3 to 9 cases (missing CLI, cmd-only, empty output, exit 2, marker+exit 1, non-executable) | **9/9 PASS on PS 5.1 and on pwsh 7** |
+
+The guard is now fail-closed on every case this review could construct. Two limits remain, both unchanged by the fix: the branch is **not on `main`** (that is the user's call), and **no real HBuilderX compile has still ever run through it** — the guard's correctness is proven at the logic level only, and the `android-compile` job stays switched off by `vars.APPX_WINDOWS_RUNNER`. The `compile-guard-self-test` job's first green run on `d939527`/`28a525d` is also still unverified from here (GitHub API unreachable).
+
+Minor note: on pwsh 7 the "cannot execute" case surfaces a different runtime message (`StandardOutputEncoding is only supported when standard output is redirected`), an artifact of the test setting `[Console]::OutputEncoding`; the outcome is the same non-zero exit and the null-exit-code path is still the one that catches it.
+
+---
+
 # App-X 假绿守卫 — 独立复核（2026-11-27）
 
 面向 12-05 复核对 App-X 假绿守卫做只读复核。
@@ -281,3 +300,22 @@ D:/Rain6fish/tmp/guard-probe-1126/pwsh7/pwsh.exe -NoProfile -ExecutionPolicy Byp
 ## 7. 本次边界
 
 全程只读。未合并、未推送、未打 tag、未改 `D:/Rain6fish/KeelBase-App-X`（前后 `git status` 均为空）、未启动 VM、未提交。探针只写 `%TEMP%` 与 `D:/Rain6fish/tmp/appx-guard-review-1127/`。GitHub API 不通，因此 CI 侧事实（run 状态、变量值、runner 状态）引自 11-26 报告与本地 workflow 文件，本次未复验。
+
+---
+
+## 8. 后续 —— 修复已落地并独立复验（2026-11-27 当日）
+
+另开的一个会话在分支 `claude/laughing-germain-d55851`、提交 `28a525d`（父 `d939527`）上修了 M1–M3。未推送、未合 main、未打 tag。本复核在其工作树上逐项重跑。
+
+| 项 | 改了什么 | 本复核的复验 |
+|---|---|---|
+| M1 | `scripts/ci-compile.ps1` 在调用前清空 `$global:LASTEXITCODE`，调用后以 `if ($code -isnot [int]) { exit 1 }` 判红 | 不可执行的 `cli.exe` → **退出 1**（修复前为 0），带不带 `-AllowCliCmd`、CI 形态（前置 `Stop`）下均如此 |
+| M2 | `android-compile` 加 `timeout-minutes: 30`；脚本自身不设超时并写明理由 | 从 diff 读取；`APPX_WINDOWS_RUNNER` 开关未动 |
+| M3 | 在 `docs/release-checklist.md` 写明接受口径：以 CLI 声称成功为准，不检查产物，并写出理由（产物路径从未经真实编译验证） | 从 diff 读取 |
+| S1 | 自测在子进程内强制 UTF-8，`ide-not-running` 改为断言 `IDE is not running` **并排斥** `no compile success`，显式分支不再可能悄悄落到兜底 | 该用例现已证明 45–48 行可用 |
+| S2 | `cli.cmd` 回退收到 `-AllowCliCmd` 之后，默认关闭 | `cli-cmd-only` 用例 → 退出 1，报「CLI not found」 |
+| S3 | 用例从 3 个扩到 9 个（缺 CLI、只有 cmd、空输出、退出 2、标记加非零退出、不可执行） | **PS 5.1 与 pwsh 7 均 9/9 通过** |
+
+本次复核能构造的情形，守卫现在都失败关闭。两处边界不变：分支**还不在 `main` 上**（这是用户的决定）；**真实 HBuilderX 编译至今仍一次没跑过**——守卫的正确性只在逻辑层被证明，`android-compile` 仍被 `vars.APPX_WINDOWS_RUNNER` 关着。`compile-guard-self-test` 在 `d939527`/`28a525d` 上的首次绿灯，本机仍无法核（GitHub API 不通）。
+
+一处小注：pwsh 7 下「不可执行」用例抛出的是另一条运行时消息（`StandardOutputEncoding is only supported when standard output is redirected`），这是测试设置 `[Console]::OutputEncoding` 带来的；结论同样是非零退出，且兜住它的仍是那条 null 退出码判据。
