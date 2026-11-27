@@ -102,12 +102,6 @@ function word(te, t, key, fallback) {
 }
 
 /**
- * ④ 改成什么 —— 改前来自运行时记的 `beforeSnapshot`，改后的**记录**在 `afterSnapshot` 里。
- *
- * 本运行时给一次改行写的 `afterSnapshot` 只有一个 `id`（工具交回的就是这个），所以这里如实分成两段：
- * 运行时的改后**记录**，以及**宿主现在**这一行的样子。后者不是写入那一刻的快照，故它单独标注 ——
- * 把「现在」说成「改后」，正是这一问最不该给读者的读法。
- *
  * ④ what it became — the "before" comes from the runtime's `beforeSnapshot`, and the "after" as
  * **recorded** is in `afterSnapshot`.
  *
@@ -115,16 +109,35 @@ function word(te, t, key, fallback) {
  * so the line is split honestly in two: what the runtime **recorded** as the after, and what the host's
  * record looks like **now**. The latter is not the snapshot taken at the write, so it says so; calling
  * "now" the "after" is the one reading this question must not give.
+ *
+ * A row with **no before** and an after carrying only an id is **not** necessarily a create: an action
+ * that writes a new record of another kind (`escalate_customer` writes a follow-up) looks the same from
+ * the ledger. So the cell names the action the tool itself declares — the `keelbase.tool.*` word the
+ * page already prints, a closed table — and never calls every such write a create. A tool with no word
+ * gets no invented action: the cell says only what it knows.
+ *
+ * ④ 改成什么 —— 改前来自运行时记的 `beforeSnapshot`，改后的**记录**在 `afterSnapshot` 里。
+ *
+ * 本运行时给一次改行写的 `afterSnapshot` 只有一个 `id`（工具交回的就是这个），所以这里如实分成两段：
+ * 运行时的改后**记录**，以及**宿主现在**这一行的样子。后者不是写入那一刻的快照，故它单独标注 ——
+ * 把「现在」说成「改后」，正是这一问最不该给读者的读法。
+ *
+ * 无改前、改后只带一个 id 的行**不一定**是新建：写出一条另一种记录的动作（`escalate_customer` 写跟进
+ * 记录）在台账里长得一样。故这一格说工具**自己声明的**动作 —— 页面已经在印的 `keelbase.tool.*` 那张
+ * 封闭表 —— 绝不把这种写一律叫新建。工具没有业务词时不替它编一个：只说它知道的事。
  */
-export function changeLine({ effect, hostNowName, mask, t, te }) {
+export function changeLine({ effect, tool, hostNowName, mask, t, te }) {
   if (!effect) return { text: t('keelbase.sixQ.changeNone'), answered: true }
   const before = parseSnapshot(effect.beforeSnapshot)
   const after = parseSnapshot(effect.afterSnapshot)
   const afterHasFields = after ? SNAPSHOT_FIELDS.some((f) => after[f.key] !== undefined) : false
 
   if (!before && !afterHasFields) {
-    // A create has no "before" — that is a fact, not an omission — and its after carries only an id.
-    return { text: t('keelbase.sixQ.changeCreated'), answered: Boolean(hostNowName) }
+    const action = tool ? word(te, t, `keelbase.tool.${tool}`, '') : ''
+    return {
+      text: [action, t('keelbase.sixQ.changeNoBefore')].filter(Boolean).join(' · '),
+      answered: Boolean(hostNowName),
+    }
   }
 
   const pairs = (snapshot) =>
@@ -474,7 +487,17 @@ export function whoLine({ callerName, callerId, t }) {
  */
 export function composeSix({ row, callerName, callerId, effect, proposal, recorded, hostNowName, proposalName, approverName, recordState, mask, resultWord, resultMeaning, t, te }) {
   const object = objectLine({ effect, proposal, recorded, hostNowName, proposalName, state: recordState, mask, t, te })
-  const change = changeLine({ effect, hostNowName, mask, t, te })
+  // ④ takes its action word from the tool **this row recorded** (see `changeLine`); when the row carries
+  // none, the ledger row's own name stands in.
+  // ④ 的动作词按**这一行记下的工具**取（见 `changeLine`）；台账行自己不带工具时，用副作用行上的名字。
+  const change = changeLine({
+    effect,
+    tool: row?.tool || effect?.toolName || '',
+    hostNowName,
+    mask,
+    t,
+    te,
+  })
   const who = whoLine({ callerName, callerId: callerId ?? row?.userId, t })
   const confirmation = confirmationLine({
     gate: gateFromRow(row),

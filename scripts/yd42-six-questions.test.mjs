@@ -69,7 +69,7 @@ const MESSAGES = {
   'keelbase.sixQ.objectUnrecorded': 'not recorded — this call wrote no record',
   'keelbase.sixQ.objectUnnamed': 'a business object this console has no name for',
   'keelbase.sixQ.changeNone': 'nothing was changed — no write happened',
-  'keelbase.sixQ.changeCreated': 'a new record: it has no before, and the write itself recorded no field values',
+  'keelbase.sixQ.changeNoBefore': 'no before was recorded, and this write itself recorded no field values',
   'keelbase.sixQ.changeBefore': 'Before',
   'keelbase.sixQ.changeAfter': 'After',
   'keelbase.sixQ.changeAfterUnrecorded': 'values the runtime did not record are not filled in here',
@@ -82,6 +82,8 @@ const MESSAGES = {
   'keelbase.record.crm_customer': 'Customer',
   'keelbase.record.follow_up': 'Sample follow-up',
   'keelbase.record.pm_project': 'Project',
+  'keelbase.tool.create_crm_customer': 'Create a customer',
+  'keelbase.tool.escalate_customer': 'Escalate a customer',
 }
 
 const t = (key) => MESSAGES[key] ?? key
@@ -337,6 +339,56 @@ test('the change shows the before it recorded and says what the after lacks', ()
   assert.match(change.text, /Before: Customer name 万\*\*\*\* · Level 3 · Source 8/)
   assert.match(change.text, /Customer name 万\*\*\*\* → 修\*\*\*\*/, 'the changed field is not named')
   assert.match(change.text, /not filled in here/, 'the runtime-missing after is not disclosed')
+})
+
+test('a write with no before names the action the tool declares, not "a new record"', () => {
+  // N5 (2026-11-25): the list called the operation 「升级客户到会审」 while ④ said 「新建」 — the reader
+  // caught it on the spot. An absent before is shared by a create and by an action that writes a *new*
+  // record of another kind (`escalate_customer` writes a follow-up), so the row alone cannot call every
+  // such write a create. The cell takes the action word from the tool's own declared purpose, the same
+  // closed message table the page already prints; a tool with no word gets no invented one.
+  //
+  // N5（2026-11-25）：列表叫「升级客户到会审」，④ 却写「新建」—— 读者当场指出。新建与「写出一条另一种
+  // 记录」的动作（`escalate_customer` 写跟进记录）都没有改前，只看这一行不能把这种写一律叫新建。这一格
+  // 的动作词取自工具自己声明的用途 —— 页面已经在印的那张封闭消息表；工具没有业务词时也不替它编一个。
+  const noBefore = (resultType) => ({
+    resultType,
+    resultId: 1,
+    targetTitle: 'Sample follow-up',
+    beforeSnapshot: null,
+    afterSnapshot: '{"id":1}',
+  })
+  const escalated = six.changeLine({
+    effect: noBefore('follow_up'),
+    tool: 'escalate_customer',
+    hostNowName: 'Sample follow-up',
+    mask,
+    t,
+    te,
+  })
+  assert.match(escalated.text, /^Escalate a customer · no before was recorded/)
+  assert.doesNotMatch(escalated.text, /new record/)
+
+  const created = six.changeLine({
+    effect: noBefore('crm_customer'),
+    tool: 'create_crm_customer',
+    hostNowName: 'Customer name',
+    mask,
+    t,
+    te,
+  })
+  assert.match(created.text, /^Create a customer · no before was recorded/)
+
+  const unknown = six.changeLine({
+    effect: noBefore('follow_up'),
+    tool: 'a_tool_this_console_does_not_name',
+    hostNowName: 'Sample follow-up',
+    mask,
+    t,
+    te,
+  })
+  assert.doesNotMatch(unknown.text, /new record|a_tool_this_console_does_not_name/)
+  assert.match(unknown.text, /^no before was recorded/)
 })
 
 test('a refused write says nothing in the system changed', () => {
