@@ -1,11 +1,11 @@
 # YD-43 · B3 Manual-Flow Comparison Intake & Timing Kit / 人工流程对照采集与计时材料包
 
-> **Status (2026-11-27, read-only output; no values filled; not committed).**
+> **Status (2026-11-27, read-only output; no values filled; committed to this repository on 2026-11-27, see `git log`; not pushed).**
 > Basis: `yd43-frozen-20261117T045650Z.md` (SHA-256 `377f52ea…aa26d9`, byte-identical to `yd43-pack-1117.md`). Where this kit and the frozen copy differ, the frozen copy wins.
 > Instance-layer landing slots: A9 (manual flow), A10 (`T_max`), A11 (count unit), A12 (time zone).
 > This is not the print source for the task cards (print those from the frozen copy §3.1), and it is not a revision of the criteria.
 >
-> **状态（2026-11-27，只读产出；未填任何值；未提交）。**
+> **状态（2026-11-27，只读产出；未填任何值；已于 2026-11-27 入仓，见 `git log`；未推送）。**
 > 依据：`yd43-frozen-20261117T045650Z.md`（SHA-256 `377f52ea…aa26d9`，与 `yd43-pack-1117.md` 逐字节相同）。本件与该冻结件冲突时，以冻结件为准。
 > 实例层落点：A9（人工流程）、A10（`T_max`）、A11（计数口径）、A12（时区）。
 > 本件不是题卡的打印源（题卡只用冻结副本 §3.1 打印），也不是判据的修订件。

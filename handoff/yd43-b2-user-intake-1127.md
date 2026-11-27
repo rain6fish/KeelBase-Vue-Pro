@@ -10,7 +10,7 @@
 >
 > **Sources (read, not modified):** `yd43-frozen-20261117T045650Z.md` §2.2 (who counts / who does not / honest count), §2.3 (entry conditions), §3.1 (card hand-out rule), §6 (record-sheet header and attribute fields); `yd43-instance-template.md` A2, A13, A15; `yd43-instance-ready-1118.md` S2 and B2; the session-header and deviation-column layout of `KeelBase-Private/notes/审计读者/N5-场次记录-2026-11-25.md` (layout only — its reader, data and conclusions are not reused).
 >
-> **Boundary.** Read-only output. No name was filled, no list was invented, no one was contacted. The roadmap, the decision index and the plan documents were not changed. Nothing was committed or pushed.
+> **Boundary.** Written read-only: no name was filled, no list was invented, no one was contacted, and the roadmap, the decision index and the plan documents were not changed. The file was committed to this repository afterwards (2026-11-27, see `git log`); nothing has been pushed.
 >
 > **How to use.** Hand §1 and §2 to whoever on the project side can name the people; keep §3–§6 with the person doing the eligibility check. The filled sheet becomes the input to slot A2; it does not become A2 by itself.
 
@@ -299,7 +299,7 @@ Every print run carries the row of §4.2. A sheet without it is reprinted. The r
 >
 > **依据（只读，未改）：** `yd43-frozen-20261117T045650Z.md` §2.2（谁算 / 谁不算 / 人数如实）、§2.3（进入条件）、§3.1（用户卡发放规则）、§6（记录纸场次头与属性栏）；`yd43-instance-template.md` A2、A13、A15；`yd43-instance-ready-1118.md` 的 S2 与 B2；`KeelBase-Private/notes/审计读者/N5-场次记录-2026-11-25.md` 的场次头与偏差栏版式（**只借版式**——其读者、数据与结论一律不复用）。
 >
-> **边界。** 只读产出。未代填任何姓名，未编造任何名单，未联系任何人。未改 roadmap、决定索引与计划件；未提交、未推送。
+> **边界。** 写作时只读：未代填任何姓名，未编造任何名单，未联系任何人，未改 roadmap、决定索引与计划件。本件其后入仓（2026-11-27，见 `git log`）；尚未推送。
 >
 > **怎么用。** §1、§2 交给项目方里能点出人名的人填；§3–§6 留给做资格核对的人。填好的表是 A2 的输入，它自己不是 A2。
 
