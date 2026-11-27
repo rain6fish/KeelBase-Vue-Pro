@@ -6,13 +6,15 @@
 >
 > **Prepared.** 2026-11-26 (UTC+08), for the 2026-11-28 04:03 CTO weekly.
 >
+> **Updated 2026-11-27** with the 11-26 evening results: the v0.1.21 release, the four-layer review, the W1.4 third window, the App-X guard merge and the CT-4 ruling. Blocks added or corrected on 11-27 are marked "Update (11-27)", "Verified 11-27", "Corrected 11-27", or an italic *(11-27: …)* note. The 11-26 text is kept where it is still the record of what was known then; only lines that are now factually wrong are corrected in place and marked. Full source: `handoff/cto-1128-update-1127.md`.
+>
 > **Boundary.** Read-only. This sheet does not change the packet, the weekly plan, the roadmap, the decision index or the claim table; does not contact anyone; does not commit or push; does not rule for any person. Every "suggested default" is a suggestion, not a ruling. A ruling exists only where a person signs the page.
 >
 > **Quotations.** Chinese source text is translated in this block; the verbatim Chinese wording appears in the Chinese block below. Locations are given for every quotation.
 >
 > **Numbering.** This sheet uses the packet's D1–D5. A separate material for the 2026-11-29 close-out uses a D1–D8 list from a different source; the two lists are not interchangeable. Cite the source whenever a D-number is quoted.
 >
-> **Sources.** `handoff/cto-1128-packet.md` (11-26 12:52); `handoff/n5-verdict-1126.md` (11-26 12:49); `handoff/n5-closeout-1126.md` (11-26); `handoff/v1230-release-plan-1126.md` (11-26, unexecuted); `handoff/w14-ready-1126.md` (11-26 12:33–12:45).
+> **Sources.** `handoff/cto-1128-packet.md` (11-26 12:52); `handoff/n5-verdict-1126.md` (11-26 12:49); `handoff/n5-closeout-1126.md` (11-26); `handoff/v1230-release-plan-1126.md` (11-26, unexecuted); `handoff/w14-ready-1126.md` (11-26 12:33–12:45). Added 11-27: `handoff/cto-1128-update-1127.md`; `handoff/release-v0.1.21-published.md`; `handoff/release-precheck-0.1.21-1126.md`; `handoff/w14-third-outcome-1127.md`.
 
 ### How to use this sheet
 
@@ -22,13 +24,23 @@
 
 ### Index
 
-| ID | Decision | Evidence level | Suggested default (not a ruling) |
-|---|---|---|---|
-| D1 | N5 criterion 5: written ruling on the two "what changed to" cells | E3 ceiling; criterion 4 unproven | Keep the status quo until the scorer signs |
-| D2 | App-X: open a VM window for one real compile before 12-05? | E2 mock; E0 real compile | Keep the documentation-only file to 12-05 |
-| D3 | N9: 12-05 criterion — one `compile` success or one real compile? | E1 | Take the minutes' wording (`compile` success) |
-| D4 | W1.4: if tonight fails, open a "third failure" decision? | No time-to-green reading yet | Keep the status quo; decide on the result at 11-28 |
-| D5 | 4J cross-day bump: deviation record or violation? | E3 | Record as a deviation, with the distinction written |
+| ID | Decision | Evidence level | Suggested default (not a ruling) | Status at 11-27 |
+|---|---|---|---|---|
+| D1 | N5 criterion 5: written ruling on the two "what changed to" cells | E3 ceiling; criterion 4 unproven | Keep the status quo until the scorer signs | **Open, narrowed** — path A recorded in the plan and the claim table; only the signature remains |
+| D2 | App-X: open a VM window for one real compile before 12-05? | E2 mock; E0 real compile | Keep the documentation-only file to 12-05 | **Partly resolved** — guard merged and pushed; real compile still never run; runner state unverified |
+| D3 | N9: 12-05 criterion — one `compile` success or one real compile? | E1 | Take the minutes' wording (`compile` success) | **Open** — and the guard merge makes "success" mean a real marker |
+| D4 | W1.4: if tonight fails, open a "third failure" decision? | No time-to-green reading yet | Keep the status quo; decide on the result at 11-28 | **Open** — the window ran, still no reading; a third shape D4 does not have |
+| D5 | 4J cross-day bump: deviation record or violation? | E3 | Record as a deviation, with the distinction written | **Wording ruled; this instance open** — "record once as a violation" applies to v1.23.0; the 4J bump has no ruling of its own |
+
+**Status at 2026-11-27, in one line each.** D1 narrowed (path A written; signature only). D2 half closed (guard merged and pushed `d939527`; real compile never run; runner unverified). D3 open and stricter (the guard now demands a real success marker). D4 open with a new shape (present, chain green, deliverables never landed). D5: the wording is ruled for the v1.23.0 host-line instance, the 4J cross-day instance is not.
+
+**What changed since this sheet was written (11-27).**
+
+- **v0.1.21 published.** Annotated tag `edb27b1` → `e8e9cad` (= `origin/main` = `gitee/main`); release run `45822868092` success (3m42s); four Maven Central coordinates 200 at 13:30Z, `core` sha256 matching; host pin raised to 0.1.21 in 3 files / 5 places (`5a204b2348`, pushed to both remotes); `release-plan.json` `done=true`. **No Release page**, per the 11-26 ruling and contract commit `eb99d11`.
+- **Four-layer review: WITH FIXES.** 5 blocking findings fixed in 4 commits (`eac046b`, `370f2b2`, `4b5d12e`, `4a0ae35`), 7 suggestions landed, 11 commits in all; `release-gate.sh` 16 pass / 0 fail at `cab30f9`; 52 targeted tests green.
+- **W1.4 third window ran and produced no reading** — see the D4 update.
+- **App-X guard merged and pushed** (`d939527`); the real compile still has never run — see the D2 update.
+- **CT-4 wording ruled "record once as a violation"**; the 4J cross-day instance itself is still open — see the D5 update.
 
 ---
 
@@ -41,6 +53,8 @@
 **Evidence level.** E3 ceiling; no E4. Criteria 1/2/3 have checkable readings, each with a qualification (1: person level not established; 2: file specification established, attribution unproven; 3: readings outside the session window); criterion 4 is not established (no evidence); criterion 5 is pending. The five criteria are not all met.
 
 **Already settled (not reopened).** Path A was selected on 11-26: accept the 11-25 ruling and write the evidence boundary; no re-run (B), no downgrade (C). The §11.3 internal-record wording is for the weekly-plan owner to merge; this sheet does not write it. The nine missing items in closeout §5 are marked "already ruled, not to be filled" and kept on file.
+
+**Update (11-27).** Path A has since been written down: `677acec5` (11-26 23:37:49) put it and the evidence boundary in the N5 row of the weekly plan; `30c1af96` did the same for the claim table. The row now reads, in its own words, tier E3, criterion 4 unsupported, criterion 5's two cells needing a ruling (leaning unmet), and "no external claim of acceptance passed or E4". **Criterion 5 has still not been signed by a scorer.** Separately, the 11-27 nightly (`91252123`, 02:18) re-verified N5 read-only on 4J `main` `62939b9` — three suites 7/7, 3/3, 1/1 and the bilingual gate exit 0 — which re-verifies the code and evidence, not this criterion. **So D1 is now a one-line decision: sign A, B or C.**
 
 **Options.**
 
@@ -64,7 +78,9 @@
 
 **Evidence level.** E2 — mock three cases on two PowerShell versions. Real compile: E0 (not run).
 
-**Unverified.** Real HBuilderX compile not run; guard branch not pushed or merged (main still `cc8b1a3`); VM hung and not power-cycled; runner offline; repository variable 0.
+**Unverified.** Real HBuilderX compile never run. **Corrected 11-27:** the guard branch is no longer unmerged, so the 11-26 line "guard branch not pushed or merged (main still `cc8b1a3`)" is withdrawn. What remains open: the real compile (E0); the VM (last known stuck on the welcome screen, never power-cycled); and the runner / VM state now — **unverified**, because GitHub's API is unreachable from this host (TLS handshake / EOF).
+
+**Update (11-27).** The guard is in: `5983f3b` (07:55), merge `bda11b1` (13:16), then `d939527` (13:21, `ci(compile): run the guard's self-test on every push`). `main` and `origin/main` both read `d939527`, 0 ahead. The script now requires exit 0 **and** a success marker, and the self-test runs on every push — which means CI exercises the mock path each time and still produces no evidence of a real compile. **So D2's remaining question is only the VM window, not the guard.**
 
 **Options.**
 
@@ -74,7 +90,7 @@
 | **B. Open one VM window before 12-05 and run one real compile** | One dated compile attempt, result recorded. | Observable: a compile log or artifact from the VM. If it fails, the premise "mock green implies real green" is falsified and the file must record a red; if it passes, the item "real compile not run" can be closed for that commit (not a general proof). |
 | **C. Defer the choice to the 12-05 review** | No decision now; decide on VM and runner state at the review. | Falsified if the 12-05 review passes without deciding the item. No new reading in the meantime. |
 
-**Suggested default (suggestion, not a ruling).** A — keep the documentation-only file to 12-05. The VM is hung and power-cycling is a separate risk; the mock covers the guard logic; a real compile is a chain check. B is the only way to close the E0 item before 12-05.
+**Suggested default (suggestion, not a ruling).** A — keep the documentation-only file to 12-05. The VM is hung and power-cycling is a separate risk; the mock covers the guard logic; a real compile is a chain check. B is the only way to close the E0 item before 12-05. *(11-27: the VM's hung state is unverified now; if the VM is healthy, B's cost is lower than this line assumed.)*
 
 **Ruling line.** Ruling: ☐ A ☐ B ☐ C | Signed / date: ____________________
 
@@ -88,7 +104,9 @@
 
 **Evidence level.** E1 — the 11-23 reading plus the 11-26 recheck (still offline).
 
-**Unverified.** The runner recovery path has not been drilled (open the VM, then `gh variable set … --body true`).
+**Unverified.** The runner recovery path has not been drilled (open the VM, then `gh variable set … --body true`). *(11-27: the runner's current state is also unverified — GitHub's API is unreachable from this host.)*
+
+**Update (11-27).** No ruling has been made. But the guard merge changed what the options mean: since `d939527`, a dispatched `android-compile` job can only succeed if the CLI printed a real success marker, so **option A ("one `compile` success") and option B ("one real compile") now describe almost the same observation** — the difference is only where the evidence lives (a CI job vs a VM log), not what it proves. The 11-26 warning still holds and is now the whole question: with the runner offline the job cannot be dispatched, so neither A nor B is observable until the VM and runner are back.
 
 **Options.**
 
@@ -110,9 +128,11 @@
 
 **Packet question (translated).** If tonight's window still does not run, should W1.4 get a separate decision as a "third failure"?
 
-**Evidence level.** None for time-to-green — the window has no result yet. The readiness readings are point-in-time checks, not measurements.
+**Evidence level.** None for time-to-green — and still none after the window. **Corrected 11-27:** the window did run; the reading is negative, not absent.
 
-**Unverified.** Whether both rounds complete; whether time-to-green has a reading; whether T0 is valid; whether "turn off display = never" is set by 20:10.
+**Verified 11-27 (the four items left open on 11-26).** Both rounds did not complete — only round 1, tried twice. There is no time-to-green and no T1. The 20:56:52 T0 was voided; a second T0 at 21:29:59 has no T1. "Turn off display = never" was not in effect: the machine entered S0 connected standby at 20:42:01 and again at 21:32:40, the second one 2m33s after the session ended its turn waiting for the author.
+
+**Update (11-27).** Author present, three replies inside the window (20:56:34 "在场，开始", 20:59:10 "写完了", 21:29:31 "重来，我写"). Round 1 ran the whole chain — stack up 20:59:26, build OK 21:01:06 (jar 500,173,081 B / 923 entries), host up 21:01:54 — and the gate went RED at 21:08:04 on `MODULE_NOT_FOUND: …/scripts/run-fms-voucher-scenarios.mjs`. The round checkout had **zero changes**: the five deliverables were never written, so the gate never executed an assertion. Round 1 was voided and restarted at 21:29:59; the session ended its turn at 21:30:07 and nothing more happened before 22:30. P17 also failed: the three v0.1.21 release windows ran concurrently in this window, and one committed three poms in the **main** checkout at 21:30:55–21:31:02 (`5a204b2348`) — it never touched the round checkouts. The formal outcome sheet (`handoff/w14-third-outcome-1127.md`) reaches the same verdict independently: **no reading**. It also names what D4's own options do not have — see the note under the table.
 
 **Options.**
 
@@ -122,11 +142,13 @@
 | **B. Pre-set: a missed or failed window is a "third failure"** | If the author does not answer "present" by 22:30 or the window is missed, open a decision (reschedule / change owner / pause). | Falsified if the trigger occurs and no decision item is created. Also falsified as a fair rule if it labels author absence as a measurement failure — the first two failures were author absence, not technical. |
 | **C. Pre-set, with classification** | Distinguish "window missed" (author absence, non-technical) from "measurement failed" (technical or gate red); only the latter counts as a "third failure". | Observable: the record labels the outcome as "window missed" or "measurement failed" at 22:30. Falsified if the record carries no label, or if the evidence cannot distinguish the two causes. |
 
-**Suggested default (suggestion, not a ruling).** A — keep the status quo. By 11-28 the result is known; a pre-set rule may conflate the two failure types. If the meeting wants a standing rule, C is the more precise form.
+**The 11-26 outcome fits neither B nor C.** It is not "window missed" — the author replied three times inside the window. It is not "measurement failed" in D4's sense — stack, build and host all met their acceptance points, and the gate could not execute. It is a third shape: the window was used, the chain ran, the deliverables never landed. If the meeting adopts a standing rule, it has to add this shape, not only split absence from failure. The outcome sheet's one-sentence decision item is: whether to add the third class and, in the same ruling, fix the fourth window's date, owner, and a start-of-window check that the deliverables have landed.
+
+**Suggested default (suggestion, not a ruling).** A — keep the status quo. By 11-28 the result is known; a pre-set rule may conflate the two failure types. If the meeting wants a standing rule, C is the more precise form. *(11-27: the status quo now means "the third attempt happened and is undefined". A leaves the fourth window's date, owner and landing check undefined with it.)*
 
 **Ruling line.** Ruling: ☐ A ☐ B ☐ C | Signed / date: ____________________
 
-**If not ruled.** If tonight is missed again, 11-28 has no disposal rule; whether to schedule a fourth window has no basis; W1.4 remains unproven and "third attempt" is undefined.
+**If not ruled.** *(11-27: the third attempt has now happened and produced no reading.)* Not ruling leaves "third attempt" undefined, the fourth window unscheduled, and W1.4 unproven — and the new failure shape unrecorded as a category, so the next window repeats the same exposure.
 
 ---
 
@@ -136,7 +158,13 @@
 
 **Evidence level.** E3 — CI readings plus a local build. The local full `release-gate.sh` was not run (it writes `src/migrations/`; the same SHA ran in CI).
 
-**Unverified.** Whether the CT-4 cross-day deviation is separately recorded in the minutes (the 11-24 host CT-4 is already recorded as a VIOLATION; the 11-25 4J case is the cross-day type); the main repo `KeelBase` README matrix's 4J row still shows the old version (outside the 4J task scope; a separate item).
+**Verified 11-27 (both items left open on 11-26).** The CT-4 wording is now ruled: `3b08706b` (11-26 23:38:34) records the **v1.23.0 deviation once as a violation** — nothing rewritten, nothing replayed, the ordering constraint (contract push → consumer bump → consumer push, same day) unchanged. **The ruling names the 11-24 host-line instance; it does not name the 11-25 4J cross-day bump.** The README 4J rows were fixed in `b385fa07` (11-27 00:00:17) and pushed (`KeelBase` is 0 ahead of `origin/main`); they now read released `v0.1.20` / `main` `v1.23.0` — one version behind the newly published `v0.1.21`.
+
+**Update (11-27).** Three facts change the shape of this page.
+
+- **The anchor question is resolved.** The two SHAs in the cross-day note are different commits: `8f9baa75` is the replay-rebuilt pin commit (real time 2026-11-24 19:01:58, gitlink `015f474`) and is the bump that shipped; `2ea7f597` is "follow the release-evidence vector" (11-23 23:53:06 as amended; true 13:33:06) and is the test subject used to demonstrate the reader fix. The note's alternative — "if the latter were the published one, 11-24 would violate both order and day" — does not hold. The reader was fixed (`458447c`, merge `90e670e`) and the v1.23.0 re-read is `exact` on all three times: VIOLATION, tag pushed 19:03:24 after the pin bump 19:01:58.
+- **One wording inconsistency remains in the private repository.** `3abf0d45` (roadmap, 23:35) and `1834446a` (bookkeeping, 23:37) state the v1.23.0 bump time differently — `13:33:06` vs `19:01:58`; the roadmap line conflates the demo commit with the shipped bump. It needs a one-line correction so the meeting quotes the right time.
+- **v0.1.21 shipped** (tag `edb27b1` → `e8e9cad`; run `45822868092` success; four Central coordinates 200; host pin `5a204b2348`), so the 4J line now has a second release after the cross-day bump, and the README row lag is visible.
 
 **Options.**
 
@@ -146,13 +174,15 @@
 | **B. Record as a violation** | A VIOLATION entry, the same treatment as the 11-24 host CT-4. | Observable: the entry exists. Falsified if the entry cannot specify which rule was violated, given that the direction was correct, CI was green and the snapshot had zero changes. |
 | **C. Keep the status quo: no separate record** | Leave the item to the next CT-4 audit. | Observable: the 4J item is absent from the minutes. Falsified if a later audit reconstructs the record and finds no basis; risk of "selective recording". |
 
-**Suggested default (suggestion, not a ruling).** A — record as a deviation, with the distinction from the 11-24 host VIOLATION written in the same line. The direction was correct, CI was green and the snapshot had zero changes. If the minutes cannot state that distinction, B is the fallback.
+**What the 11-26 ruling did and did not settle.** The ruling kept the ordering constraint's same-day clause unchanged and named only the 11-24 host-line instance. Read literally, the same-day clause covers a cross-day bump, so **B is what the existing wording implies for this case**; **A now requires an explicit carve-out** for the cross-day shape, written on the ruling line. The ruling decided neither reading for the 4J instance.
+
+**Suggested default (suggestion, not a ruling).** A — record as a deviation, with the distinction from the 11-24 host VIOLATION written in the same line. The direction was correct, CI was green and the snapshot had zero changes. If the minutes cannot state that distinction, B is the fallback. *(11-27: choosing A now means writing the carve-out sentence; choosing B needs no new wording, only the entry.)*
 
 **Related, not on this sheet.** `v1230-release-plan-1126.md` §6 lists three pending decisions (window time; Release page scope; host pin in the same window). They are not part of D1–D5; this page does not rule on them.
 
 **Ruling line.** Ruling: ☐ A ☐ B ☐ C | Signed / date: ____________________
 
-**If not ruled.** The 4J cross-day bump stays unrecorded; the next CT-4 audit finds it neither deviation nor violation; the v1.23.0 / 4J 0.1.21 release chain proceeds with a blank in the historical account.
+**If not ruled.** The 4J cross-day bump stays unrecorded; the next CT-4 audit finds it neither deviation nor violation; the v1.23.0 / 4J 0.1.21 release chain proceeds with a blank in the historical account. *(11-27: v0.1.21 has now shipped on top of that blank, and the v1.23.0 wording ruling stands beside it — so the gap is now visible under a released version, not only in a plan.)*
 
 ---
 
@@ -208,11 +238,11 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 | ID | Packet question (short) | Page | If not ruled |
 |---|---|---|---|
-| D1 | Two criterion-5 cells as business answers? | D1 | "Passed" and "criterion 5 undetermined" coexist long-term; no external claim. |
-| D2 | Real-compile VM window before 12-05? | D2 | 12-05 review has no fresh compile reading; basis stays E2. |
-| D3 | 12-05 criterion: `compile` success or real compile? | D3 | No agreed criterion; renewal or exit cannot be judged. |
-| D4 | If tonight fails, a "third failure" decision? | D4 | If missed again, no disposal rule; "third attempt" undefined. |
-| D5 | 4J cross-day bump: deviation or violation? | D5 | Stays unrecorded; next audit finds neither; historical account blank. |
+| D1 | Two criterion-5 cells as business answers? | D1 | "Passed" and "criterion 5 undetermined" coexist long-term; no external claim. *(11-27: path A is now written, so the coexistence is explicit.)* |
+| D2 | Real-compile VM window before 12-05? | D2 | 12-05 review has no fresh compile reading; basis stays E2. *(11-27: the guard half is closed; only the VM window remains.)* |
+| D3 | 12-05 criterion: `compile` success or real compile? | D3 | No agreed criterion; renewal or exit cannot be judged. *(11-27: the two options now describe nearly the same observation.)* |
+| D4 | If tonight fails, a "third failure" decision? | D4 | *(11-27: the third attempt happened and produced no reading.)* No disposal rule; the fourth window is unscheduled; the new failure shape is uncategorised. |
+| D5 | 4J cross-day bump: deviation or violation? | D5 | *(11-27: the v1.23.0 wording is ruled as one violation; this instance is not.)* The 4J case stays unrecorded while v0.1.21 ships on top of it. |
 
 ### Sign-off register
 
@@ -229,6 +259,7 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 - It does not change the packet, the weekly plan, the roadmap, the decision index or the claim table.
 - It does not contact anyone, commit, push, start a stack or trigger CI.
 - It does not rule for the scorer or for the CTO; the ruling lines stay blank until a person signs.
+- The 11-27 update blocks record readings and their sources only; they change no ruling and leave every ruling line blank.
 - It does not assert an acceptance conclusion. The forbidden phrases remain forbidden: E4, acceptance passed without qualification, evidence complete, independent reproduction, independent human approval.
 
 ### Sources
@@ -238,6 +269,9 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 - `handoff/n5-closeout-1126.md` — evidence inventory, hashes, missing-item list.
 - `handoff/v1230-release-plan-1126.md` — D5-related release chain, §6 pending decisions.
 - `handoff/w14-ready-1126.md` — D4 readiness readings, blockers, runbook.
+- `handoff/cto-1128-update-1127.md` — the 11-27 addendum these update blocks summarise.
+- `handoff/release-v0.1.21-published.md`, `handoff/release-precheck-0.1.21-1126.md` — v0.1.21 release and four-layer review readings.
+- `handoff/w14-third-outcome-1127.md` — W1.4 outcome, the third-shape classification, the one-sentence decision item.
 
 ---
 
@@ -247,13 +281,15 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 >
 > **成稿。** 2026-11-26（+08），供 2026-11-28 04:03 CTO 周会。
 >
+> **2026-11-27 更新。** 并入 11-26 晚间结果：v0.1.21 发布、四层评审、W1.4 第三次窗口、App-X 守卫合并、CT-4 裁定。11-27 新增或更正的块标「更新（11-27）」「11-27 已核」「11-27 更正」，或用斜体 *（11-27：…）* 注记。11-26 的文字在仍是「当时所知」的记录处保留；只有已与事实不符的句子就地更正并标注。完整出处：`handoff/cto-1128-update-1127.md`。
+>
 > **边界。** 只读。不改 packet、周计划、roadmap、决定索引、认领表；不 contact 任何人；不 commit、不 push；不替任何人下裁定。所有「建议默认值」都标「建议，非裁定」；只有人签在「裁定」行上，才算裁定。
 >
 > **引文。** 中文原文在本块；英文块为译文，逐条给位置。
 >
 > **编号。** 本件沿用 packet 的 D1–D5。另有一份面向 2026-11-29 收口的 D1–D8 清单，来源不同，两套编号不可互换；会上引用 D 编号时须带来源。
 >
-> **单源。** `handoff/cto-1128-packet.md`（11-26 12:52）；`handoff/n5-verdict-1126.md`（11-26 12:49）；`handoff/n5-closeout-1126.md`（11-26）；`handoff/v1230-release-plan-1126.md`（11-26，未执行）；`handoff/w14-ready-1126.md`（11-26 12:33–12:45）。
+> **单源。** `handoff/cto-1128-packet.md`（11-26 12:52）；`handoff/n5-verdict-1126.md`（11-26 12:49）；`handoff/n5-closeout-1126.md`（11-26）；`handoff/v1230-release-plan-1126.md`（11-26，未执行）；`handoff/w14-ready-1126.md`（11-26 12:33–12:45）。11-27 新增：`handoff/cto-1128-update-1127.md`；`handoff/release-v0.1.21-published.md`；`handoff/release-precheck-0.1.21-1126.md`；`handoff/w14-third-outcome-1127.md`。
 
 ### 怎么用
 
@@ -263,13 +299,23 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 ### 索引
 
-| 编号 | 决定 | 证据等级 | 建议默认值（建议，非裁定） |
-|---|---|---|---|
-| D1 | N5 判据 5：「改成什么」两格的书面裁定 | 上限 E3；判据 4 无证 | 维持现状，直到判分人签字 |
-| D2 | App-X：12-05 前是否为真实编译单开 VM 窗口 | E2 mock；真实编译 E0 | 维持文档档至 12-05 |
-| D3 | N9：12-05 判据取一次 `compile` success 还是真实编译 | E1 | 照纪要原文（`compile` success） |
-| D4 | W1.4：今晚再失败是否另立「第三次失败」决定 | 尚无 time-to-green 读数 | 维持现状；11-28 看结果再议 |
-| D5 | 4J 跨日 bump：偏差登记还是违规 | E3 | 按偏差登记，并写明区别 |
+| 编号 | 决定 | 证据等级 | 建议默认值（建议，非裁定） | 11-27 状态 |
+|---|---|---|---|---|
+| D1 | N5 判据 5：「改成什么」两格的书面裁定 | 上限 E3；判据 4 无证 | 维持现状，直到判分人签字 | **仍开，范围收窄** —— 路径 A 已写入周计划与认领表，只剩签字 |
+| D2 | App-X：12-05 前是否为真实编译单开 VM 窗口 | E2 mock；真实编译 E0 | 维持文档档至 12-05 | **部分已解** —— 守卫已并入并推送；真实编译仍未跑；runner 现状未核 |
+| D3 | N9：12-05 判据取一次 `compile` success 还是真实编译 | E1 | 照纪要原文（`compile` success） | **仍开** —— 且守卫合并后「success」要求真实成功标记 |
+| D4 | W1.4：今晚再失败是否另立「第三次失败」决定 | 尚无 time-to-green 读数 | 维持现状；11-28 看结果再议 | **仍开** —— 窗口跑过了、仍无读数；多出 D4 没有的第三种形态 |
+| D5 | 4J 跨日 bump：偏差登记还是违规 | E3 | 按偏差登记，并写明区别 | **口径已裁、本案未裁** ——「记一次违规」针对 v1.23.0；4J 这笔没有自己的裁定 |
+
+**11-27 状态，一句一条。** D1 收窄（路径 A 已写，只差签字）。D2 关一半（守卫已并入并推送 `d939527`；真实编译未跑；runner 未核）。D3 仍开且更严（守卫现在要求真实成功标记）。D4 仍开且多出一种形态（人在、链路绿、交付物没落地）。D5 口径已裁、4J 本案未裁。
+
+**自本件写成后发生了什么（11-27）。**
+
+- **v0.1.21 已发布。** annotated tag `edb27b1` → `e8e9cad`（= `origin/main` = `gitee/main`）；发布 run `45822868092` success（3m42s）；13:30Z 四个 Maven Central 坐标 200，`core` 的 sha256 一致；宿主 pin 抬到 0.1.21，3 文件 5 处（`5a204b2348`，两远端已推）；`release-plan.json` `done=true`。**未建 Release 页**，依据 11-26 裁定与契约仓 `eb99d11`。
+- **四层评审 WITH FIXES。** 5 条阻塞在 4 笔提交内修完（`eac046b`、`370f2b2`、`4b5d12e`、`4a0ae35`），7 条建议落地，共 11 笔；`release-gate.sh` 在 `cab30f9` 上 16 pass / 0 fail；定向测试 52 项全过。
+- **W1.4 第三次窗口跑了、无读数** —— 见 D4 更新。
+- **App-X 守卫已并入并推送**（`d939527`）；真实编译仍未跑 —— 见 D2 更新。
+- **CT-4 口径已裁「记一次违规」**；4J 跨日这一案本身仍开 —— 见 D5 更新。
 
 ---
 
@@ -282,6 +328,8 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 **证据等级。** 上限 E3，无 E4。判据 1/2/3 有可核读数，但各带限定（1 人级不成立；2 文件规格成立、归属无证；3 读数不在场次窗口内）；判据 4 不成立（无证）；判据 5 待裁。五条不全。
 
 **已定，不重开。** 11-26 已选路径 A：接受 11-25 裁定并写明证据边界；不补跑（B）、不降级（C）。§11.3 的对内记录文字由周计划属主决定是否并入 N5 行，本件不代写。closeout §5 的 9 项缺件标「已裁不补」，只留档。
+
+**更新（11-27）。** 路径 A 已经落纸：`677acec5`（11-26 23:37:49）把它与证据边界写进周计划的 N5 行；`30c1af96` 同步进认领表。该行现在自己写明：档位 E3、判据 4 无证、判据 5 两格需裁定（倾向不成立）、不得对外称验收通过或 E4。**判据 5 仍无人签字。** 另外，11-27 夜跑（`91252123`，02:18）在 4J `main` `62939b9` 上只读复核了 N5 —— 三套件 7/7、3/3、1/1、双语门禁 exit 0 —— 那是复核代码与证据，不是本判据。**所以 D1 现在只剩一行决定：签 A、B 或 C。**
 
 **方案与可证伪后果。**
 
@@ -305,7 +353,9 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 **证据等级。** E2 —— mock 三例，两个 PowerShell 版本；真实编译 E0（未跑）。
 
-**未核项。** 真实 HBuilderX 编译未跑；守卫分支未推未合（main 仍 `cc8b1a3`）；VM 卡死未断电源；runner offline；仓库变量 0。
+**未核项。** 真实 HBuilderX 编译未跑。**11-27 更正：**守卫分支已不再「未推未合」，故 11-26 那句「守卫分支未推未合（main 仍 `cc8b1a3`）」撤回。仍开：真实编译（E0）；VM（最后已知卡在「欢迎」、始终未强断）；以及 runner / VM 现状 —— **未核**，本机连不上 GitHub API（TLS 握手 / EOF）。
+
+**更新（11-27）。** 守卫已进主线：`5983f3b`（07:55）、合并 `bda11b1`（13:16）、再到 `d939527`（13:21，`ci(compile): run the guard's self-test on every push`）。`main` 与 `origin/main` 均为 `d939527`，领先 0。脚本现在要求退出码 0 **且** 出现成功标记，自测随每次推送运行 —— 也就意味着 CI 每次只走 mock 路径，仍不产生真实编译的证据。**所以 D2 剩下的问题只有 VM 窗口，不再是守卫。**
 
 **方案与可证伪后果。**
 
@@ -315,7 +365,7 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | **B. 12-05 前开一次 VM 窗口，跑一次真实编译** | 一次带日期的编译尝试，结果入档。 | 可观察：VM 上的编译日志或产物。若失败，则「mock 绿 ⇒ 真实绿」的前提被证伪，维护档须记红；若通过，「真实编译未跑」可在该提交上关闭（不是普遍证明）。 |
 | **C. 把选择推到 12-05 复核** | 现在不裁，复核时按 VM / runner 状态定。 | 若 12-05 复核未就该事项作出决定，即证伪。期间没有新读数。 |
 
-**建议默认值（建议，非裁定）。** A —— 维持文档档至 12-05。VM 当前卡死，强断是另一项风险；mock 已覆盖守卫逻辑；真实编译属链路验证。B 是 12-05 前关掉 E0 一项的唯一办法。
+**建议默认值（建议，非裁定）。** A —— 维持文档档至 12-05。VM 当前卡死，强断是另一项风险；mock 已覆盖守卫逻辑；真实编译属链路验证。B 是 12-05 前关掉 E0 一项的唯一办法。*（11-27：VM 的卡死状态现在未核；若 VM 是健康的，B 的代价低于这一行当初的估计。）*
 
 **裁定行。** 裁定：☐A ☐B ☐C ｜ 签字/日期：____________________
 
@@ -329,7 +379,9 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 **证据等级。** E1 —— 11-23 读数 + 11-26 复核（仍 offline）。
 
-**未核项。** runner 恢复路径未演练（需先开 VM，再 `gh variable set … --body true`）。
+**未核项。** runner 恢复路径未演练（需先开 VM，再 `gh variable set … --body true`）。*（11-27：runner 当前状态也未核 —— 本机连不上 GitHub API。）*
+
+**更新（11-27）。** 判据仍无人裁。但守卫合并改变了选项的含义：自 `d939527` 起，`android-compile` 作业只有 CLI 打出真实成功标记才可能 success，因此**选项 A（「一次 `compile` success」）与选项 B（「一次真实编译」）现在描述几乎同一件事** —— 差别只在证据放在哪（CI 作业 vs VM 日志），不在它证明什么。11-26 的提醒仍然成立，而且现在就是全部问题：runner 离线时作业无法派发，故在 VM 与 runner 恢复之前，A 与 B 都不可观察。
 
 **方案与可证伪后果。**
 
@@ -351,9 +403,11 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 **问题原文（packet §二 D4）。** 「若今晚仍未跑成，W1.4 是否按「第三次仍失败」另立决定？」
 
-**证据等级。** 无 time-to-green 读数 —— 窗口尚无结果。就绪读数是一次性检查，不是测量。
+**证据等级。** 无 time-to-green 读数 —— 窗口之后仍然没有。**11-27 更正：** 窗口确实跑过了；读数是负面的，不是「尚无」。
 
-**未核项。** 两轮是否跑完；time-to-green 是否有读数；T0 是否有效；「关闭显示器=从不」是否已在 20:10 设好。
+**11-27 已核（11-26 列的四个未核项）。** 两轮没有跑完 —— 只有第 1 轮，试了两次。没有 time-to-green、没有 T1。20:56:52 的 T0 已作废；21:29:59 的第二个 T0 没有 T1。「关闭显示器=从不」并未生效：机器在 20:42:01 与 21:32:40 两次进入 S0 连接待机，后者距会话结束回合等作者仅 2 分 33 秒。
+
+**更新（11-27）。** 作者在场，窗口内回了三次话（20:56:34「在场，开始」、20:59:10「写完了」、21:29:31「重来，我写」）。第 1 轮跑完了整条链 —— 20:59:26 起栈、21:01:06 构建通过（jar 500,173,081 字节 / 923 条目）、21:01:54 宿主起来 —— 门禁在 21:08:04 因 `MODULE_NOT_FOUND: …/scripts/run-fms-voucher-scenarios.mjs` 报红。轮检出**零改动**：五处交付物从未写入，门禁连一条断言都没执行。第 1 轮作废，21:29:59 重记 T0；会话 21:30:07 结束回合，到 22:30 再无任何事发生。P17 也不成立：v0.1.21 的三个发布窗口在本窗口内同时在跑，其中一个在 21:30:55–21:31:02 改了**主检出**的三份 pom 并提交（`5a204b2348`）—— 它从未碰轮检出。正式结论件（`handoff/w14-third-outcome-1127.md`）独立得出同一判断：**无读数**。它还点出 D4 自己的选项里没有的东西 —— 见下表之后的说明。
 
 **方案与可证伪后果。**
 
@@ -363,11 +417,13 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | **B. 预设：窗口错过或测量失败都算「第三次失败」** | 若 22:30 前作者未回「在场」或窗口错过，即立决定（改排期 / 换责任人 / 暂停）。 | 若触发条件成立而未生成决定项，即证伪。若把「作者缺席」与「测量失败」混为一谈，作为规则也不成立 —— 前两次失败都是作者缺席，不是技术原因。 |
 | **C. 预设，但分类** | 区分「窗口错过」（作者缺席、非技术）与「测量失败」（技术或门红）；只有后者算「第三次失败」。 | 可观察：22:30 的记录把结果标为「窗口错过」或「测量失败」。若记录没有标签，或证据分不清两种原因，即证伪。 |
 
-**建议默认值（建议，非裁定）。** A —— 维持现状。到 11-28 时结果已知；预设规则可能把两种失败混为一谈。若会上要一条常设规则，C 是更精确的形态。
+**11-26 的结果 B、C 都不贴合。** 不是「窗口错过」—— 作者在窗口内回了三次话。也不是 D4 意义上的「测量失败」—— 起栈、构建、宿主都达到了验收点，门禁根本没机会执行。是第三种形态：窗口被用掉、链路跑通、交付物没落地。若会上要立常设规则，必须补上这一形态，不能只把「缺席」与「失败」分开。结论件给出的一句话决定项是：是否新增第三类，并在同一次裁定里定出第四次窗口的时点、责任人与「交付物是否落地」的开跑前置校验。
+
+**建议默认值（建议，非裁定）。** A —— 维持现状。到 11-28 时结果已知；预设规则可能把两种失败混为一谈。若会上要一条常设规则，C 是更精确的形态。*（11-27：现状现在是「第三次尝试发生了，且没有定义」。选 A 就是把第四次窗口的时点、责任人与落点校验一并留空。）*
 
 **裁定行。** 裁定：☐A ☐B ☐C ｜ 签字/日期：____________________
 
-**若不裁的后果。** 若今晚再次错过，11-28 仍无处置口径；是否排第四次窗口没有依据；W1.4 仍未证，「第三次尝试」也没有定义。
+**若不裁的后果。** *（11-27：第三次尝试已经发生，且没有读数。）* 不裁则「第三次尝试」仍无定义、第四次窗口排不出、W1.4 仍未证 —— 而且新的失败形态不会被记成一个类别，下一窗口会原样重演同一暴露。
 
 ---
 
@@ -377,7 +433,13 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 **证据等级。** E3 —— CI 读数 + 本地构建；本机全量 `release-gate.sh` 未跑（会写 `src/migrations/`；同一 SHA 的 CI 已跑）。
 
-**未核项。** 4J 抬 pin 的 CT-4 跨日偏差是否在纪要里单独登记（11-24 的宿主 CT-4 已记为 VIOLATION；11-25 的 4J 是跨日型）；主仓 `KeelBase` README 矩阵的 4J 行仍写旧版本（不在 4J 任务范围，属单独事项）。
+**11-27 已核（11-26 列的两个未核项）。** CT-4 的口径已裁：`3b08706b`（11-26 23:38:34）把 **v1.23.0 的偏离记一次违规** —— 不改写、不重放，顺序约束（契约推 → 消费方 bump → 消费方推，同日）不变。**该裁定点名的是 11-24 宿主线那一案，没有点名 11-25 的 4J 跨日 bump。** README 的 4J 行已在 `b385fa07`（11-27 00:00:17）修好并推送（`KeelBase` 领先 `origin/main` 0 笔）；现在写的是已发布 `v0.1.20` / `main` `v1.23.0` —— 比刚发布的 `v0.1.21` 落后一个版本。
+
+**更新（11-27）。** 三件事改变了本页的形态。
+
+- **锚点问题已解。** 跨日件里的两个 SHA 是不同提交：`8f9baa75` 是重放重建出来的 pin 提交（真实时刻 2026-11-24 19:01:58，gitlink `015f474`），也是实际发布用的 bump；`2ea7f597` 是「跟随释放证据向量」（amend 后 11-23 23:53:06；真实 13:33:06），是演示读数器修复的对照对象。该件的替代前提 ——「若后者才是发布用的那笔，11-24 就同时违反顺序与同日」—— 不成立。读数器已修（`458447c`，合并 `90e670e`），v1.23.0 复读三段均为 `exact`：VIOLATION，tag 推送 19:03:24 晚于 pin bump 19:01:58。
+- **私库留一处表述不一致。** `3abf0d45`（roadmap，23:35）与 `1834446a`（bookkeeping，23:37）对 v1.23.0 的 bump 时刻写法不同 —— `13:33:06` 与 `19:01:58`；roadmap 那句把对照对象与发布用的 bump 混了。需要一句订正，免得会上引用错时刻。
+- **v0.1.21 已发布**（tag `edb27b1` → `e8e9cad`；run `45822868092` success；Central 四坐标 200；宿主 pin `5a204b2348`），所以 4J 这条线在跨日 bump 之后又多了一个版本，README 的滞后也看得见了。
 
 **方案与可证伪后果。**
 
@@ -387,13 +449,15 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | **B. 按「违规」** | 记一条 VIOLATION，与 11-24 宿主 CT-4 同处理。 | 可观察：该条存在。若该条指不出被违反的是哪条规则（方向对、CI 绿、快照 0 变化），即证伪。 |
 | **C. 维持现状：不单独登记** | 留给下一次 CT-4 审计。 | 可观察：纪要中没有 4J 这一条。若日后审计重建记录时找不到依据，即证伪；风险是「选择性记录」。 |
 
-**建议默认值（建议，非裁定）。** A —— 按偏差登记，并在同一行写明与 11-24 宿主 VIOLATION 的区别。方向对、CI 绿、快照 0 变化。若纪要写不清这一区别，退回 B。
+**11-26 的裁定裁了什么、没裁什么。** 裁定保留了顺序约束的同日条款、只点名 11-24 宿主线那一案。按字面，同日条款覆盖跨日 bump，所以**对本案而言，B 是现有措辞推出的读法**；**选 A 现在需要一条明写的豁免**，写在裁定行上。裁定对 4J 这一案两种读法都没有定。
+
+**建议默认值（建议，非裁定）。** A —— 按偏差登记，并在同一行写明与 11-24 宿主 VIOLATION 的区别。方向对、CI 绿、快照 0 变化。若纪要写不清这一区别，退回 B。*（11-27：选 A 现在意味着要写出那句豁免；选 B 不需要新措辞，只记一条。）*
 
 **关联但不属于本页。** `v1230-release-plan-1126.md` §6 另有三项待决（窗口时间；Release 页范围；宿主 pin 是否同窗），不在 D1–D5 之内，本页不代裁。
 
 **裁定行。** 裁定：☐A ☐B ☐C ｜ 签字/日期：____________________
 
-**若不裁的后果。** 4J 跨日 bump 在纪要中没有记录；下一次 CT-4 审计时，这一条既不是偏差也不是违规；v1.23.0 / 4J 0.1.21 发布链继续推进，历史账目留空。
+**若不裁的后果。** 4J 跨日 bump 在纪要中没有记录；下一次 CT-4 审计时，这一条既不是偏差也不是违规；v1.23.0 / 4J 0.1.21 发布链继续推进，历史账目留空。*（11-27：v0.1.21 已经在这个空白之上发布，v1.23.0 的措辞裁定就立在旁边 —— 缺口现在落在一个已发布版本之下，不再只是在计划里。）*
 
 ---
 
@@ -449,11 +513,11 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 | 编号 | packet 问题（简） | 页 | 若不裁的后果 |
 |---|---|---|---|
-| D1 | 判据 5 两格是否算业务答案 | D1 | 「通过」与「判据 5 未定」长期并存；不能对外声明。 |
-| D2 | 12-05 前是否开 VM 跑真实编译 | D2 | 12-05 无新编译读数；依据停在 E2。 |
-| D3 | 12-05 判据取 `compile` success 还是真实编译 | D3 | 无商定判据；续期或退出无法判定。 |
-| D4 | 今晚再失败是否另立「第三次失败」 | D4 | 若再错过，无处置口径；「第三次尝试」无定义。 |
-| D5 | 4J 跨日 bump 记偏差还是违规 | D5 | 不登记；下次审计两头不靠；历史账目留空。 |
+| D1 | 判据 5 两格是否算业务答案 | D1 | 「通过」与「判据 5 未定」长期并存；不能对外声明。*（11-27：路径 A 已写入，并存关系现在是明写的。）* |
+| D2 | 12-05 前是否开 VM 跑真实编译 | D2 | 12-05 无新编译读数；依据停在 E2。*（11-27：守卫那一半已关，只剩 VM 窗口。）* |
+| D3 | 12-05 判据取 `compile` success 还是真实编译 | D3 | 无商定判据；续期或退出无法判定。*（11-27：两个选项现在描述几乎同一件事。）* |
+| D4 | 今晚再失败是否另立「第三次失败」 | D4 | *（11-27：第三次尝试已发生、无读数。）* 无处置口径；第四次窗口未排；新失败形态未归类。 |
+| D5 | 4J 跨日 bump 记偏差还是违规 | D5 | *（11-27：v1.23.0 口径已裁为记一次违规；本案未裁。）* 4J 这一条不登记，而 v0.1.21 已在它之上发布。 |
 
 ### 签字登记
 
@@ -470,6 +534,7 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 - 不改 packet、周计划、roadmap、决定索引、认领表。
 - 不 contact 任何人，不 commit、不 push，不起栈、不触发 CI。
 - 不替判分人或 CTO 裁定；裁定行在有人签字前保持空白。
+- 11-27 的更新块只记读数与出处，不改任何裁定，所有裁定行保持空白。
 - 不宣称任何验收结论。禁用措辞仍然禁用：E4、验收通过（无条件）、证据齐全、独立复现、独立真人批准。
 
 ### 单源与位置
@@ -479,3 +544,6 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 - `handoff/n5-closeout-1126.md` —— 证据盘点、哈希、缺件清单。
 - `handoff/v1230-release-plan-1126.md` —— D5 相关发布链、§6 待决三项。
 - `handoff/w14-ready-1126.md` —— D4 就绪读数、阻塞项、runbook。
+- `handoff/cto-1128-update-1127.md` —— 这些更新块所概括的 11-27 增补页。
+- `handoff/release-v0.1.21-published.md`、`handoff/release-precheck-0.1.21-1126.md` —— v0.1.21 发布与四层评审读数。
+- `handoff/w14-third-outcome-1127.md` —— W1.4 结论、第三种形态分类、一句话决定项。
