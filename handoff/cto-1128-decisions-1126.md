@@ -31,11 +31,11 @@
 | D3 | N9: 12-05 criterion — one `compile` success or one real compile? | E1 | Take the minutes' wording (`compile` success) | **Open** — and the guard merge makes "success" mean a real marker |
 | D4 | W1.4: if tonight fails, open a "third failure" decision? | No time-to-green reading yet | Keep the status quo; decide on the result at 11-28 | **Open** — the window ran, still no reading; a third shape D4 does not have |
 | D5 | 4J cross-day bump: deviation record or violation? | E3 | Record as a deviation, with the distinction written | **Wording ruled; this instance open** — "record once as a violation" applies to v1.23.0; the 4J bump has no ruling of its own |
-| D6 | N5: hold a second acceptance session? | E3 ceiling; second approver is a seed account | Do not hold one now (B) | **Open** — added 11-27 from the 11-29 close-out list |
+| D6 | N5: hold a second acceptance session? | E3 ceiling; second approver is a seed account | Do not hold one now (B) | **Ruled B (11-27); signature pending** — added 11-27 from the 11-29 close-out list |
 | D7 | CT-4: which "contract push" is the order measured against? | E3 — reader verdicts plus the push record | Keep the literal tag push (A) | **Ruled A (11-27); signature pending** — added 11-27; the ruling is recorded in `handoff/ct4-ruling-options-1127.md` §10, the sheet is not signed |
-| D8 | G5: wire the artifact-contract check now or record the deferral? | Executed readings against live Central (11-27) | Two steps: advisory job now, blocking decision at 12-05 (C) | **Open** — added 11-27; not complete on 11-29 under any option |
+| D8 | G5: wire the artifact-contract check now or record the deferral? | Executed readings against live Central (11-27) | Two steps: advisory job now, blocking decision at 12-05 (C) | **Ruled C (11-27); signature pending** — added 11-27; nothing is wired by the sheet, and G5 is not complete on 11-29 |
 
-**Status at 2026-11-27, in one line each.** D1 narrowed (path A written; signature only). D2 half closed (guard merged and pushed `d939527`; real compile never run; runner unverified). D3 open and stricter (the guard now demands a real success marker). D4 open with a new shape (present, chain green, deliverables never landed). D5: the wording is ruled for the v1.23.0 host-line instance, the 4J cross-day instance is not. D6–D8 open and newly added: a second N5 session is worth only criterion 4; G5 runs green on real bytes but is wired nowhere. D7 is the exception — **the user ruled A on 11-27**, recorded in `handoff/ct4-ruling-options-1127.md` §10; the ruling line and the sign-off register below stay blank because this sheet is not signed.
+**Status at 2026-11-27, in one line each.** D1 narrowed (path A written; signature only). D2 half closed (guard merged and pushed `d939527`; real compile never run; runner unverified). D3 open and stricter (the guard now demands a real success marker). D4 open with a new shape (present, chain green, deliverables never landed). D5: the wording is ruled for the v1.23.0 host-line instance, the 4J cross-day instance is not. D6–D8 were added on 11-27 and **all three are now ruled — D6 B, D7 A, D8 C** — recorded on each page and, for D7, in `handoff/ct4-ruling-options-1127.md` §10. The ruling lines and the sign-off register stay blank because this sheet is not signed. Substance: a second N5 session is worth only criterion 4 and is not held; the CT-4 basis is the release tag push, unchanged; G5 goes advisory-first, with nothing wired by this sheet.
 
 **What changed since this sheet was written (11-27).**
 
@@ -207,6 +207,8 @@
 
 **Suggested default (suggestion, not a ruling).** B — do not hold one now. Switch to A only when a delivery, public or contract use actually needs a zero-help or in-window reading. Prefer C over B only if the 12-05 review is already expected to decide whether such a claim is needed.
 
+**Ruling received (11-27).** The user ruled **B**: no second N5 session now. The E3 boundary written on 11-27 stands and is used for internal purposes only; the session is reopened only when a delivery, public or contract use actually needs a zero-help or in-window reading. Criterion 4 stays unsupported, criteria 2 and 3 stay unattributed, and the ceiling stays E3. **This note records that the decision was made; it does not sign this sheet** — the ruling line and the sign-off register stay blank until a person signs them here.
+
 **Ruling line.** Ruling: ☐ A ☐ B ☐ C | Signed / date: ____________________
 
 **If not ruled.** The item stays open; the record layer keeps "recorded as passed" beside the E3 boundary, which supports no external claim; a second session is neither held nor excluded, and the question returns at the next weekly.
@@ -256,6 +258,8 @@
 | **C. Two steps: advisory now, blocking later** | A non-blocking job now — no CI contract change beyond adding a job; the blocking decision at 12-05 with at least two releases of readings. | Falsified if the advisory job produces readings that nobody reads at 12-05, or if it is promoted to blocking before the manifest-section, error-reporting and inflate-bound defects are fixed. |
 
 **Suggested default (suggestion, not a ruling).** C, falling back to B with the runbook line if the CI change approval is refused. Fix the manifest-section, error-reporting and inflate-bound defects before any promotion to blocking. Under every option G5 is not counted complete on 11-29.
+
+**Ruling received (11-27).** The user ruled **C**: two steps — an advisory, non-blocking job first; the blocking decision at 12-05 on at least two releases of readings; the manifest-section, error-reporting and inflate-bound defects fixed before any promotion to blocking. The ruling fixes the direction only: **this sheet wires nothing**, the job is separate work, and G5 is not counted complete on 11-29. If the CI change approval is refused, B with the runbook line is the fallback. **This note records that the decision was made; it does not sign this sheet.**
 
 **Ruling line.** Ruling: ☐ A ☐ B ☐ C | Signed / date: ____________________
 
@@ -320,9 +324,9 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | D3 | 12-05 criterion: `compile` success or real compile? | D3 | No agreed criterion; renewal or exit cannot be judged. *(11-27: the two options now describe nearly the same observation.)* |
 | D4 | If tonight fails, a "third failure" decision? | D4 | *(11-27: the third attempt happened and produced no reading.)* No disposal rule; the fourth window is unscheduled; the new failure shape is uncategorised. |
 | D5 | 4J cross-day bump: deviation or violation? | D5 | *(11-27: the v1.23.0 wording is ruled as one violation; this instance is not.)* The 4J case stays unrecorded while v0.1.21 ships on top of it. |
-| D6 | Hold a second N5 acceptance session? | D6 | *(11-27, from the 11-29 close-out list.)* The item stays open; "recorded as passed" keeps standing beside the E3 boundary and supports no external claim. |
+| D6 | Hold a second N5 acceptance session? | D6 | *(11-27, from the 11-29 close-out list; the user ruled B on 11-27.)* No second session; "recorded as passed" keeps standing beside the E3 boundary and supports no external claim. |
 | D7 | CT-4: tag push or commit reaching main? | D7 | *(11-27, from the 11-29 close-out list; the user ruled A on 11-27 — see `ct4-ruling-options-1127.md` §10.)* Every audit still reports VIOLATION — under this ruling that is the intended reading, not a defect to fix. |
-| D8 | G5: wire the check or record the deferral? | D8 | *(11-27, from the 11-29 close-out list.)* G5 stays unwired and unrecorded. |
+| D8 | G5: wire the check or record the deferral? | D8 | *(11-27, from the 11-29 close-out list; the user ruled C on 11-27.)* G5 stays unwired until the advisory job is built; the blocking decision falls due at 12-05. |
 
 ### Sign-off register
 
@@ -391,11 +395,11 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | D3 | N9：12-05 判据取一次 `compile` success 还是真实编译 | E1 | 照纪要原文（`compile` success） | **仍开** —— 且守卫合并后「success」要求真实成功标记 |
 | D4 | W1.4：今晚再失败是否另立「第三次失败」决定 | 尚无 time-to-green 读数 | 维持现状；11-28 看结果再议 | **仍开** —— 窗口跑过了、仍无读数；多出 D4 没有的第三种形态 |
 | D5 | 4J 跨日 bump：偏差登记还是违规 | E3 | 按偏差登记，并写明区别 | **口径已裁、本案未裁** ——「记一次违规」针对 v1.23.0；4J 这笔没有自己的裁定 |
-| D6 | N5：是否另办第二场验收 | 上限 E3；第二批准人是种子账号 | 现在不办（B） | **仍开** —— 11-27 从 11-29 收口清单并入 |
+| D6 | N5：是否另办第二场验收 | 上限 E3；第二批准人是种子账号 | 现在不办（B） | **11-27 已裁 B，签字待办** —— 11-27 从 11-29 收口清单并入 |
 | D7 | CT-4：顺序对着哪一次「契约推送」量 | E3 —— 读数器判定加推送侧记录 | 维持字面 tag 推送（A） | **11-27 已裁 A，签字待办** —— 11-27 并入；裁定记在 `handoff/ct4-ruling-options-1127.md` §10，本单未签 |
-| D8 | G5：现在接线还是正式记录后置 | 对 Central 的实跑读数（11-27） | 拆两步：先告警作业，阻塞档 12-05 再定（C） | **仍开** —— 11-27 并入；任何选项下 11-29 都不计完成 |
+| D8 | G5：现在接线还是正式记录后置 | 对 Central 的实跑读数（11-27） | 拆两步：先告警作业，阻塞档 12-05 再定（C） | **11-27 已裁 C，签字待办** —— 11-27 并入；本单不接任何线，11-29 不计完成 |
 
-**11-27 状态，一句一条。** D1 收窄（路径 A 已写，只差签字）。D2 关一半（守卫已并入并推送 `d939527`；真实编译未跑；runner 未核）。D3 仍开且更严（守卫现在要求真实成功标记）。D4 仍开且多出一种形态（人在、链路绿、交付物没落地）。D5 口径已裁、4J 本案未裁。D6–D8 为新增：第二场只值判据 4 一条；G5 在真实字节上跑得绿，却没接进任何地方。D7 是例外 —— **用户已于 11-27 裁定选 A**，记在 `handoff/ct4-ruling-options-1127.md` §10；裁定行与签字登记仍留空，因为本单尚未签字。
+**11-27 状态，一句一条。** D1 收窄（路径 A 已写，只差签字）。D2 关一半（守卫已并入并推送 `d939527`；真实编译未跑；runner 未核）。D3 仍开且更严（守卫现在要求真实成功标记）。D4 仍开且多出一种形态（人在、链路绿、交付物没落地）。D5 口径已裁、4J 本案未裁。D6–D8 于 11-27 并入，**三项现已全部裁定 —— D6 选 B、D7 选 A、D8 选 C** —— 分别记在各页，D7 另记于 `handoff/ct4-ruling-options-1127.md` §10。裁定行与签字登记仍留空，因为本单尚未签字。实质：第二场只值判据 4 且不办；CT-4 基准为发布 tag 推送、规则不动；G5 先走告警档，本单不接任何线。
 
 **自本件写成后发生了什么（11-27）。**
 
@@ -567,6 +571,8 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 
 **建议默认值（建议，非裁定）。** B —— 现在不办。只有当交付、公开或合同用途确实需要「零求助」或「窗口内读数」时才转 A。只有当 12-05 复核本就要决定是否需要这类声明时，C 才优于 B。
 
+**已收裁定（11-27）。** 用户裁定**选 B**：现在不办第二场。11-27 写明的 E3 边界保留、只用于对内；只有当交付、公开或合同用途确实需要「零求助」或「窗口内读数」时才重开。判据 4 仍无证，判据 2、3 仍不可归属，上限仍 E3。**本段只记「决定已作出」，不等于在本单上签字** —— 裁定行与签字登记在有人于本单签字之前保持空白。
+
 **裁定行。** 裁定：☐A ☐B ☐C ｜ 签字/日期：____________________
 
 **若不裁的后果。** 该项继续挂着；记录层仍是「记为通过」，旁边立着 E3 边界，撑不起任何对外声明；第二场既不办也不排除，下一次周会再问一遍。
@@ -616,6 +622,8 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | **C. 拆两步：先告警，后阻塞** | 现在落一条非阻塞作业 —— 除新增作业外不改 CI 契约；阻塞与否到 12-05 凭至少两次发布的读数决定。 | 若告警作业产出了读数而 12-05 没人看，或在清单段落、错误报告、解压上限三条缺陷修好前就升为阻塞档，即证伪。 |
 
 **建议默认值（建议，非裁定）。** C；若 CI 改动批准被拒，退回 B 并加上 runbook 那一条。在升为阻塞档之前，先修清单段落、错误报告与解压上限三条缺陷。无论哪条，11-29 都不把 G5 计入完成。
+
+**已收裁定（11-27）。** 用户裁定**选 C**：拆两步 —— 先落告警（非阻塞）作业；阻塞与否 12-05 凭至少两次发布的读数决定；升为阻塞档之前先修清单段落、错误报告与解压上限三条缺陷。裁定只定方向：**本单不接任何线**，作业是另一件活，11-29 不计 G5 完成。若 CI 改动批准被拒，退回 B 并加上 runbook 那一条。**本段只记「决定已作出」，不等于在本单上签字。**
 
 **裁定行。** 裁定：☐A ☐B ☐C ｜ 签字/日期：____________________
 
@@ -680,9 +688,9 @@ The two rules conflict on this cell. The verdict's own inclination is "not estab
 | D3 | 12-05 判据取 `compile` success 还是真实编译 | D3 | 无商定判据；续期或退出无法判定。*（11-27：两个选项现在描述几乎同一件事。）* |
 | D4 | 今晚再失败是否另立「第三次失败」 | D4 | *（11-27：第三次尝试已发生、无读数。）* 无处置口径；第四次窗口未排；新失败形态未归类。 |
 | D5 | 4J 跨日 bump 记偏差还是违规 | D5 | *（11-27：v1.23.0 口径已裁为记一次违规；本案未裁。）* 4J 这一条不登记，而 v0.1.21 已在它之上发布。 |
-| D6 | 是否另办第二场 N5 验收 | D6 | *（11-27，来自 11-29 收口清单。）* 该项继续挂着；「记为通过」仍与 E3 边界并列，撑不起对外声明。 |
+| D6 | 是否另办第二场 N5 验收 | D6 | *（11-27，来自 11-29 收口清单；用户已于 11-27 裁定选 B。）* 不办第二场；「记为通过」仍与 E3 边界并列，撑不起对外声明。 |
 | D7 | CT-4：对 tag 推送还是对提交到达 main 量 | D7 | *（11-27，来自 11-29 收口清单；用户已于 11-27 裁定选 A，见 `ct4-ruling-options-1127.md` §10。）* 每条审计仍会报 VIOLATION —— 在本裁定下这是预期读数，不是待修缺陷。 |
-| D8 | G5：接线还是正式记录后置 | D8 | *（11-27，来自 11-29 收口清单。）* G5 仍未接线、也未登记。 |
+| D8 | G5：接线还是正式记录后置 | D8 | *（11-27，来自 11-29 收口清单；用户已于 11-27 裁定选 C。）* 告警作业建好之前 G5 仍未接线；阻塞与否 12-05 到期决定。 |
 
 ### 签字登记
 

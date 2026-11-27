@@ -369,4 +369,18 @@ Ruling: ☐ A ☐ B ☐ C | Signed / date: ______
 
 ---
 
-*Read-only decision material for the 2026-11-28 CTO weekly. No plan file, roadmap, decision sheet, decision index or claim table was changed; nothing was committed or pushed; N5 was not re-run; no ruling was made. — 供 2026-11-28 CTO 周会使用的只读决策材料；未改计划件 / roadmap / 决策单 / 决定索引 / 认领表，未提交、未推送，未重跑 N5，未作任何裁定。*
+---
+
+## Ruling received (2026-11-27) / 已收裁定（2026-11-27）
+
+**English**
+
+The user ruled **B**: no second N5 acceptance session now. The E3 boundary written on 11-27 stands and is used for internal purposes only; the session is reopened only when a delivery, public or contract use actually needs a zero-help or in-window reading. Criterion 4 stays unsupported, criteria 2 and 3 stay unattributable, and the ceiling stays E3 — criterion 5 and criterion 1's person level were never in a session's reach. Recorded in `handoff/cto-1128-decisions-1126.md` D6; that sheet's ruling line stays blank because it is not signed.
+
+**中文**
+
+用户裁定**选 B**：现在不办第二场 N5 验收。11-27 写明的 E3 边界保留、只用于对内；只有当交付、公开或合同用途确实需要「零求助」或「窗口内读数」时才重开。判据 4 仍无证，判据 2、3 仍不可归属，上限仍 E3 —— 判据 5 与判据 1 的人级本来就不在场次射程内。记录见 `handoff/cto-1128-decisions-1126.md` D6；该单的裁定行仍空，因为尚未签字。
+
+---
+
+*Originally read-only decision material for the 2026-11-28 CTO weekly; the section above records the 2026-11-27 ruling received after it was written. — 本件原为只读决策材料；上节记录的是写成之后于 2026-11-27 收到的裁定。*

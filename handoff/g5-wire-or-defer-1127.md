@@ -270,4 +270,20 @@ Why not A: a blocking post-publish check cannot prevent anything (Central is imm
 
 ---
 
-*Read-only material for the 2026-11-28 CTO weekly. No repository, workflow, `package.json`, decision index or plan was changed; nothing was committed, pushed or triggered; G5 is not wired and is not counted complete on 11-29 under any option. — 供 2026-11-28 CTO 周会使用的只读材料；未改任何仓、工作流、`package.json`、决定索引或计划，未提交、未推送、未触发 CI；G5 未接线，任何选项下 11-29 都不计入完成。*
+---
+
+## Ruling received (2026-11-27) / 已收裁定（2026-11-27）
+
+**English**
+
+The user ruled **C**: two steps — an advisory, non-blocking CI job first; the blocking decision at 12-05 on at least two releases of readings; the manifest-section, error-reporting and inflate-bound defects fixed before any promotion to blocking. The ruling fixes the direction only — **it wires nothing**, and G5 is not counted complete on 11-29. If the CI change approval is refused, B with the runbook line is the fallback. Recorded in `handoff/cto-1128-decisions-1126.md` D8; that sheet's ruling line stays blank because it is not signed.
+
+**中文**
+
+用户裁定**选 C**：拆两步 —— 先落一条告警（非阻塞）的 CI 作业；阻塞与否到 12-05 凭至少两次发布的读数决定；升为阻塞档之前先修清单段落、错误报告与解压上限三条缺陷。裁定只定方向 —— **它不接任何线**，11-29 不计 G5 完成。若 CI 改动批准被拒，退回 B 并加 runbook 那一条。记录见 `handoff/cto-1128-decisions-1126.md` D8；该单的裁定行仍空，因为尚未签字。
+
+**D8 裁定后的下一步（未做，另立）。** 告警作业本身还没建：加一条跑 `check-artifact-contract.mjs` 的非阻塞 job，指向已发布的 Central 坐标。本裁定没有授权也不包含这次改动。
+
+---
+
+*Originally read-only material for the 2026-11-28 CTO weekly; the section above records the 2026-11-27 ruling received after it was written. No repository, workflow, `package.json`, decision index or plan was changed; nothing was committed, pushed or triggered; G5 is not wired and is not counted complete on 11-29. — 本件原为只读材料；上节记录的是写成之后于 2026-11-27 收到的裁定。未改任何仓、工作流、`package.json`、决定索引或计划，未提交、未推送、未触发 CI；G5 未接线，11-29 不计完成。*
