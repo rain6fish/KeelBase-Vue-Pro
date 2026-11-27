@@ -342,11 +342,12 @@ test('the change shows the before it recorded and says what the after lacks', ()
 })
 
 test('a write with no before names the action the tool declares, not "a new record"', () => {
-  // N5 (2026-11-25): the list called the operation 「升级客户到会审」 while ④ said 「新建」 — the reader
-  // caught it on the spot. An absent before is shared by a create and by an action that writes a *new*
-  // record of another kind (`escalate_customer` writes a follow-up), so the row alone cannot call every
-  // such write a create. The cell takes the action word from the tool's own declared purpose, the same
-  // closed message table the page already prints; a tool with no word gets no invented one.
+  // N5 (2026-11-25): the list called the operation "Escalate a customer to a review" while the change
+  // cell said "a new record" — the reader caught it on the spot. An absent before is shared by a create
+  // and by an action that writes a *new* record of another kind (`escalate_customer` writes a
+  // follow-up), so the row alone cannot call every such write a create. The cell takes the action word
+  // from the tool's own declared purpose, the same closed message table the page already prints; a tool
+  // with no word gets no invented one.
   //
   // N5（2026-11-25）：列表叫「升级客户到会审」，④ 却写「新建」—— 读者当场指出。新建与「写出一条另一种
   // 记录」的动作（`escalate_customer` 写跟进记录）都没有改前，只看这一行不能把这种写一律叫新建。这一格
