@@ -118,7 +118,7 @@ const MESSAGES = {
   'keelbase.sixQ.objectUnrecorded': '未记录 —— 这次调用没有写下任何记录',
   'keelbase.sixQ.objectUnnamed': '本控制台没有给它名字的业务对象',
   'keelbase.sixQ.changeNone': '没有改动 —— 这次写入没有发生',
-  'keelbase.sixQ.changeCreated': '新建：没有改前，而这次写本身也没有记下字段值',
+  'keelbase.sixQ.changeNoBefore': '没有改前，而这次写本身也没有记下字段值',
   'keelbase.sixQ.changeBefore': '改前',
   'keelbase.sixQ.changeAfter': '改后',
   'keelbase.sixQ.changeAfterUnrecorded': '运行时没有记下的值，这里不替它补',
@@ -145,6 +145,13 @@ const MESSAGES = {
   'keelbase.record.infra_file': '文件',
   'keelbase.record.fms_voucher': '凭证',
   'keelbase.record.system_notice': '通知公告',
+  // ④'s action word comes from the tool's own declared purpose (the console's `keelbase.tool.*` table);
+  // only the two write tools this script's snapshots carry are mirrored, and a tool outside it falls back
+  // to the "no before was recorded" sentence — saying less, not inventing a word.
+  // ④ 的动作词取自工具自己声明的用途（与控制台同一张 `keelbase.tool.*` 表）；只收本脚本快照里出现过的
+  // 两个写工具，表外的工具落到「没有改前……」那句 —— 少说一句，不编一个词。
+  'keelbase.tool.create_crm_customer': '新建客户',
+  'keelbase.tool.escalate_customer': '升级客户到会审',
   'keelbase.record.system_notify_message': '站内消息',
   'keelbase.record.products': '商品',
   'keelbase.record.ai1_mcp': 'MCP 连接',
