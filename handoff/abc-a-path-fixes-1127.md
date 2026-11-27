@@ -73,6 +73,8 @@ The comment gate is the private repository's `scripts/check-bilingual-order.mjs`
 
 **Why not done here.** The task limits this session to the confirmed testable defect and to diagnosis for the rest. The Java half cannot be verified without a Maven build and a real stack; shipping an unverified annotation would trade one blank cell for an unproven one.
 
+**Decision (2026-11-27, user).** Left for a session that has a built stack; this line does not schedule it. The known gap stands until then.
+
 ## 3. Not fixed — "related, not linked" and the one zone-less time
 
 **3.1 The correlation is by design, not a missing key.** The runtime side effect and YuDao's `system_operate_log` row share the object id (runtime `resultId` = YuDao `bizId`) and the time, but no operation id: every `traceId` in that table is empty, and the AI-caused row carried no user before the operator seam. The page says this out loud — `effects.relatedLabel` = 「相关」 and `audit.exportNote` = 「相关、非硬链接…」 (`0002-governance-ui.patch:94` / `:924`, `:227` / `:1057`) — and the code comment at `governanceApi.ts:551-570` states why. R4's criterion (object / time / who) is a correlation test, and it passes on that basis. A hard link would require writing a shared correlation id into the host's own log (a host service / `@LogRecord` change, possibly a contract field) — explicitly outside A-2's stop condition. Treat "related" as the settled reading and keep it as a stated limit, not a defect to close in this line.
@@ -152,6 +154,8 @@ change: 升级客户到会审 · 没有改前，而这次写本身也没有记�
 **建议修复范围（本次未做）。** 两小件一起做、并在构建出的栈上验证：（a）给 `getOperateLog` 补 `@TransMethodResult`，与 `/page` 同形；（b）把 `0008`（或一份同级补丁）扩到详情组件 —— 名字在上账号在下、走同一份名录，时间走 `zonedTime`。两件都只是文案/注解，不碰宿主业务表、不碰契约字段。在那之前，按已知缺口记录，读者面对比优先用控制台第二入口面板。
 
 **本次不做的理由。** 任务限定本会话只修已确认、可测试的那一条，其余只诊断。Java 那一半没有 Maven 构建与真栈就验不了；交一个没验证过的注解，只是把一处空白换成另一处没证过的空白。
+
+**决定（2026-11-27，用户）。** 留到有构建出的栈的会话再做；本线不排期。在此之前按已知缺口记录。
 
 ## 3. 未修 —— 只「相关」不硬链接，以及一处不带偏移的时间
 
