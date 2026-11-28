@@ -806,7 +806,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      # Maven 缓存按**作业**分键。`setup-java` 的 Maven 缓存键只由 `**/pom.xml` 的哈希决定，所有作业共用
+      # 同一个键：先结束的作业先占住它（`generator` 只编译 `keelbase-codegen` 一个模块，占下来的缓存约
+      # 10 MB），重作业于是抢不到、只能从 Central 现拉整条 reactor —— 2026-11-27 那笔 429 的红就出在这里。
+      # `restore-keys` 仍让一个作业先从上一次的任意缓存起跑，但保存只写自己的键，不会再把别人的键占掉。
+      #
+      # The Maven cache is keyed per **job**. `setup-java`'s Maven key is decided by the `**/pom.xml` hash
+      # alone and is shared by every job: the first to finish claims it (`generator` compiles one module,
+      # leaving a ~10 MB cache), so a heavy job loses the race and pulls the whole reactor from Central
+      # again — the 429 red on 2026-11-27 came from exactly that. `restore-keys` still lets a job start
+      # from any earlier cache, but a save only ever writes its own key and can no longer take another's.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-${{ github.job }}-
+            maven-${{ runner.os }}-
       # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
       # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
       # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
@@ -933,7 +949,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      # Maven 缓存按**作业**分键。`setup-java` 的 Maven 缓存键只由 `**/pom.xml` 的哈希决定，所有作业共用
+      # 同一个键：先结束的作业先占住它（`generator` 只编译 `keelbase-codegen` 一个模块，占下来的缓存约
+      # 10 MB），重作业于是抢不到、只能从 Central 现拉整条 reactor —— 2026-11-27 那笔 429 的红就出在这里。
+      # `restore-keys` 仍让一个作业先从上一次的任意缓存起跑，但保存只写自己的键，不会再把别人的键占掉。
+      #
+      # The Maven cache is keyed per **job**. `setup-java`'s Maven key is decided by the `**/pom.xml` hash
+      # alone and is shared by every job: the first to finish claims it (`generator` compiles one module,
+      # leaving a ~10 MB cache), so a heavy job loses the race and pulls the whole reactor from Central
+      # again — the 429 red on 2026-11-27 came from exactly that. `restore-keys` still lets a job start
+      # from any earlier cache, but a save only ever writes its own key and can no longer take another's.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-${{ github.job }}-
+            maven-${{ runner.os }}-
       # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
       # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
       # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
@@ -1007,7 +1039,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      # Maven 缓存按**作业**分键。`setup-java` 的 Maven 缓存键只由 `**/pom.xml` 的哈希决定，所有作业共用
+      # 同一个键：先结束的作业先占住它（`generator` 只编译 `keelbase-codegen` 一个模块，占下来的缓存约
+      # 10 MB），重作业于是抢不到、只能从 Central 现拉整条 reactor —— 2026-11-27 那笔 429 的红就出在这里。
+      # `restore-keys` 仍让一个作业先从上一次的任意缓存起跑，但保存只写自己的键，不会再把别人的键占掉。
+      #
+      # The Maven cache is keyed per **job**. `setup-java`'s Maven key is decided by the `**/pom.xml` hash
+      # alone and is shared by every job: the first to finish claims it (`generator` compiles one module,
+      # leaving a ~10 MB cache), so a heavy job loses the race and pulls the whole reactor from Central
+      # again — the 429 red on 2026-11-27 came from exactly that. `restore-keys` still lets a job start
+      # from any earlier cache, but a save only ever writes its own key and can no longer take another's.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-${{ github.job }}-
+            maven-${{ runner.os }}-
       # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
       # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
       # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
@@ -1267,7 +1315,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      # Maven 缓存按**作业**分键。`setup-java` 的 Maven 缓存键只由 `**/pom.xml` 的哈希决定，所有作业共用
+      # 同一个键：先结束的作业先占住它（`generator` 只编译 `keelbase-codegen` 一个模块，占下来的缓存约
+      # 10 MB），重作业于是抢不到、只能从 Central 现拉整条 reactor —— 2026-11-27 那笔 429 的红就出在这里。
+      # `restore-keys` 仍让一个作业先从上一次的任意缓存起跑，但保存只写自己的键，不会再把别人的键占掉。
+      #
+      # The Maven cache is keyed per **job**. `setup-java`'s Maven key is decided by the `**/pom.xml` hash
+      # alone and is shared by every job: the first to finish claims it (`generator` compiles one module,
+      # leaving a ~10 MB cache), so a heavy job loses the race and pulls the whole reactor from Central
+      # again — the 429 red on 2026-11-27 came from exactly that. `restore-keys` still lets a job start
+      # from any earlier cache, but a save only ever writes its own key and can no longer take another's.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-${{ github.job }}-
+            maven-${{ runner.os }}-
       # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
       # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
       # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
@@ -1276,13 +1340,13 @@ jobs:
 
       # 门禁脚本自己会调 Maven（投影那一半在同一次运行里跑同仓测试），故这几个旋钮交给 `GITHUB_ENV` 而不是
       # 每一步重复：宿主的 JDK 是 runner 上那份 25，Maven 用 PATH 上的，仓库用 Maven 默认的 `~/.m2/repository`
-      # （也就是 `setup-java` 缓存的那一个），并显式**不**离线 —— 冷 runner 上 `-o` 会在缺件时直接失败。
+      # （也就是本作业 `actions/cache` 缓存的那一个），并显式**不**离线 —— 冷 runner 上 `-o` 会在缺件时直接失败。
       #
       # The gate scripts invoke Maven themselves (the projection half runs this repo's tests inside the same
       # invocation), so these knobs go through `GITHUB_ENV` rather than repeating them per step: the host JDK
       # is the runner's own 25, Maven is the one on `PATH`, the repository is Maven's default
-      # `~/.m2/repository` (the one `setup-java` caches), and offline mode is explicitly **off** — `-o`
-      # on a cold runner fails outright when something is missing.
+      # `~/.m2/repository` (the one this job's `actions/cache` step restores), and offline mode is
+      # explicitly **off** — `-o` on a cold runner fails outright when something is missing.
       - name: Point the gate scripts at the runner's JDK and Maven
         run: |
           set -euo pipefail

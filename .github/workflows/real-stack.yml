@@ -95,7 +95,23 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-          cache: maven
+      # Maven 缓存按**作业**分键。`setup-java` 的 Maven 缓存键只由 `**/pom.xml` 的哈希决定，所有作业共用
+      # 同一个键：先结束的作业先占住它（`ci.yml` 的 `generator` 只编译一个模块，占下来的缓存约 10 MB），
+      # 重作业于是抢不到、只能从 Central 现拉整条 reactor —— 2026-11-27 那笔 429 的红就出在这里。
+      # `restore-keys` 仍让这作业先从上一次的任意缓存起跑，但保存只写自己的键。
+      #
+      # The Maven cache is keyed per **job**. `setup-java`'s Maven key is decided by the `**/pom.xml` hash
+      # alone and is shared by every job: the first to finish claims it (`ci.yml`'s `generator` compiles one
+      # module, leaving a ~10 MB cache), so a heavy job loses the race and pulls the whole reactor from
+      # Central again — the 429 red on 2026-11-27 came from exactly that. `restore-keys` still lets this
+      # job start from an earlier cache, but a save only ever writes its own key.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ github.job }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-${{ github.job }}-
+            maven-${{ runner.os }}-
       # 钉住构建号下限：JSSE 两个 CVE 的修复构建是 25.0.5+8；`java-version: '25'` 只钉大版本，构建号低于它时这里会红。
       # 用「不低于」而不是相等：更新的已修构建不该被这道闸误红。
       # Floor the build number: 25.0.5+8 carries both JSSE CVE fixes; `java-version: '25'` pins only the major, so a lower build turns red here. A floor, not equality, so a newer fixed build is not failed by mistake.
@@ -173,14 +189,16 @@ jobs:
           -pl yudao-server -am -DskipTests package 2>&1 | tee build.log
 
       # 门禁以 `-o` 跑 `mvn ... test`，而 `-DskipTests` 只编译测试、不解析 surefire 的 provider。
-      # pin 一变 pom 就变，setup-java 的 maven 缓存键随之失效；冷库里那一件缺着，测试进程根本起不来，
-      # 报告缺失又被门禁读成「未通过」。这一步在线跑同一个测试类一次，把 provider 解析进本作业用的本地库。
+      # pin 一变 pom 就变，本作业的 maven 缓存键（含 `**/pom.xml` 的哈希）随之失效；冷库里那一件缺着，
+      # 测试进程根本起不来，报告缺失又被门禁读成「未通过」。这一步在线跑同一个测试类一次，
+      # 把 provider 解析进本作业用的本地库。
       #
       # The gates run `mvn ... test` with `-o`, but `-DskipTests` only compiles the tests and never
-      # resolves surefire's provider. A pin bump changes the pom, which rotates setup-java's maven
-      # cache key; on the cold repository that artifact is absent, the test process cannot start at
-      # all, and the missing reports are read as "not passing". This step runs one test class online
-      # so the provider lands in the same local repository this job builds against.
+      # resolves surefire's provider. A pin bump changes the pom, which rotates this job's maven
+      # cache key (it carries the `**/pom.xml` hash); on the cold repository that artifact is absent,
+      # the test process cannot start at all, and the missing reports are read as "not passing". This
+      # step runs one test class online so the provider lands in the same local repository this job
+      # builds against.
       - name: Warm the offline test provider
         timeout-minutes: 10
         run: >-
