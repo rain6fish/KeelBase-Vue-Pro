@@ -1301,11 +1301,35 @@ jobs:
       # gates' own Maven calls re-walk `-pl yudao-server -am test`, compiling sibling modules from the
       # reactor rather than resolving what this step installed. `-DskipTests` still compiles test sources,
       # so the projection tests' dependencies are fetched here.
+      # 上游 Maven Central 按共享出口限流：2026-11-27T11:24Z 这一作业解析 `maven-surefire-plugin:3.5.3`
+      # 的 pom 时拿到 429（`main` 上那一笔红），同一次运行的另外两个 Maven 作业没有。429 的意思是
+      # 「稍后再试」，而这步**不跑任何测试**（`-DskipTests`），故按退避重跑整条构建，至多三次。
+      # 只有**传输级**失败才重试（下面那串标记）；编译错误、断言失败之类一次就停，原样退出。
+      # 门禁没有任何一步重试，也没有任何一处断言被放松 —— 三次都失败，这一步照样是红的。
+      #
+      # Upstream Maven Central rate-limits shared egress: at 2026-11-27T11:24Z this job got a 429 while
+      # resolving `maven-surefire-plugin:3.5.3`'s pom (the red on `main`); the run's other two Maven jobs
+      # did not. A 429 means "try again later", and this step **runs no test** (`-DskipTests`), so the
+      # build is re-run with backoff, at most three times. Only **transfer-level** failures retry (the
+      # markers below); a compile error or a failed assertion stops at the first attempt and exits as it
+      # is. No gate step is ever retried and no assertion is relaxed — three failures still turn this red.
       - name: Build the host
         timeout-minutes: 30
-        run: >-
-          KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp
-          -pl yudao-server -am -DskipTests package
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3; do
+            echo "build attempt $attempt/3"
+            KEELBASE_JDK25="$JAVA_HOME" bash scripts/jdk25.sh mvn -B -ntp -pl yudao-server -am -DskipTests package 2>&1 | tee "build-attempt-$attempt.log"
+            rc=$?
+            [ "$rc" -eq 0 ] && exit 0
+            echo "build attempt $attempt/3 exited $rc"
+            if ! grep -Eq 'status code: 429|Could not transfer artifact|Could not resolve|Connection reset|Read timed out' "build-attempt-$attempt.log"; then
+              echo "attempt $attempt failed for a reason that is not a transfer failure; not retrying"
+              exit "$rc"
+            fi
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 30))
+          done
+          exit "$rc"
 
       # 种子清单把 `bpm` 与 `fms` 两份建表 SQL 标成 `skip`（本部署不展示 bpm 菜单、`fms` 更不在部署 jar 的清单
       # 里），而这两组门禁要的正是**真表**：BPM 的三条接缝读写 Flowable 自己的表，FMS 的四条读接缝读写
@@ -1470,4 +1494,5 @@ jobs:
           path: |
             gates/
             host.log
+            build-attempt-*.log
           if-no-files-found: warn
